@@ -1,0 +1,12 @@
+# ignore everything in this virtualenv-root folder by default
+*
+
+# keep git metadata files trackable
+!.gitignore
+
+# track research engine code
+!engine/
+!engine/**
+
+# track the main execution notebook
+!0315 windows이사.ipynb
