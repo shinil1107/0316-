@@ -6,7 +6,7 @@
 
 # track research engine code
 !engine/
-!engine/**
+!engine/*.py
 
 # track the main execution notebook
 !0315 windows이사.ipynb
