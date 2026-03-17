@@ -37,22 +37,11 @@ def _load_historical_sp500_constituent_events(cfg: Any, force_refresh: bool = Fa
             pass
 
     # 2) API에서 새로 다운로드
-    # 우선순위: cfg.fmp_api_key / cfg.fmp_apikey > 환경변수 FMP_API_KEY / FMP_APIKEY
-    api_key = (
-        getattr(cfg, "fmp_api_key", None)
-        or getattr(cfg, "fmp_apikey", None)
-        or os.environ.get("FMP_API_KEY")
-        or os.environ.get("FMP_APIKEY")
-    )
+    api_key = getattr(cfg, "fmp_api_key", None) or getattr(cfg, "fmp_apikey", None)
     if not api_key:
-        raise RuntimeError(
-            "Config.fmp_api_key (또는 fmp_apikey) 또는 환경변수 FMP_API_KEY / FMP_APIKEY 가 설정되어야 합니다."
-        )
+        raise RuntimeError("Config에 FMP API 키가 없습니다. (fmp_api_key 또는 fmp_apikey)")
 
-    # FMP 정책 변경으로 legacy v4 endpoint는 신규/일반 계정에서 403이 발생하므로
-    # stable historical S&P500 constituent 엔드포인트를 사용한다.
-    # 문서: https://site.financialmodelingprep.com/developer/docs/historical-sp-500-companies-api
-    base_url = "https://financialmodelingprep.com/stable/historical-sp500-constituent"
+    base_url = "https://financialmodelingprep.com/api/v4/historical/sp500_constituent"
 
     try:
         resp = requests.get(base_url, params={"apikey": api_key}, timeout=60)
@@ -412,10 +401,45 @@ def _build_panel_dataframe(
     return df_panel, df_timing, ok, fail, dup_drop_total
 
 
+def _resolve_input_ticker_universe(ctx: Any, cfg: Any, ttl_days: int = 7) -> Tuple[List[str], str]:
+    if hasattr(ctx, "resolve_input_ticker_universe"):
+        return ctx.resolve_input_ticker_universe(cfg, ttl_days=ttl_days)
+
+    current_tickers, source = ctx.load_sp500_tickers_ttl(cfg, ttl_days=ttl_days)
+    current_syms = sorted(set(str(s).strip().upper() for s in current_tickers if str(s).strip()))
+
+    if not bool(getattr(cfg, "enable_historical_universe", False)):
+        return current_syms, source
+    if not bool(getattr(cfg, "historical_universe_expand_tickers", True)):
+        return current_syms, source
+
+    try:
+        events = _load_historical_sp500_constituent_events(cfg, force_refresh=False)
+        hist_syms = set()
+        for col in ("symbol", "removedTicker", "removed_ticker", "ticker"):
+            if col not in events.columns:
+                continue
+            for v in events[col].tolist():
+                s = str(v).strip().upper()
+                if s and s not in ("NAN", "NONE", "NULL"):
+                    hist_syms.add(s)
+    except Exception as e:
+        print(f"[HistUniverse][WARN] historical event load failed -> fallback current universe: {e}")
+        return current_syms, f"{source}+HIST_FALLBACK"
+
+    if not hist_syms:
+        print("[HistUniverse][WARN] no historical symbols resolved -> fallback current universe")
+        return current_syms, f"{source}+HIST_EMPTY"
+
+    merged = sorted(set(current_syms).union(hist_syms))
+    added = len(set(merged) - set(current_syms))
+    return merged, f"{source}+HIST_EVENTS(add={added})"
+
+
 def prepare_inputs(ctx: Any, cfg: Any) -> Dict[str, Any]:
     _setup_pipeline_environment(ctx, cfg)
 
-    tickers, source = ctx.load_sp500_tickers_ttl(cfg, ttl_days=7)
+    tickers, source = _resolve_input_ticker_universe(ctx, cfg, ttl_days=7)
     start = cfg.start_panel_date
     end = cfg.end_date
     end_eff = end - timedelta(days=1) if str(cfg.ohlcv_policy).upper() == "UP_TO_D1" else end
