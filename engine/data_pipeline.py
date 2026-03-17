@@ -8,7 +8,112 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import requests
 from tqdm import tqdm
+
+
+def _load_historical_sp500_constituent_events(cfg: Any, force_refresh: bool = False) -> pd.DataFrame:
+    """
+    Load FMP historical S&P500 constituent events with a parquet cache.
+
+    Cache path (Mac/Windows compatible):
+        {cfg.fmp_cache_root}/universe/sp500_constituent_events.parquet
+    """
+    if not hasattr(cfg, "fmp_cache_root"):
+        raise RuntimeError("Config에 fmp_cache_root 속성이 없습니다.")
+
+    universe_dir = os.path.join(cfg.fmp_cache_root, "universe")
+    cache_path = os.path.join(universe_dir, "sp500_constituent_events.parquet")
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+
+    # 1) 캐시 우선 사용 (force_refresh가 아닌 경우)
+    if not force_refresh and os.path.exists(cache_path):
+        try:
+            df_cached = pd.read_parquet(cache_path)
+            if isinstance(df_cached, pd.DataFrame) and not df_cached.empty:
+                return df_cached
+        except Exception:
+            # 캐시가 깨졌으면 조용히 무시하고 새로 다운로드
+            pass
+
+    # 2) API에서 새로 다운로드
+    api_key = getattr(cfg, "fmp_api_key", None) or getattr(cfg, "fmp_apikey", None)
+    if not api_key:
+        raise RuntimeError("Config에 FMP API 키가 없습니다. (fmp_api_key 또는 fmp_apikey)")
+
+    base_url = "https://financialmodelingprep.com/api/v4/historical/sp500_constituent"
+
+    try:
+        resp = requests.get(base_url, params={"apikey": api_key}, timeout=60)
+    except Exception as e:
+        raise RuntimeError(f"FMP historical S&P500 constituent 요청 실패: {type(e).__name__}: {e}") from e
+
+    try:
+        resp.raise_for_status()
+    except Exception as e:
+        # 응답 바디 앞부분을 함께 포함
+        text_head = (resp.text or "")[:500]
+        raise RuntimeError(
+            f"FMP historical S&P500 constituent HTTP 오류: {type(e).__name__}: {e} "
+            f"status={resp.status_code} body_head={text_head!r}"
+        ) from e
+
+    payload = resp.json()
+
+    # 3) 응답 검증
+    if isinstance(payload, dict):
+        msg = payload.get("Error") or payload.get("error") or str(payload)
+        raise RuntimeError(f"FMP historical S&P500 constituent API 에러 응답: {msg}")
+    if not isinstance(payload, list):
+        raise RuntimeError(
+            f"FMP historical S&P500 constituent 응답 타입이 list가 아닙니다: {type(payload)}"
+        )
+
+    rows: list[dict[str, Any]] = []
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+
+        symbol_raw = row.get("symbol") or row.get("Symbol")
+        action_raw = row.get("action") or row.get("Action")
+        date_raw = (
+            row.get("date")
+            or row.get("dateAdded")
+            or row.get("dateRemoved")
+            or row.get("Date")
+        )
+
+        symbol = str(symbol_raw or "").strip().upper()
+        action = str(action_raw or "").strip().upper()
+        if not symbol or not action or not date_raw:
+            continue
+
+        dt = pd.to_datetime(date_raw, errors="coerce")
+        if pd.isna(dt):
+            continue
+        # tz-aware 이면 tz-naive 로 변환
+        if getattr(dt, "tzinfo", None) is not None:
+            dt = dt.tz_localize(None)
+
+        rows.append(
+            {
+                "symbol": symbol,
+                "action": action,
+                "date": dt,
+                "source": "FMP_V4_HIST_SP500_CONST",
+            }
+        )
+
+    if not rows:
+        raise RuntimeError("FMP historical S&P500 constituent 이벤트를 한 건도 받지 못했습니다.")
+
+    df = pd.DataFrame(rows)
+    df = df.sort_values("date").reset_index(drop=True)
+
+    # 4) 캐시로 저장
+    df.to_parquet(cache_path, index=False)
+
+    return df
 
 
 def _setup_pipeline_environment(ctx: Any, cfg: Any) -> None:
