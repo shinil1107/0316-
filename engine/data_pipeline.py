@@ -37,11 +37,22 @@ def _load_historical_sp500_constituent_events(cfg: Any, force_refresh: bool = Fa
             pass
 
     # 2) API에서 새로 다운로드
-    api_key = getattr(cfg, "fmp_api_key", None) or getattr(cfg, "fmp_apikey", None)
+    # 우선순위: cfg.fmp_api_key / cfg.fmp_apikey > 환경변수 FMP_API_KEY / FMP_APIKEY
+    api_key = (
+        getattr(cfg, "fmp_api_key", None)
+        or getattr(cfg, "fmp_apikey", None)
+        or os.environ.get("FMP_API_KEY")
+        or os.environ.get("FMP_APIKEY")
+    )
     if not api_key:
-        raise RuntimeError("Config에 FMP API 키가 없습니다. (fmp_api_key 또는 fmp_apikey)")
+        raise RuntimeError(
+            "Config.fmp_api_key (또는 fmp_apikey) 또는 환경변수 FMP_API_KEY / FMP_APIKEY 가 설정되어야 합니다."
+        )
 
-    base_url = "https://financialmodelingprep.com/api/v4/historical/sp500_constituent"
+    # FMP 정책 변경으로 legacy v4 endpoint는 신규/일반 계정에서 403이 발생하므로
+    # stable historical S&P500 constituent 엔드포인트를 사용한다.
+    # 문서: https://site.financialmodelingprep.com/developer/docs/historical-sp-500-companies-api
+    base_url = "https://financialmodelingprep.com/stable/historical-sp500-constituent"
 
     try:
         resp = requests.get(base_url, params={"apikey": api_key}, timeout=60)
