@@ -505,4 +505,6 @@ def prepare_inputs(ctx: Any, cfg: Any) -> Dict[str, Any]:
         "data_quality_summary_df": quality_tables.get("summary_df", pd.DataFrame()),
         "factor_coverage_df": quality_tables.get("factor_coverage_df", pd.DataFrame()),
         "data_quality_sample_df": quality_tables.get("sample_df", pd.DataFrame()),
+        "historical_universe_debug_summary_df": quality_tables.get("historical_universe_debug_summary_df", pd.DataFrame()),
+        "historical_universe_yearly_df": quality_tables.get("historical_universe_yearly_df", pd.DataFrame()),
     }

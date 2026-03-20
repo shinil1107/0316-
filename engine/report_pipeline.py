@@ -22,6 +22,8 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
     data_quality_summary_df = prepared_inputs.get("data_quality_summary_df", pd.DataFrame())
     factor_coverage_df = prepared_inputs.get("factor_coverage_df", pd.DataFrame())
     data_quality_sample_df = prepared_inputs.get("data_quality_sample_df", pd.DataFrame())
+    historical_universe_debug_summary_df = prepared_inputs.get("historical_universe_debug_summary_df", pd.DataFrame())
+    historical_universe_yearly_df = prepared_inputs.get("historical_universe_yearly_df", pd.DataFrame())
 
     final_cfg = search_bundle["final_cfg"]
     best_mask = search_bundle["best_mask"]
@@ -156,7 +158,13 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         ctx.print_investability_console(best_invest_tbl)
 
     if bool(getattr(final_cfg, "log_data_quality_report", False)):
-        ctx.print_data_quality_console_summary(data_quality_summary_df, factor_coverage_df, data_quality_sample_df)
+        ctx.print_data_quality_console_summary(
+            data_quality_summary_df,
+            factor_coverage_df,
+            data_quality_sample_df,
+            historical_universe_debug_summary_df,
+            historical_universe_yearly_df,
+        )
 
     selected_factor_detail_df = ctx.build_selected_factor_detail_df(best_mask, best_wb, best_ws, best_wd)
     selected_completeness_tables = ctx.build_selected_factor_completeness_tables(pack, final_cfg, best_mask, regime_by_date=regime_by_date)
@@ -224,6 +232,8 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         data_quality_summary_df=data_quality_summary_df,
         factor_coverage_df=factor_coverage_df,
         data_quality_sample_df=data_quality_sample_df,
+        historical_universe_debug_summary_df=historical_universe_debug_summary_df,
+        historical_universe_yearly_df=historical_universe_yearly_df,
         selected_completeness_summary_df=selected_completeness_summary_df,
         selected_completeness_sample_df=selected_completeness_sample_df,
     )
@@ -261,6 +271,8 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             data_quality_summary_df=data_quality_summary_df,
             data_quality_sample_df=data_quality_sample_df,
             factor_coverage_df=factor_coverage_df,
+            historical_universe_debug_summary_df=historical_universe_debug_summary_df,
+            historical_universe_yearly_df=historical_universe_yearly_df,
             selected_completeness_summary_df=selected_completeness_summary_df,
             selected_completeness_sample_df=selected_completeness_sample_df,
         )
