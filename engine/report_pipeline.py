@@ -5,7 +5,10 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict
 
+import numpy as np
 import pandas as pd
+
+from .data_trust_layer import build_daily_trust_kpi, build_trust_summary_reports
 
 
 def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dict[str, Any]) -> str:
@@ -131,6 +134,58 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         if final_cfg.write_today_portfolio:
             ctx.print_today_portfolio_console(today_portfolio, final_cfg)
 
+    daily_trust_df = build_daily_trust_kpi(pack, final_cfg)
+    trust_summary_df, trust_dist_df, trust_yearly_df, trust_perf_split_df, trust_score_df = build_trust_summary_reports(
+        daily_trust_df=daily_trust_df,
+        best_ts_df=best_ts_df,
+        portfolio_ts=portfolio_ts,
+    )
+    if not daily_trust_df.empty:
+        print("\n[Data Trust Daily KPI | Tail]")
+        print(daily_trust_df.tail(12).to_string(index=False))
+    if not trust_summary_df.empty:
+        print("\n[Data Trust Summary]")
+        print(trust_summary_df.to_string(index=False))
+    if not trust_dist_df.empty:
+        print("\n[Data Trust Distribution]")
+        print(trust_dist_df.to_string(index=False))
+    if not trust_yearly_df.empty:
+        print("\n[Data Trust Yearly]")
+        print(trust_yearly_df.to_string(index=False))
+    if not trust_perf_split_df.empty:
+        print("\n[Performance vs Coverage Split]")
+        print(trust_perf_split_df.to_string(index=False))
+    if not trust_score_df.empty:
+        print("\n[Data Trust Score]")
+        print(trust_score_df.to_string(index=False))
+
+    if trust_summary_df is not None and not trust_summary_df.empty:
+        add_rows = []
+        for _, r in trust_summary_df.iterrows():
+            add_rows.append(
+                {
+                    "Metric": f"Trust::{r.get('Metric', '')}",
+                    "Current": r.get("Value", np.nan),
+                    "Target": np.nan,
+                    "AchievementPct": np.nan,
+                    "Pass": "CHECK",
+                }
+            )
+        if trust_score_df is not None and not trust_score_df.empty:
+            ts_row = trust_score_df.loc[trust_score_df["Metric"] == "TrustScore"]
+            if not ts_row.empty:
+                add_rows.append(
+                    {
+                        "Metric": "Trust::TrustScore",
+                        "Current": float(pd.to_numeric(ts_row["Value"], errors="coerce").iloc[0]),
+                        "Target": 85.0,
+                        "AchievementPct": np.nan,
+                        "Pass": str(ts_row["Grade"].iloc[0]),
+                    }
+                )
+        if add_rows:
+            data_quality_summary_df = pd.concat([data_quality_summary_df, pd.DataFrame(add_rows)], ignore_index=True)
+
     regime_summary = pd.DataFrame()
     regime_ts_out = pd.DataFrame()
     if final_cfg.enable_regime_diag and regime_ts is not None and not regime_ts.empty:
@@ -237,6 +292,18 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         selected_completeness_summary_df=selected_completeness_summary_df,
         selected_completeness_sample_df=selected_completeness_sample_df,
     )
+
+    # Append trust-specific sheets for v6.1 observability.
+    try:
+        with pd.ExcelWriter(save_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as w:
+            (daily_trust_df if daily_trust_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_Daily", index=False)
+            (trust_summary_df if trust_summary_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_Summary", index=False)
+            (trust_dist_df if trust_dist_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_Dist", index=False)
+            (trust_yearly_df if trust_yearly_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_Yearly", index=False)
+            (trust_perf_split_df if trust_perf_split_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_PerfSplit", index=False)
+            (trust_score_df if trust_score_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_Score", index=False)
+    except Exception as e:
+        print(f"[DataTrust][WARN] failed to append trust sheets: {type(e).__name__}: {e}")
     excel_sec = float(time.perf_counter() - excel_t0)
 
     piot_meta_log_path = ""
@@ -276,6 +343,23 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             selected_completeness_summary_df=selected_completeness_summary_df,
             selected_completeness_sample_df=selected_completeness_sample_df,
         )
+        trust_lines = []
+        trust_lines.append("")
+        trust_lines.append("[Data Trust Summary]")
+        trust_lines.append((trust_summary_df if trust_summary_df is not None else pd.DataFrame()).to_string(index=False) if trust_summary_df is not None and not trust_summary_df.empty else "(empty)")
+        trust_lines.append("")
+        trust_lines.append("[Data Trust Distribution]")
+        trust_lines.append((trust_dist_df if trust_dist_df is not None else pd.DataFrame()).to_string(index=False) if trust_dist_df is not None and not trust_dist_df.empty else "(empty)")
+        trust_lines.append("")
+        trust_lines.append("[Data Trust Yearly]")
+        trust_lines.append((trust_yearly_df if trust_yearly_df is not None else pd.DataFrame()).to_string(index=False) if trust_yearly_df is not None and not trust_yearly_df.empty else "(empty)")
+        trust_lines.append("")
+        trust_lines.append("[Performance vs Coverage Split]")
+        trust_lines.append((trust_perf_split_df if trust_perf_split_df is not None else pd.DataFrame()).to_string(index=False) if trust_perf_split_df is not None and not trust_perf_split_df.empty else "(empty)")
+        trust_lines.append("")
+        trust_lines.append("[Data Trust Score]")
+        trust_lines.append((trust_score_df if trust_score_df is not None else pd.DataFrame()).to_string(index=False) if trust_score_df is not None and not trust_score_df.empty else "(empty)")
+        result_log_text = result_log_text + "\n" + "\n".join(trust_lines)
         piot_result_log_path = ctx.write_text_log_file(final_cfg.save_dir, final_cfg.piot_result_log_prefix, result_log_text)
 
     if piot_meta_log_path:

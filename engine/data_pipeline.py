@@ -11,6 +11,8 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
+from .cache_fallback import try_cache_fallback_for_failed_tickers
+
 
 def _load_historical_sp500_constituent_events(cfg: Any, force_refresh: bool = False) -> pd.DataFrame:
     """
@@ -389,6 +391,39 @@ def _build_panel_dataframe(
 
     df_timing = pd.DataFrame(timing_rows)
     print(f"[Panel] OK={ok} FAIL={fail} dup_drop_total={dup_drop_total}")
+
+    # Fallback: if some tickers failed due to missing cache, try one-time download + retry.
+    if fail > 0 and bool(getattr(cfg, "enable_panel_cache_fallback_download", True)):
+        fb = try_cache_fallback_for_failed_tickers(ctx, cfg, df_timing, cfg.start_panel_date, cfg.end_date)
+        if fb.get("requested", 0) > 0:
+            print(
+                "[Panel Fallback] "
+                f"requested={fb.get('requested', 0)} "
+                f"cached={fb.get('success', 0)} "
+                f"failed={fb.get('failed', 0)}"
+            )
+            for tkr in fb.get("tickers", []):
+                try:
+                    panel, tt, dup_dropped = ctx.process_ticker_panel_for_qresearch(
+                        tkr, cfg.start_panel_date, cfg.end_date, cfg
+                    )
+                    timing_rows.append(tt)
+                    dup_drop_total += int(dup_dropped)
+                    if tt.get("Status") == "OK" and panel is not None and not panel.empty:
+                        panels.append(panel)
+                        ok += 1
+                        fail = max(0, fail - 1)
+                except Exception as e:
+                    timing_rows.append(
+                        {
+                            "Ticker": tkr,
+                            "Status": "FAIL",
+                            "Reason": f"FallbackRetry:{type(e).__name__}:{e}",
+                            "ElapsedSec": np.nan,
+                            "Rows": 0,
+                        }
+                    )
+            df_timing = pd.DataFrame(timing_rows)
 
     if not panels:
         if "Reason" in df_timing.columns and not df_timing.empty:
