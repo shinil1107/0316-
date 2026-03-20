@@ -40,6 +40,9 @@ def build_daily_trust_kpi(pack: Dict[str, Any], cfg: Any) -> pd.DataFrame:
     cov_vs_raw = np.where(raw_cnt > 0, final_cnt / np.maximum(raw_cnt, 1), np.nan).astype(np.float64)
     cov_vs_500 = (final_cnt / 500.0).astype(np.float64)
 
+    price_tradable = np.asarray(pack.get("price_tradable_mask", np.zeros_like(final, dtype=bool)), dtype=bool)
+    price_tradable_cnt = np.sum(price_tradable, axis=1).astype(np.int64) if price_tradable.shape == final.shape else np.full((D,), -1, dtype=np.int64)
+
     repair_mode = str(getattr(cfg, "historical_universe_repair_mode", "OFF")).upper().strip()
     if repair_mode == "OFF":
         repair_dep = np.zeros((D,), dtype=np.float64)
@@ -53,15 +56,31 @@ def build_daily_trust_kpi(pack: Dict[str, Any], cfg: Any) -> pd.DataFrame:
     thr_500 = THR_COV_500_WARN
     low_flag = ((cov_vs_raw < thr_raw) | (cov_vs_500 < thr_500)).astype(bool)
 
+    years = pd.to_datetime(pd.Index(dates), errors="coerce").year.to_numpy()
+    reason = np.full((D,), "HIGH", dtype=object)
+    for i in range(D):
+        if not bool(low_flag[i]):
+            continue
+        if final_cnt[i] <= 0 and raw_cnt[i] > 0:
+            reason[i] = "LOW_TAIL_ZERO"
+        elif np.isfinite(years[i]) and int(years[i]) <= 2016:
+            reason[i] = "LOW_EARLY_HISTORY"
+        elif cov_vs_500[i] < THR_COV_500_WARN:
+            reason[i] = "LOW_VS_500"
+        else:
+            reason[i] = "LOW_VS_RAW"
+
     return pd.DataFrame(
         {
             "Date": pd.to_datetime(pd.Index(dates), errors="coerce").strftime("%Y-%m-%d"),
             "raw_membership_count": raw_cnt,
             "final_universe_count": final_cnt,
+            "price_tradable_count": price_tradable_cnt,
             "coverage_ratio_vs_raw": cov_vs_raw,
             "coverage_ratio_vs_500": cov_vs_500,
             "repair_dependency_ratio": repair_dep,
             "low_coverage_flag": low_flag,
+            "low_coverage_reason": reason,
         }
     )
 
@@ -165,8 +184,8 @@ def build_trust_summary_reports(
     ts = best_ts_df.copy() if best_ts_df is not None else pd.DataFrame()
     if not ts.empty and "Date" in ts.columns:
         ts["Date"] = pd.to_datetime(ts["Date"], errors="coerce")
-        merged = ts.merge(d[["Date", "low_coverage_flag"]], on="Date", how="left")
-        merged["coverage_bucket"] = np.where(merged["low_coverage_flag"].fillna(False), "LOW", "HIGH")
+        merged = ts.merge(d[["Date", "low_coverage_flag", "low_coverage_reason"]], on="Date", how="left")
+        merged["coverage_bucket"] = np.where(merged["low_coverage_flag"].fillna(False), merged["low_coverage_reason"].fillna("LOW"), "HIGH")
         perf = (
             merged.groupby("coverage_bucket", dropna=False)
             .agg(
@@ -180,8 +199,8 @@ def build_trust_summary_reports(
         if portfolio_ts is not None and not portfolio_ts.empty and "Date" in portfolio_ts.columns:
             p = portfolio_ts.copy()
             p["Date"] = pd.to_datetime(p["Date"], errors="coerce")
-            p2 = p.merge(d[["Date", "low_coverage_flag"]], on="Date", how="left")
-            p2["coverage_bucket"] = np.where(p2["low_coverage_flag"].fillna(False), "LOW", "HIGH")
+            p2 = p.merge(d[["Date", "low_coverage_flag", "low_coverage_reason"]], on="Date", how="left")
+            p2["coverage_bucket"] = np.where(p2["low_coverage_flag"].fillna(False), p2["low_coverage_reason"].fillna("LOW"), "HIGH")
             p_agg = (
                 p2.groupby("coverage_bucket", dropna=False)
                 .agg(
@@ -211,7 +230,7 @@ def build_trust_summary_reports(
     split_sub = 1.0
     if perf is not None and not perf.empty and "coverage_bucket" in perf.columns:
         hi = perf.loc[perf["coverage_bucket"] == "HIGH"]
-        lo = perf.loc[perf["coverage_bucket"] == "LOW"]
+        lo = perf.loc[perf["coverage_bucket"] != "HIGH"]
         if not hi.empty and not lo.empty:
             hi_ic = float(pd.to_numeric(hi["Mean_IC_1M"], errors="coerce").iloc[0])
             lo_ic = float(pd.to_numeric(lo["Mean_IC_1M"], errors="coerce").iloc[0])
