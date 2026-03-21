@@ -11,6 +11,23 @@ import pandas as pd
 from .data_trust_layer import build_daily_trust_kpi, build_trust_summary_reports
 
 
+def _build_trust_bundle(ctx: Any, pack: dict, final_cfg: Any, best_ts_df: pd.DataFrame, portfolio_ts: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+    daily_trust_df = build_daily_trust_kpi(pack, final_cfg)
+    trust_summary_df, trust_dist_df, trust_yearly_df, trust_perf_split_df, trust_score_df = build_trust_summary_reports(
+        daily_trust_df=daily_trust_df,
+        best_ts_df=best_ts_df,
+        portfolio_ts=portfolio_ts,
+    )
+    return {
+        "daily_trust_df": daily_trust_df,
+        "trust_summary_df": trust_summary_df,
+        "trust_dist_df": trust_dist_df,
+        "trust_yearly_df": trust_yearly_df,
+        "trust_perf_split_df": trust_perf_split_df,
+        "trust_score_df": trust_score_df,
+    }
+
+
 def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dict[str, Any]) -> str:
     pack = prepared_inputs["pack"]
     regime_ts = prepared_inputs["regime_ts"]
@@ -81,15 +98,20 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         )
 
     if bool(final_cfg.write_live_today_top10):
-        live_today_top10 = ctx.build_live_today_top10(
-            pack=pack,
-            mask=best_mask,
-            w_bull=best_wb,
-            w_side=best_ws,
-            w_def=best_wd,
-            cfg=final_cfg,
-            regime_by_date=regime_by_date,
-        )
+        # Live today top10 is currently the same snapshot logic as today top10.
+        # Reuse the computed result when available to avoid duplicate scoring work.
+        if today_top10 is not None and not today_top10.empty:
+            live_today_top10 = today_top10.copy()
+        else:
+            live_today_top10 = ctx.build_live_today_top10(
+                pack=pack,
+                mask=best_mask,
+                w_bull=best_wb,
+                w_side=best_ws,
+                w_def=best_wd,
+                cfg=final_cfg,
+                regime_by_date=regime_by_date,
+            )
         ctx.print_live_today_top10_console(live_today_top10)
 
     portfolio_ts = pd.DataFrame()
@@ -110,6 +132,8 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             regime_by_date=regime_by_date,
         )
         backtest_last_portfolio = today_portfolio.copy() if today_portfolio is not None else pd.DataFrame()
+        # Prefer the dedicated live portfolio path, but keep the top10 fallback
+        # so the report still has a usable live snapshot when that path is empty.
         live_today_portfolio = ctx.build_live_today_portfolio(
             pack=pack,
             cfg=final_cfg,
@@ -175,12 +199,13 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         print("\n[Live Recommendation Separation]")
         print(live_reco_diag_df.to_string(index=False))
 
-    daily_trust_df = build_daily_trust_kpi(pack, final_cfg)
-    trust_summary_df, trust_dist_df, trust_yearly_df, trust_perf_split_df, trust_score_df = build_trust_summary_reports(
-        daily_trust_df=daily_trust_df,
-        best_ts_df=best_ts_df,
-        portfolio_ts=portfolio_ts,
-    )
+    trust_bundle = _build_trust_bundle(ctx, pack, final_cfg, best_ts_df, portfolio_ts)
+    daily_trust_df = trust_bundle["daily_trust_df"]
+    trust_summary_df = trust_bundle["trust_summary_df"]
+    trust_dist_df = trust_bundle["trust_dist_df"]
+    trust_yearly_df = trust_bundle["trust_yearly_df"]
+    trust_perf_split_df = trust_bundle["trust_perf_split_df"]
+    trust_score_df = trust_bundle["trust_score_df"]
     if not daily_trust_df.empty:
         print("\n[Data Trust Daily KPI | Tail]")
         print(daily_trust_df.tail(12).to_string(index=False))
@@ -282,7 +307,7 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
     meta = dict(asdict(final_cfg))
     meta.update(
         {
-            "Version": "v4.12 QResearch (outer-loop hyperparameter search + inner-loop GA/stability + portfolio + piot logs)",
+            "Version": "v6.4 QResearch (outer-loop hyperparameter search + inner-loop GA/stability + portfolio + piot logs)",
             "Ticker Source": source,
             "Run Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Panel OK": ok,
@@ -407,11 +432,11 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         trust_lines.append("[Live Recommendation Separation]")
         trust_lines.append((live_reco_diag_df if live_reco_diag_df is not None else pd.DataFrame()).to_string(index=False) if live_reco_diag_df is not None and not live_reco_diag_df.empty else "(empty)")
         trust_lines.append("")
-        trust_lines.append("[Backtest Last Portfolio]")
-        trust_lines.append((backtest_last_portfolio if backtest_last_portfolio is not None else pd.DataFrame()).to_string(index=False) if backtest_last_portfolio is not None and not backtest_last_portfolio.empty else "(empty)")
-        trust_lines.append("")
         trust_lines.append("[Live Recommendation Portfolio]")
-        trust_lines.append((live_reco_portfolio if live_reco_portfolio is not None else pd.DataFrame()).to_string(index=False) if live_reco_portfolio is not None and not live_reco_portfolio.empty else "(empty)")
+        if live_reco_portfolio is not None and not live_reco_portfolio.empty:
+            trust_lines.append(live_reco_portfolio.to_string(index=False))
+        else:
+            trust_lines.append("(empty)")
         result_log_text = result_log_text + "\n" + "\n".join(trust_lines)
         piot_result_log_path = ctx.write_text_log_file(final_cfg.save_dir, final_cfg.piot_result_log_prefix, result_log_text)
 

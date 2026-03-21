@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import asdict, is_dataclass
 from typing import Any, Dict
 
 import numpy as np
@@ -60,8 +61,23 @@ def evaluate_reliability_layer(pack: Dict[str, Any], portfolio_ts: pd.DataFrame,
         ),
     ]
 
+    def _serialize_check(check: Any) -> Dict[str, Any]:
+        if check is None:
+            return {
+                "name": "UNKNOWN",
+                "status": "WARN",
+                "value": np.nan,
+                "threshold": np.nan,
+                "message": "Missing reliability check result.",
+            }
+        if is_dataclass(check):
+            return asdict(check)
+        if hasattr(check, "__dict__"):
+            return dict(vars(check))
+        return {"value": str(check)}
+
     return {
-        "summary_status": "PASS" if all(c.status == "PASS" for c in checks) else "WARN",
-        "checks": [c.__dict__ for c in checks],
+        "summary_status": "PASS" if all(c is not None and c.status == "PASS" for c in checks) else "WARN",
+        "checks": [_serialize_check(c) for c in checks],
     }
 
