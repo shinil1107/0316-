@@ -95,6 +95,9 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
     portfolio_ts = pd.DataFrame()
     portfolio_report = pd.DataFrame()
     today_portfolio = pd.DataFrame()
+    backtest_last_portfolio = pd.DataFrame()
+    live_reco_portfolio = pd.DataFrame()
+    live_reco_diag_df = pd.DataFrame()
 
     if final_cfg.enable_portfolio_construction:
         portfolio_ts, today_portfolio = ctx.build_portfolio_timeseries(
@@ -106,6 +109,7 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             w_def=best_wd,
             regime_by_date=regime_by_date,
         )
+        backtest_last_portfolio = today_portfolio.copy() if today_portfolio is not None else pd.DataFrame()
         live_today_portfolio = ctx.build_live_today_portfolio(
             pack=pack,
             cfg=final_cfg,
@@ -116,7 +120,19 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             regime_by_date=regime_by_date,
         )
         if live_today_portfolio is not None and not live_today_portfolio.empty:
-            today_portfolio = live_today_portfolio.copy()
+            live_reco_portfolio = live_today_portfolio.copy()
+        elif live_today_top10 is not None and not live_today_top10.empty:
+            # Super-safe fallback: produce a usable live portfolio snapshot from live top10.
+            tmp = live_today_top10.copy().reset_index(drop=True)
+            n = len(tmp)
+            if n > 0:
+                tmp["RawScore100"] = pd.to_numeric(tmp.get("Score100", np.nan), errors="coerce")
+                tmp["Weight"] = 1.0 / float(n)
+                live_reco_portfolio = tmp[["Date", "Ticker", "Close", "Score100", "RawScore100", "Weight", "Regime", "ScoreRegime"]].copy()
+
+        if live_reco_portfolio is not None and not live_reco_portfolio.empty:
+            today_portfolio = live_reco_portfolio.copy()
+
         portfolio_report = ctx.build_portfolio_report(final_cfg, portfolio_ts)
 
         if final_cfg.log_marketcap_source_summary:
@@ -133,6 +149,31 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
 
         if final_cfg.write_today_portfolio:
             ctx.print_today_portfolio_console(today_portfolio, final_cfg)
+
+    eval_last_date = ""
+    if portfolio_ts is not None and not portfolio_ts.empty and "Date" in portfolio_ts.columns:
+        eval_last_date = str(pd.to_datetime(portfolio_ts["Date"], errors="coerce").max().strftime("%Y-%m-%d"))
+    live_last_date = ""
+    if live_reco_portfolio is not None and not live_reco_portfolio.empty and "Date" in live_reco_portfolio.columns:
+        live_last_date = str(pd.to_datetime(live_reco_portfolio["Date"], errors="coerce").max().strftime("%Y-%m-%d"))
+    elif live_today_top10 is not None and not live_today_top10.empty and "Date" in live_today_top10.columns:
+        live_last_date = str(pd.to_datetime(live_today_top10["Date"], errors="coerce").max().strftime("%Y-%m-%d"))
+
+    gap_days = np.nan
+    if eval_last_date and live_last_date:
+        gap_days = float((pd.Timestamp(live_last_date) - pd.Timestamp(eval_last_date)).days)
+    live_reco_diag_df = pd.DataFrame(
+        [
+            {"Metric": "EvalLastDate", "Value": eval_last_date},
+            {"Metric": "LiveLastDate", "Value": live_last_date},
+            {"Metric": "EvalLiveDateGapDays", "Value": gap_days},
+            {"Metric": "LiveRecoCount", "Value": int(0 if live_reco_portfolio is None else len(live_reco_portfolio))},
+            {"Metric": "LiveTop10Count", "Value": int(0 if live_today_top10 is None else len(live_today_top10))},
+        ]
+    )
+    if not live_reco_diag_df.empty:
+        print("\n[Live Recommendation Separation]")
+        print(live_reco_diag_df.to_string(index=False))
 
     daily_trust_df = build_daily_trust_kpi(pack, final_cfg)
     trust_summary_df, trust_dist_df, trust_yearly_df, trust_perf_split_df, trust_score_df = build_trust_summary_reports(
@@ -302,6 +343,9 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             (trust_yearly_df if trust_yearly_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_Yearly", index=False)
             (trust_perf_split_df if trust_perf_split_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_PerfSplit", index=False)
             (trust_score_df if trust_score_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Data_Trust_Score", index=False)
+            (live_reco_diag_df if live_reco_diag_df is not None else pd.DataFrame()).to_excel(w, sheet_name="Live_Reco_Diag", index=False)
+            (backtest_last_portfolio if backtest_last_portfolio is not None else pd.DataFrame()).to_excel(w, sheet_name="Backtest_Last_Portfolio", index=False)
+            (live_reco_portfolio if live_reco_portfolio is not None else pd.DataFrame()).to_excel(w, sheet_name="Live_Recommendation_Portfolio", index=False)
     except Exception as e:
         print(f"[DataTrust][WARN] failed to append trust sheets: {type(e).__name__}: {e}")
     excel_sec = float(time.perf_counter() - excel_t0)
@@ -359,6 +403,15 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
         trust_lines.append("")
         trust_lines.append("[Data Trust Score]")
         trust_lines.append((trust_score_df if trust_score_df is not None else pd.DataFrame()).to_string(index=False) if trust_score_df is not None and not trust_score_df.empty else "(empty)")
+        trust_lines.append("")
+        trust_lines.append("[Live Recommendation Separation]")
+        trust_lines.append((live_reco_diag_df if live_reco_diag_df is not None else pd.DataFrame()).to_string(index=False) if live_reco_diag_df is not None and not live_reco_diag_df.empty else "(empty)")
+        trust_lines.append("")
+        trust_lines.append("[Backtest Last Portfolio]")
+        trust_lines.append((backtest_last_portfolio if backtest_last_portfolio is not None else pd.DataFrame()).to_string(index=False) if backtest_last_portfolio is not None and not backtest_last_portfolio.empty else "(empty)")
+        trust_lines.append("")
+        trust_lines.append("[Live Recommendation Portfolio]")
+        trust_lines.append((live_reco_portfolio if live_reco_portfolio is not None else pd.DataFrame()).to_string(index=False) if live_reco_portfolio is not None and not live_reco_portfolio.empty else "(empty)")
         result_log_text = result_log_text + "\n" + "\n".join(trust_lines)
         piot_result_log_path = ctx.write_text_log_file(final_cfg.save_dir, final_cfg.piot_result_log_prefix, result_log_text)
 
