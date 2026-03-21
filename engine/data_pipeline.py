@@ -400,9 +400,10 @@ def _build_panel_dataframe(
                 "[Panel Fallback] "
                 f"requested={fb.get('requested', 0)} "
                 f"cached={fb.get('success', 0)} "
+                f"skipped={fb.get('skipped', 0)} "
                 f"failed={fb.get('failed', 0)}"
             )
-            for tkr in fb.get("tickers", []):
+            for tkr in fb.get("retry_tickers", []):
                 try:
                     panel, tt, dup_dropped = ctx.process_ticker_panel_for_qresearch(
                         tkr, cfg.start_panel_date, cfg.end_date, cfg

@@ -27,20 +27,49 @@ def try_cache_fallback_for_failed_tickers(
     """
     enabled = bool(getattr(cfg, "enable_panel_cache_fallback_download", True))
     if not enabled:
-        return {"enabled": False, "requested": 0, "success": 0, "failed": 0, "tickers": []}
+        return {
+            "enabled": False,
+            "requested": 0,
+            "success": 0,
+            "failed": 0,
+            "skipped": 0,
+            "tickers": [],
+            "retry_tickers": [],
+        }
 
     symbols = _unique_failed_tickers(df_timing)
     if not symbols:
-        return {"enabled": True, "requested": 0, "success": 0, "failed": 0, "tickers": []}
+        return {
+            "enabled": True,
+            "requested": 0,
+            "success": 0,
+            "failed": 0,
+            "skipped": 0,
+            "tickers": [],
+            "retry_tickers": [],
+        }
 
     success = 0
     failed = 0
+    skipped = 0
+    retry_tickers: List[str] = []
     probe = bool(getattr(cfg, "cache_download_probe", False))
     for sym in symbols:
         try:
             if hasattr(ctx, "ensure_symbol_cached"):
                 ctx.ensure_symbol_cached(cfg, sym, start=start, end=end, probe=probe)
-                success += 1
+                files = []
+                if hasattr(ctx, "_ohlcv_parquet_files"):
+                    try:
+                        files = ctx._ohlcv_parquet_files(cfg, sym)
+                    except Exception:
+                        files = []
+                if files:
+                    success += 1
+                    retry_tickers.append(sym)
+                else:
+                    # Negative-cache skip or unresolved ticker.
+                    skipped += 1
             else:
                 failed += 1
         except Exception:
@@ -51,6 +80,8 @@ def try_cache_fallback_for_failed_tickers(
         "requested": len(symbols),
         "success": int(success),
         "failed": int(failed),
+        "skipped": int(skipped),
         "tickers": symbols,
+        "retry_tickers": retry_tickers,
     }
 
