@@ -412,32 +412,6 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             selected_completeness_summary_df=selected_completeness_summary_df,
             selected_completeness_sample_df=selected_completeness_sample_df,
         )
-        trust_lines = []
-        trust_lines.append("")
-        trust_lines.append("[Data Trust Summary]")
-        trust_lines.append((trust_summary_df if trust_summary_df is not None else pd.DataFrame()).to_string(index=False) if trust_summary_df is not None and not trust_summary_df.empty else "(empty)")
-        trust_lines.append("")
-        trust_lines.append("[Data Trust Distribution]")
-        trust_lines.append((trust_dist_df if trust_dist_df is not None else pd.DataFrame()).to_string(index=False) if trust_dist_df is not None and not trust_dist_df.empty else "(empty)")
-        trust_lines.append("")
-        trust_lines.append("[Data Trust Yearly]")
-        trust_lines.append((trust_yearly_df if trust_yearly_df is not None else pd.DataFrame()).to_string(index=False) if trust_yearly_df is not None and not trust_yearly_df.empty else "(empty)")
-        trust_lines.append("")
-        trust_lines.append("[Performance vs Coverage Split]")
-        trust_lines.append((trust_perf_split_df if trust_perf_split_df is not None else pd.DataFrame()).to_string(index=False) if trust_perf_split_df is not None and not trust_perf_split_df.empty else "(empty)")
-        trust_lines.append("")
-        trust_lines.append("[Data Trust Score]")
-        trust_lines.append((trust_score_df if trust_score_df is not None else pd.DataFrame()).to_string(index=False) if trust_score_df is not None and not trust_score_df.empty else "(empty)")
-        trust_lines.append("")
-        trust_lines.append("[Live Recommendation Separation]")
-        trust_lines.append((live_reco_diag_df if live_reco_diag_df is not None else pd.DataFrame()).to_string(index=False) if live_reco_diag_df is not None and not live_reco_diag_df.empty else "(empty)")
-        trust_lines.append("")
-        trust_lines.append("[Live Recommendation Portfolio]")
-        if live_reco_portfolio is not None and not live_reco_portfolio.empty:
-            trust_lines.append(live_reco_portfolio.to_string(index=False))
-        else:
-            trust_lines.append("(empty)")
-        result_log_text = result_log_text + "\n" + "\n".join(trust_lines)
         piot_result_log_path = ctx.write_text_log_file(final_cfg.save_dir, final_cfg.piot_result_log_prefix, result_log_text)
 
     if piot_meta_log_path:
