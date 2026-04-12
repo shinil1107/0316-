@@ -373,6 +373,20 @@ def render_reports(ctx: Any, prepared_inputs: Dict[str, Any], search_bundle: Dic
             (live_reco_portfolio if live_reco_portfolio is not None else pd.DataFrame()).to_excel(w, sheet_name="Live_Recommendation_Portfolio", index=False)
     except Exception as e:
         print(f"[DataTrust][WARN] failed to append trust sheets: {type(e).__name__}: {e}")
+
+    signal_lab_result = search_bundle.get("signal_lab_result")
+    if signal_lab_result is not None:
+        sl_tables = signal_lab_result.get("signal_lab_tables", {})
+        if sl_tables:
+            try:
+                with pd.ExcelWriter(save_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as w:
+                    for sheet_name, df in sl_tables.items():
+                        if df is not None and not df.empty:
+                            df.to_excel(w, sheet_name=sheet_name, index=False)
+                print(f"[SignalLab] appended {len(sl_tables)} report sheets to Excel")
+            except Exception as e:
+                print(f"[SignalLab][WARN] failed to append signal lab sheets: {type(e).__name__}: {e}")
+
     excel_sec = float(time.perf_counter() - excel_t0)
 
     piot_meta_log_path = ""

@@ -10,3 +10,18 @@
 
 # track the main execution notebook
 !0315 windows이사.ipynb
+
+# track Phase 3 live trading system
+!phase3/
+!phase3/*.py
+!phase3/*.yaml
+!phase3/*.command
+phase3/config.local.yaml
+
+# track supporting tools
+!fmp_cache_updater.py
+!fmp_daily_updater.ipynb
+
+# track archive for reference
+!archive/
+!archive/*.py
