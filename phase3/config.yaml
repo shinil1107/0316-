@@ -1,10 +1,20 @@
 paths:
-  notebook: "../0315 windows이사.ipynb"
-  frozen_signal: "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P2_BATCH11_20260406_043415.npz"
-  fmp_cache_root: "/Users/shin-il/Documents/my stock/cache_fmp_c2_1"
-  holdings_log: "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/holdings_log.xlsx"
-  output_dir: "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output"
-
+  notebook: "../0315 windows\uC774\uC0AC.ipynb"
+  # Cutover 2026-04-19: V1 BATCH11 → V2 ENS_L3_v1 (Track C score-ensemble).
+  # V1 path (rollback): frozen_signal_P2_BATCH11_20260406_043415.npz
+  # Evidence: signal_compare_V1_BATCH11_vs_V2_ENS_L3_v1_20260419_143744.xlsx
+  # Backup:   phase3/config.yaml.bak_20260419
+  frozen_signal: /Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz
+  fmp_cache_root: /Users/shin-il/Documents/my stock/cache_fmp_c2_1
+  holdings_log: /Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/holdings_log.xlsx
+  output_dir: /Users/shin-il/Documents/my stock/cache_fmp_c2_1/output
+  # Path C (regime-composed signal). Each key is optional.
+  # null ⇒ fallback to `frozen_signal` for that regime.
+  # Only used when regime_compose.enabled == true (default: false).
+  regime_signal_paths:
+    BULL: /Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_BULL_GA_20260417_232732.npz
+    SIDE: null
+    DEFENSIVE: null
 portfolio:
   total_capital: 100000.0
   initial_cash: 100000.0
@@ -12,62 +22,123 @@ portfolio:
   top_n: 20
   max_weight_cap: 0.12
   hold_buffer_n: 30
-  weight_mode: "score_weighted"
+  weight_mode: score_weighted
   entry_score_margin: 8.0
-
 regime:
   vix_bull_threshold: 18.0
   vix_defensive_threshold: 30.0
   circuit_breaker_vix_threshold: 35.0
-  circuit_breaker_cash_pct: 0.50
+  circuit_breaker_cash_pct: 0.5
   regime_bull_top_n: 20
   regime_bull_max_weight_cap: 0.12
   regime_side_top_n: 15
   regime_side_max_weight_cap: 0.12
-  regime_side_cash_pct: 0.20
+  regime_side_cash_pct: 0.2
   regime_defensive_top_n: 10
   regime_defensive_max_weight_cap: 0.15
   regime_defensive_cash_pct: 0.35
-
+  regime_blend_enabled: false
+  bull_side_blend_width: 2.0
+  side_def_blend_width: 3.0
+# ──────────────────────────────────────────────────────────────────────────
+# Path C: regime-composed signals (per-regime frozen signal routing)
+#   enabled=false (default) ⇒ single signal from paths.frozen_signal (legacy path).
+#   enabled=true            ⇒ each regime uses paths.regime_signal_paths[regime]
+#                             (null values fall back to paths.frozen_signal).
+#
+#   Safety notes:
+#     - Phase 3 Live (daily_runner.run_daily) currently ignores this flag.
+#       Path C.1 only affects simulator / backtests.
+#     - regime_compose + regime_blend_enabled=true are mutually exclusive.
+#       If both are on, simulator forces blend OFF and prints a warning.
+# ──────────────────────────────────────────────────────────────────────────
+regime_compose:
+  enabled: false
+  log_per_regime_metrics: true
 triggers:
   min_interval_days: 7
   max_interval_days: 14
   vix_emergency: 30.0
   vix_recovery: 25.0
   drift_threshold: 0.15
-  score_change_threshold: 0.20
-
+  score_change_threshold: 0.2
+# ────────────────────────────────────────────────────────────────────────
+# Baseline v2.1 (cutover 2026-03-28): SIDE_DEF_p12 — adds a regime-gated
+# profit_target trigger on top of the legacy baseline exits. See
+# docs/baseline_v2_1_side_def_p12.md for design/rationale and scenarios.
+#
+# Rollback path: remove the exit_triggers block; build_triggers will fall
+# back to enable_stop_loss / sell_grace_days legacy keys which are kept
+# below as the single-source-of-truth documentation of baseline semantics.
+# ────────────────────────────────────────────────────────────────────────
 strategy:
+  rebalance_mode: daily
   rebalance_gap_threshold: 0.02
-  buy_allocation_mode: "gap_proportional"
+  buy_allocation_mode: gap_proportional
   enable_trim: true
   trim_threshold: 0.03
   sell_grace_days: 60
   min_buy_shares: 1
   enable_stop_loss: true
   stop_loss_pct: -15.0
-  buy_limit_mode: "adaptive"
-  adaptive_deploy_rate: 0.10
+  buy_limit_mode: adaptive
+  adaptive_deploy_rate: 0.1
   adaptive_min_limit: 500.0
   target_invest_pct: 0.97
   regime_overrides:
     BULL:
-      adaptive_deploy_rate: 0.20
+      adaptive_deploy_rate: 0.2
       enable_stop_loss: true
       target_invest_pct: 0.98
     SIDE:
       sell_grace_days: 120
-      adaptive_deploy_rate: 0.10
+      adaptive_deploy_rate: 0.1
       enable_stop_loss: false
     DEF:
-      adaptive_deploy_rate: 0.10
+      adaptive_deploy_rate: 0.1
       enable_stop_loss: false
-
+  # Explicit exit-trigger stack. When this block is present, build_triggers
+  # ignores enable_stop_loss / sell_grace_days above and uses ONLY this list.
+  # Baseline part (stop_loss + sell_grace) is a 1:1 re-expression of legacy
+  # semantics; profit_target is the new SIDE_DEF_p12 add-on.
+  exit_triggers:
+    # ── Baseline exits (unchanged from pre-v2.1) ───────────────────────
+    - type: stop_loss
+      regimes: [BULL]
+      params:
+        threshold_pct: -15.0
+    - type: sell_grace
+      regimes: [BULL]
+      params:
+        days: 60
+    - type: sell_grace
+      regimes: [SIDE]
+      params:
+        days: 120
+    - type: sell_grace
+      regimes: [DEF]
+      params:
+        days: 60
+    # ── v2.1 add-on: regime-gated profit-taking (SIDE + DEF only) ──────
+    # Fires when a position held >=10d shows unrealized PnL >= 30.0%
+    # AND the price is extended >=20% above its 20-day MA. Trims ~12% of
+    # shares per fire, disarmed by tier memory until the 30% tier resets.
+    - type: profit_target
+      regimes: [SIDE, DEF]
+      params:
+        target_pct: 30.0
+        action: TRIM
+        partial_pct: 0.12
+        score_gate_enabled: false
+        extension_enabled: true
+        extension_window: 20
+        extension_threshold: 0.20
+        min_days_held: 10
 email:
   enabled: true
-  gmail_address: "ksjiy1107@gmail.com"
-  gmail_app_password: "${GMAIL_APP_PASSWORD}"
-  recipient: "ksjiy1107@gmail.com"
+  gmail_address: ksjiy1107@gmail.com
+  gmail_app_password: ${GMAIL_APP_PASSWORD}
+  recipient: ksjiy1107@gmail.com
   send_daily_summary: true
   send_on_trigger: true
   send_on_cache_error: true

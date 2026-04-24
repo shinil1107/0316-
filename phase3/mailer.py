@@ -35,6 +35,7 @@ def _build_trigger_body(
     holdings_mgr,
     health: dict,
     daily_buy_limit: float = 0.0,
+    universe_delta_text: str = "",
 ) -> str:
     """Build actionable TODO-list email body."""
     lines = []
@@ -44,6 +45,11 @@ def _build_trigger_body(
     lines.append(f"Quant Engine — {now}")
     lines.append(f"Regime: {regime} | VIX: {vix:.1f} | Trigger: {trigger_str}")
     lines.append("=" * 55)
+
+    if universe_delta_text:
+        lines.append("")
+        lines.append(universe_delta_text)
+        lines.append("")
 
     if recos.empty:
         lines.append("\nNo recommendations generated (scoring failed or empty universe).")
@@ -228,6 +234,7 @@ def send_daily_email(
     holdings_mgr,
     health: dict,
     computed_daily_limit: float = 0.0,
+    universe_delta_text: str = "",
 ):
     """Send daily email via Gmail SMTP."""
     email_conf = conf.get("email", {})
@@ -242,8 +249,9 @@ def send_daily_email(
         print("  [WARN] Gmail credentials not configured, skipping email.")
         return
 
+    rebalance_mode = conf.get("strategy", {}).get("rebalance_mode", "daily")
     trigger_str = ", ".join(triggers) if triggers else "NO_TRIGGER"
-    is_preview = not triggers
+    is_preview = (not triggers) and (rebalance_mode != "daily")
 
     should_send = True
     if is_preview and not email_conf.get("send_daily_summary", True):
@@ -283,6 +291,7 @@ def send_daily_email(
     body = _build_trigger_body(
         triggers, recos, vix, regime, holdings_mgr, health,
         daily_buy_limit=daily_limit,
+        universe_delta_text=universe_delta_text,
     )
 
     msg = MIMEMultipart()

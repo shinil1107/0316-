@@ -1,0 +1,102 @@
+{
+  "generated_at": "20260423_212024",
+  "train_window": {
+    "start": "2017-02-21",
+    "end": "2024-05-31"
+  },
+  "oos_window": {
+    "start": "2024-06-01",
+    "end": "2026-04-17"
+  },
+  "pack": "precompute_qresearch_v4_12_2017-01-03_2026-04-17.npz",
+  "results": [
+    {
+      "name": "Baseline_V2_GOLDEN_ENS_L3",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+      "in_sample": {
+        "oos_mean_ic_1m": 0.0015650539264464873,
+        "oos_mean_ic_3m": -0.011430759720751683,
+        "oos_mean_spread_1m": -0.0013076643416583037,
+        "oos_mean_spread_3m": -0.0044570071156167,
+        "oos_days_1m": 1740,
+        "oos_days_3m": 1740
+      },
+      "oos": {
+        "oos_mean_ic_1m": 0.006408716110741527,
+        "oos_mean_ic_3m": 0.02696888969330367,
+        "oos_mean_spread_1m": 0.00032662872187386703,
+        "oos_mean_spread_3m": 0.024585451422638335,
+        "oos_days_1m": 450,
+        "oos_days_3m": 410
+      },
+      "gap_3m": -0.038399649414055353,
+      "gap_1m": -0.00484366218429504
+    },
+    {
+      "name": "P5_RETRAIN",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5_RETRAIN_20260423_153457.npz",
+      "in_sample": {
+        "oos_mean_ic_1m": 0.011637429236391501,
+        "oos_mean_ic_3m": 0.009200633805920098,
+        "oos_mean_spread_1m": 0.0013740477842735797,
+        "oos_mean_spread_3m": 0.00462141956449375,
+        "oos_days_1m": 1740,
+        "oos_days_3m": 1740
+      },
+      "oos": {
+        "oos_mean_ic_1m": 0.006754568785200878,
+        "oos_mean_ic_3m": 0.025649323777666256,
+        "oos_mean_spread_1m": 0.00477609471441694,
+        "oos_mean_spread_3m": 0.019373105804451392,
+        "oos_days_1m": 450,
+        "oos_days_3m": 410
+      },
+      "gap_3m": -0.016448689971746158,
+      "gap_1m": 0.004882860451190623
+    },
+    {
+      "name": "P5_RETRAIN_T1",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5_RETRAIN_T1_20260423_183119.npz",
+      "in_sample": {
+        "oos_mean_ic_1m": 0.005639586411985765,
+        "oos_mean_ic_3m": 0.0040776028907534515,
+        "oos_mean_spread_1m": -4.2018792076864496e-05,
+        "oos_mean_spread_3m": 0.0011998231480720171,
+        "oos_days_1m": 1740,
+        "oos_days_3m": 1740
+      },
+      "oos": {
+        "oos_mean_ic_1m": 0.013219805467460944,
+        "oos_mean_ic_3m": 0.0349151868758818,
+        "oos_mean_spread_1m": 0.0010211212614892867,
+        "oos_mean_spread_3m": 0.015288478862896483,
+        "oos_days_1m": 450,
+        "oos_days_3m": 410
+      },
+      "gap_3m": -0.03083758398512835,
+      "gap_1m": -0.007580219055475179
+    },
+    {
+      "name": "P5_RETRAIN_T1b",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5_RETRAIN_T1b_20260423_205332.npz",
+      "in_sample": {
+        "oos_mean_ic_1m": 0.01104517952356521,
+        "oos_mean_ic_3m": 0.008735901724110018,
+        "oos_mean_spread_1m": 0.0012703157853165383,
+        "oos_mean_spread_3m": 0.002880865321942492,
+        "oos_days_1m": 1740,
+        "oos_days_3m": 1740
+      },
+      "oos": {
+        "oos_mean_ic_1m": 0.007197190460409865,
+        "oos_mean_ic_3m": 0.030973726677879638,
+        "oos_mean_spread_1m": 0.0017811746479291818,
+        "oos_mean_spread_3m": 0.017386903523630284,
+        "oos_days_1m": 450,
+        "oos_days_3m": 410
+      },
+      "gap_3m": -0.022237824953769622,
+      "gap_1m": 0.003847989063155346
+    }
+  ]
+}

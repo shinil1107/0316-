@@ -1,0 +1,1650 @@
+{
+  "meta": {
+    "generated_at": "2026-04-23T22:40:33",
+    "pack": "precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+    "n_indicators": 36
+  },
+  "summary": [
+    {
+      "id": "baseline",
+      "arm": "Baseline_V2",
+      "n_active": 15,
+      "active_features": [
+        "MACD",
+        "SMA_CROSS",
+        "BBP",
+        "CCI",
+        "STOCH",
+        "WILLR",
+        "ROC",
+        "MOM_3M",
+        "MOM_6M",
+        "MOM_12M_EX1M",
+        "HIGH_20_BREAK",
+        "QUAL_ROE",
+        "LEV_DEBT_EQUITY",
+        "QUAL_ROE_X_BREAKOUT_126",
+        "MOM_12M_EX1M_X_QUAL_ROE"
+      ],
+      "category_counts": {
+        "tech_short": 7,
+        "mom_long": 3,
+        "breakout": 1,
+        "fund_value": 0,
+        "fund_quality": 1,
+        "fund_leverage": 1,
+        "fund_cashflow": 0,
+        "interact": 2
+      },
+      "abs_weight_sum_B": 1.7027621922014406,
+      "abs_weight_sum_S": 1.7004686272319494,
+      "abs_weight_sum_D": 2.268827002298805,
+      "exposure_by_category": {
+        "B": {
+          "abs_sum": {
+            "tech_short": 0.012646394840855894,
+            "mom_long": 1.3531090173187417,
+            "breakout": 0.002865448149141177,
+            "fund_value": 0.0,
+            "fund_quality": 0.008606624013849783,
+            "fund_leverage": 0.0017397054560074933,
+            "fund_cashflow": 0.0,
+            "interact": 0.3237950024228447
+          },
+          "pct": {
+            "tech_short": 0.7426988277503284,
+            "mom_long": 79.46553097760264,
+            "breakout": 0.1682823451369061,
+            "fund_value": 0.0,
+            "fund_quality": 0.5054507348863898,
+            "fund_leverage": 0.10216960794497615,
+            "fund_cashflow": 0.0,
+            "interact": 19.01586750667876
+          },
+          "total_abs_weight": 1.7027621922014406
+        },
+        "S": {
+          "abs_sum": {
+            "tech_short": 1.5289517865860118,
+            "mom_long": 0.06340197475079422,
+            "breakout": 0.025377779486646344,
+            "fund_value": 0.0,
+            "fund_quality": 0.04434433561572264,
+            "fund_leverage": 0.018267675484040548,
+            "fund_cashflow": 0.0,
+            "interact": 0.020125075308733864
+          },
+          "pct": {
+            "tech_short": 89.91355454024838,
+            "mom_long": 3.728500116700241,
+            "breakout": 1.4923991586929015,
+            "fund_value": 0.0,
+            "fund_quality": 2.607771464029129,
+            "fund_leverage": 1.0742730087162482,
+            "fund_cashflow": 0.0,
+            "interact": 1.1835017116130977
+          },
+          "total_abs_weight": 1.7004686272319494
+        },
+        "D": {
+          "abs_sum": {
+            "tech_short": 1.38212048539561,
+            "mom_long": 0.032759691604457165,
+            "breakout": 0.018991081299027157,
+            "fund_value": 0.0,
+            "fund_quality": 0.2926282602652749,
+            "fund_leverage": 0.5210465545510277,
+            "fund_cashflow": 0.0,
+            "interact": 0.021280929183408133
+          },
+          "pct": {
+            "tech_short": 60.91784362559276,
+            "mom_long": 1.4439043422554747,
+            "breakout": 0.8370440443359122,
+            "fund_value": 0.0,
+            "fund_quality": 12.897777572674343,
+            "fund_leverage": 22.965459861994614,
+            "fund_cashflow": 0.0,
+            "interact": 0.9379705531468913
+          },
+          "total_abs_weight": 2.268827002298805
+        }
+      }
+    },
+    {
+      "id": "p5",
+      "arm": "P5_RETRAIN",
+      "n_active": 15,
+      "active_features": [
+        "MACD",
+        "SMA_CROSS",
+        "CCI",
+        "VOL_SPIKE",
+        "STOCH",
+        "OBV_POS",
+        "MFI",
+        "WILLR",
+        "MOM_3M",
+        "MOM_6M",
+        "MOM_12M_EX1M",
+        "RSI_TREND",
+        "BREAKOUT_126",
+        "QUAL_ROE",
+        "LEV_DEBT_EQUITY"
+      ],
+      "category_counts": {
+        "tech_short": 8,
+        "mom_long": 3,
+        "breakout": 2,
+        "fund_value": 0,
+        "fund_quality": 1,
+        "fund_leverage": 1,
+        "fund_cashflow": 0,
+        "interact": 0
+      },
+      "abs_weight_sum_B": 1.0,
+      "abs_weight_sum_S": 1.0000000000000002,
+      "abs_weight_sum_D": 1.0,
+      "exposure_by_category": {
+        "B": {
+          "abs_sum": {
+            "tech_short": 0.3445128917135106,
+            "mom_long": 0.42985111607780657,
+            "breakout": 0.038107857890512326,
+            "fund_value": 0.0,
+            "fund_quality": 0.18752813431817045,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 34.451289171351064,
+            "mom_long": 42.98511160778066,
+            "breakout": 3.8107857890512324,
+            "fund_value": 0.0,
+            "fund_quality": 18.752813431817046,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        },
+        "S": {
+          "abs_sum": {
+            "tech_short": 0.9739523045801202,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 0.026047695419879908,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 97.39523045801202,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 2.6047695419879906,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        },
+        "D": {
+          "abs_sum": {
+            "tech_short": 0.595015052550315,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 0.1690354183006436,
+            "fund_leverage": 0.23594952914904138,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 59.5015052550315,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 16.903541830064363,
+            "fund_leverage": 23.59495291490414,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 0.9999999999999999
+        }
+      }
+    },
+    {
+      "id": "t1",
+      "arm": "P5_RETRAIN_T1",
+      "n_active": 9,
+      "active_features": [
+        "SMA_CROSS",
+        "ADX",
+        "WILLR",
+        "VWAP_ABOVE",
+        "MOM_6M",
+        "BREAKOUT_126",
+        "VAL_EARN_YIELD",
+        "QUAL_ROE",
+        "LEV_DEBT_EQUITY"
+      ],
+      "category_counts": {
+        "tech_short": 4,
+        "mom_long": 1,
+        "breakout": 1,
+        "fund_value": 1,
+        "fund_quality": 1,
+        "fund_leverage": 1,
+        "fund_cashflow": 0,
+        "interact": 0
+      },
+      "abs_weight_sum_B": 1.0,
+      "abs_weight_sum_S": 1.0,
+      "abs_weight_sum_D": 1.0,
+      "exposure_by_category": {
+        "B": {
+          "abs_sum": {
+            "tech_short": 0.45613040093079804,
+            "mom_long": 0.043869599069201966,
+            "breakout": 0.043869599069201966,
+            "fund_value": 0.05613040093079797,
+            "fund_quality": 0.4000000000000001,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 45.6130400930798,
+            "mom_long": 4.386959906920197,
+            "breakout": 4.386959906920197,
+            "fund_value": 5.613040093079797,
+            "fund_quality": 40.00000000000001,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        },
+        "S": {
+          "abs_sum": {
+            "tech_short": 0.6653615007712541,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 0.3346384992287459,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 66.53615007712541,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 33.46384992287459,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        },
+        "D": {
+          "abs_sum": {
+            "tech_short": 0.0,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 0.5,
+            "fund_leverage": 0.5,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 0.0,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 50.0,
+            "fund_leverage": 50.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        }
+      }
+    },
+    {
+      "id": "t1b",
+      "arm": "P5_RETRAIN_T1b",
+      "n_active": 11,
+      "active_features": [
+        "RSI",
+        "SMA_CROSS",
+        "VOL_SPIKE",
+        "STOCH",
+        "MOM_6M",
+        "MOM_12M_EX1M",
+        "BREAKOUT_126",
+        "VAL_EARN_YIELD",
+        "QUAL_ROE",
+        "LEV_DEBT_EQUITY",
+        "CF_FCF_YIELD"
+      ],
+      "category_counts": {
+        "tech_short": 4,
+        "mom_long": 2,
+        "breakout": 1,
+        "fund_value": 1,
+        "fund_quality": 1,
+        "fund_leverage": 1,
+        "fund_cashflow": 1,
+        "interact": 0
+      },
+      "abs_weight_sum_B": 1.0,
+      "abs_weight_sum_S": 1.0,
+      "abs_weight_sum_D": 1.0,
+      "exposure_by_category": {
+        "B": {
+          "abs_sum": {
+            "tech_short": 0.4000000000000001,
+            "mom_long": 0.16225721588226505,
+            "breakout": 0.029258240027879728,
+            "fund_value": 0.0,
+            "fund_quality": 0.38251022635131937,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.025974317738535795,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 40.00000000000001,
+            "mom_long": 16.225721588226506,
+            "breakout": 2.925824002787973,
+            "fund_value": 0.0,
+            "fund_quality": 38.25102263513194,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 2.5974317738535797,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        },
+        "S": {
+          "abs_sum": {
+            "tech_short": 0.9403956058345376,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.05960439416546236,
+            "fund_quality": 0.0,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 94.03956058345376,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 5.960439416546236,
+            "fund_quality": 0.0,
+            "fund_leverage": 0.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        },
+        "D": {
+          "abs_sum": {
+            "tech_short": 0.0,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 0.5,
+            "fund_leverage": 0.5,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "pct": {
+            "tech_short": 0.0,
+            "mom_long": 0.0,
+            "breakout": 0.0,
+            "fund_value": 0.0,
+            "fund_quality": 50.0,
+            "fund_leverage": 50.0,
+            "fund_cashflow": 0.0,
+            "interact": 0.0
+          },
+          "total_abs_weight": 1.0
+        }
+      }
+    }
+  ],
+  "feature_matrix": [
+    {
+      "idx": 0,
+      "name": "RSI",
+      "category": "tech_short",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0701978029172688
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 1,
+      "name": "MACD",
+      "category": "tech_short",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0007140685428039307,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.09262759665375907,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.346306017174112,
+        "p5": 0.1789147318874678,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 2,
+      "name": "SMA_CROSS",
+      "category": "tech_short",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": true,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.00458765723061118,
+        "p5": 0.13564857369556318,
+        "t1": 0.4000000000000001,
+        "t1b": 0.4000000000000001
+      },
+      "weight_S": {
+        "baseline": 0.4360744160621078,
+        "p5": 0.26905945910137014,
+        "t1": 0.32647568426575047,
+        "t1b": 0.4
+      },
+      "weight_D": {
+        "baseline": 0.042957059574081975,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 3,
+      "name": "BBP",
+      "category": "tech_short",
+      "active": {
+        "baseline": true,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0002929521053602582,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.019850418307631037,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.33016422786398364,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 4,
+      "name": "CCI",
+      "category": "tech_short",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0018590421939506934,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.34906436461948437,
+        "p5": 0.0962642038046505,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": -0.00648202307331947,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 5,
+      "name": "VOL_SPIKE",
+      "category": "tech_short",
+      "active": {
+        "baseline": false,
+        "p5": true,
+        "t1": false,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.20886431801794747,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.07138467961659015,
+        "t1": 0.0,
+        "t1b": 0.0701978029172688
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.1351850245393192,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 6,
+      "name": "STOCH",
+      "category": "tech_short",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": false,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": -0.0005454672474186334,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.5962572772886106,
+        "p5": 0.24209218745387678,
+        "t1": 0.0,
+        "t1b": 0.4
+      },
+      "weight_D": {
+        "baseline": -0.021789371899579666,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 7,
+      "name": "OBV_POS",
+      "category": "tech_short",
+      "active": {
+        "baseline": false,
+        "p5": true,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.11395027390502603,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 8,
+      "name": "ATR_LOW",
+      "category": "tech_short",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 9,
+      "name": "MFI",
+      "category": "tech_short",
+      "active": {
+        "baseline": false,
+        "p5": true,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.02413141877401275,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.053727315122941835,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 10,
+      "name": "ADX",
+      "category": "tech_short",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": true,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.05613040093079797,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 11,
+      "name": "WILLR",
+      "category": "tech_short",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": true,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0034739564456576946,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0321706033056119,
+        "p5": 0.15707008192459385,
+        "t1": 0.22381241267852095,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.6182625917046122,
+        "p5": 0.2271879810005861,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 12,
+      "name": "ROC",
+      "category": "tech_short",
+      "active": {
+        "baseline": true,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0011732510750535035,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.00290711034880709,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": -0.01615919410592125,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 13,
+      "name": "VWAP_ABOVE",
+      "category": "tech_short",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": true,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.11507340382698275,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 14,
+      "name": "MOM_3M",
+      "category": "mom_long",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.6766953094088632,
+        "p5": 0.16981216105456692,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.034595426824567704,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.015607788756914574,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 15,
+      "name": "MOM_6M",
+      "category": "mom_long",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": true,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.6561307817915131,
+        "p5": 0.1299616092296184,
+        "t1": 0.043869599069201966,
+        "t1b": 0.03321916675214785
+      },
+      "weight_S": {
+        "baseline": -0.0079986322815863,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": -0.0033699139208526185,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 16,
+      "name": "MOM_12M_EX1M",
+      "category": "mom_long",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": false,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.02028292611836531,
+        "p5": 0.13007734579362126,
+        "t1": 0.0,
+        "t1b": 0.12903804913011718
+      },
+      "weight_S": {
+        "baseline": -0.020807915644640212,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": -0.013781988926689973,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 17,
+      "name": "BREAKOUT_252",
+      "category": "breakout",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 18,
+      "name": "RSI_TREND",
+      "category": "breakout",
+      "active": {
+        "baseline": false,
+        "p5": true,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.019053928945256163,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 19,
+      "name": "SMA50_SLOPE",
+      "category": "breakout",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 20,
+      "name": "BREAKOUT_126",
+      "category": "breakout",
+      "active": {
+        "baseline": false,
+        "p5": true,
+        "t1": true,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.019053928945256163,
+        "t1": 0.043869599069201966,
+        "t1b": 0.029258240027879728
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 21,
+      "name": "DIST_FROM_SMA50",
+      "category": "breakout",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 22,
+      "name": "HIGH_20_BREAK",
+      "category": "breakout",
+      "active": {
+        "baseline": true,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.002865448149141177,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.025377779486646344,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": -0.018991081299027157,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 23,
+      "name": "VAL_EARN_YIELD",
+      "category": "fund_value",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": true,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.05613040093079797,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.05960439416546236
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 24,
+      "name": "VAL_BOOK2PRICE",
+      "category": "fund_value",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 25,
+      "name": "QUAL_ROE",
+      "category": "fund_quality",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": true,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": -0.008606624013849783,
+        "p5": 0.18752813431817045,
+        "t1": 0.4000000000000001,
+        "t1b": 0.38251022635131937
+      },
+      "weight_S": {
+        "baseline": 0.04434433561572264,
+        "p5": 0.026047695419879908,
+        "t1": 0.3346384992287459,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.2926282602652749,
+        "p5": 0.1690354183006436,
+        "t1": 0.5,
+        "t1b": 0.5
+      }
+    },
+    {
+      "idx": 26,
+      "name": "LEV_DEBT_EQUITY",
+      "category": "fund_leverage",
+      "active": {
+        "baseline": true,
+        "p5": true,
+        "t1": true,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": -0.0017397054560074933,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": -0.018267675484040548,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.5210465545510277,
+        "p5": 0.23594952914904138,
+        "t1": 0.5,
+        "t1b": 0.5
+      }
+    },
+    {
+      "idx": 27,
+      "name": "CF_FCF_YIELD",
+      "category": "fund_cashflow",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": true
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.025974317738535795
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 28,
+      "name": "QUAL_ROE_X_MOM_6M",
+      "category": "interact",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 29,
+      "name": "VAL_EARN_YIELD_X_MOM_6M",
+      "category": "interact",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 30,
+      "name": "CF_FCF_YIELD_X_MOM_6M",
+      "category": "interact",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 31,
+      "name": "QUAL_ROE_X_BREAKOUT_126",
+      "category": "interact",
+      "active": {
+        "baseline": true,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.04696018773839724,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.004496850485453929,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": -0.006201191159870577,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 32,
+      "name": "VAL_BOOK2PRICE_X_MOM_6M",
+      "category": "interact",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 33,
+      "name": "MOM_12M_EX1M_X_QUAL_ROE",
+      "category": "interact",
+      "active": {
+        "baseline": true,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.2768348146844475,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.015628224823279937,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.015079738023537556,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 34,
+      "name": "BREAKOUT_252_X_CF_FCF_YIELD",
+      "category": "interact",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    },
+    {
+      "idx": 35,
+      "name": "LEV_DEBT_EQUITY_X_MOM_6M",
+      "category": "interact",
+      "active": {
+        "baseline": false,
+        "p5": false,
+        "t1": false,
+        "t1b": false
+      },
+      "weight_B": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_S": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      },
+      "weight_D": {
+        "baseline": 0.0,
+        "p5": 0.0,
+        "t1": 0.0,
+        "t1b": 0.0
+      }
+    }
+  ],
+  "set_analysis": {
+    "baseline_only": [
+      "BBP",
+      "ROC",
+      "HIGH_20_BREAK",
+      "QUAL_ROE_X_BREAKOUT_126",
+      "MOM_12M_EX1M_X_QUAL_ROE"
+    ],
+    "retrain_consensus": [
+      "BREAKOUT_126"
+    ],
+    "shared_all": [
+      "SMA_CROSS",
+      "MOM_6M",
+      "QUAL_ROE",
+      "LEV_DEBT_EQUITY"
+    ],
+    "no_one": [
+      "ATR_LOW",
+      "BREAKOUT_252",
+      "SMA50_SLOPE",
+      "DIST_FROM_SMA50",
+      "VAL_BOOK2PRICE",
+      "QUAL_ROE_X_MOM_6M",
+      "VAL_EARN_YIELD_X_MOM_6M",
+      "CF_FCF_YIELD_X_MOM_6M",
+      "VAL_BOOK2PRICE_X_MOM_6M",
+      "BREAKOUT_252_X_CF_FCF_YIELD",
+      "LEV_DEBT_EQUITY_X_MOM_6M"
+    ]
+  },
+  "bull_tilt_deltas": [
+    {
+      "name": "MOM_6M",
+      "category": "mom_long",
+      "wb_baseline": 0.6561307817915131,
+      "wb_t1b": 0.03321916675214785,
+      "wb_delta": 0.6229116150393652,
+      "ws_baseline": -0.0079986322815863,
+      "ws_t1b": 0.0,
+      "ws_delta": -0.0079986322815863,
+      "bull_vs_side_tilt_base": 0.6641294140730993,
+      "bull_vs_side_tilt_t1b": 0.03321916675214785
+    },
+    {
+      "name": "SMA_CROSS",
+      "category": "tech_short",
+      "wb_baseline": 0.00458765723061118,
+      "wb_t1b": 0.4000000000000001,
+      "wb_delta": -0.3954123427693889,
+      "ws_baseline": 0.4360744160621078,
+      "ws_t1b": 0.4,
+      "ws_delta": 0.03607441606210776,
+      "bull_vs_side_tilt_base": -0.4314867588314966,
+      "bull_vs_side_tilt_t1b": 5.551115123125783e-17
+    },
+    {
+      "name": "QUAL_ROE",
+      "category": "fund_quality",
+      "wb_baseline": -0.008606624013849783,
+      "wb_t1b": 0.38251022635131937,
+      "wb_delta": -0.39111685036516913,
+      "ws_baseline": 0.04434433561572264,
+      "ws_t1b": 0.0,
+      "ws_delta": 0.04434433561572264,
+      "bull_vs_side_tilt_base": -0.05295095962957242,
+      "bull_vs_side_tilt_t1b": 0.38251022635131937
+    },
+    {
+      "name": "MOM_12M_EX1M",
+      "category": "mom_long",
+      "wb_baseline": 0.02028292611836531,
+      "wb_t1b": 0.12903804913011718,
+      "wb_delta": -0.10875512301175187,
+      "ws_baseline": -0.020807915644640212,
+      "ws_t1b": 0.0,
+      "ws_delta": -0.020807915644640212,
+      "bull_vs_side_tilt_base": 0.04109084176300552,
+      "bull_vs_side_tilt_t1b": 0.12903804913011718
+    },
+    {
+      "name": "LEV_DEBT_EQUITY",
+      "category": "fund_leverage",
+      "wb_baseline": -0.0017397054560074933,
+      "wb_t1b": 0.0,
+      "wb_delta": -0.0017397054560074933,
+      "ws_baseline": -0.018267675484040548,
+      "ws_t1b": 0.0,
+      "ws_delta": -0.018267675484040548,
+      "bull_vs_side_tilt_base": 0.016527970028033055,
+      "bull_vs_side_tilt_t1b": 0.0
+    },
+    {
+      "name": "STOCH",
+      "category": "tech_short",
+      "wb_baseline": -0.0005454672474186334,
+      "wb_t1b": 0.0,
+      "wb_delta": -0.0005454672474186334,
+      "ws_baseline": 0.5962572772886106,
+      "ws_t1b": 0.4,
+      "ws_delta": 0.19625727728861053,
+      "bull_vs_side_tilt_base": -0.5968027445360292,
+      "bull_vs_side_tilt_t1b": -0.4
+    }
+  ],
+  "indicator_names": [
+    "RSI",
+    "MACD",
+    "SMA_CROSS",
+    "BBP",
+    "CCI",
+    "VOL_SPIKE",
+    "STOCH",
+    "OBV_POS",
+    "ATR_LOW",
+    "MFI",
+    "ADX",
+    "WILLR",
+    "ROC",
+    "VWAP_ABOVE",
+    "MOM_3M",
+    "MOM_6M",
+    "MOM_12M_EX1M",
+    "BREAKOUT_252",
+    "RSI_TREND",
+    "SMA50_SLOPE",
+    "BREAKOUT_126",
+    "DIST_FROM_SMA50",
+    "HIGH_20_BREAK",
+    "VAL_EARN_YIELD",
+    "VAL_BOOK2PRICE",
+    "QUAL_ROE",
+    "LEV_DEBT_EQUITY",
+    "CF_FCF_YIELD",
+    "QUAL_ROE_X_MOM_6M",
+    "VAL_EARN_YIELD_X_MOM_6M",
+    "CF_FCF_YIELD_X_MOM_6M",
+    "QUAL_ROE_X_BREAKOUT_126",
+    "VAL_BOOK2PRICE_X_MOM_6M",
+    "MOM_12M_EX1M_X_QUAL_ROE",
+    "BREAKOUT_252_X_CF_FCF_YIELD",
+    "LEV_DEBT_EQUITY_X_MOM_6M"
+  ],
+  "categories": [
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "tech_short",
+    "mom_long",
+    "mom_long",
+    "mom_long",
+    "breakout",
+    "breakout",
+    "breakout",
+    "breakout",
+    "breakout",
+    "breakout",
+    "fund_value",
+    "fund_value",
+    "fund_quality",
+    "fund_leverage",
+    "fund_cashflow",
+    "interact",
+    "interact",
+    "interact",
+    "interact",
+    "interact",
+    "interact",
+    "interact",
+    "interact"
+  ]
+}

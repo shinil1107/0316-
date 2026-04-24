@@ -1,0 +1,98 @@
+{
+  "batch_started_at": "2026-04-23T23:54:47",
+  "dry_run": false,
+  "n_queued": 3,
+  "queue": [
+    "consv",
+    "prop",
+    "aggr"
+  ],
+  "current": null,
+  "completed": [
+    "consv",
+    "prop",
+    "aggr"
+  ],
+  "failed": [],
+  "results": [
+    {
+      "id": "consv",
+      "tag": "P5B_CONSV",
+      "batch": 1,
+      "status": "ok",
+      "elapsed_sec": 7687.6,
+      "elapsed_min": 128.1,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5B_CONSV_20260424_020254.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_020254.json",
+      "signal_quality": {
+        "k_selected": 9,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.4,
+      "w_cost": 0.25,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260428
+    },
+    {
+      "id": "prop",
+      "tag": "P5B_PROP",
+      "batch": 1,
+      "status": "ok",
+      "elapsed_sec": 7758.3,
+      "elapsed_min": 129.3,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5B_PROP_20260424_041213.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_041213.json",
+      "signal_quality": {
+        "k_selected": 14,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.15,
+      "w_cost": 0.1,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260428
+    },
+    {
+      "id": "aggr",
+      "tag": "P5B_AGGR",
+      "batch": 1,
+      "status": "ok",
+      "elapsed_sec": 7448.9,
+      "elapsed_min": 124.1,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5B_AGGR_20260424_061621.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_061621.json",
+      "signal_quality": {
+        "k_selected": 9,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.05,
+      "w_cost": 0.03,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260428
+    }
+  ],
+  "updated_at": "2026-04-24T06:16:22",
+  "batch_finished_at": "2026-04-24T06:16:22",
+  "total_sec": 22894.8,
+  "total_min": 381.6
+}

@@ -28,6 +28,16 @@ sys.path.insert(0, str(_THIS_DIR))
 from engine_loader import engine
 from holdings_manager import HoldingsManager
 from cache_health import run_full_health_check, load_config
+from run_artifact import create_run_context, write_daily_run_artifact
+
+# Phase 3 dynamic exit architecture (Track D, D1 refactor).
+# ``build_triggers`` consumes either legacy keys (enable_stop_loss,
+# sell_grace_days, ...) or the new ``strategy.exit_triggers`` list;
+# ``evaluate_exits`` runs the priority-ordered stack and returns a
+# per-ticker verdict dict.  In legacy-mode with stock config, this
+# pipeline produces byte-identical output to the pre-D1 hardcoded
+# stop-loss + grace branches below.
+from exits import build_triggers, evaluate_exits, RecosAction, RiskOffAssessor
 
 
 # ─────────────────────────────────────────────
@@ -94,32 +104,199 @@ def load_frozen_signal(path: str) -> dict:
 
 
 # ─────────────────────────────────────────────
+# Path C — Regime-composed signal loader
+#
+# Live path (run_daily) does NOT call this; it continues to use
+# load_frozen_signal on conf["paths"]["frozen_signal"]. Backtests
+# and Phase 3 Lab call load_composed_signal for opt-in regime routing.
+# ─────────────────────────────────────────────
+
+def load_composed_signal(conf: dict) -> dict:
+    """Return either a plain single-signal dict (backward compatible with
+    load_frozen_signal) or a compose-mode dict.
+
+    Compose-mode schema:
+      {
+        "mode":            "compose",
+        "mask":            union of member masks (for logging/diagnostics),
+        "wb" / "ws" / "wd":default signal's weights (for logging only),
+        "signal_summary":  default signal's summary,
+        "regime_signals":  {"BULL": {...}, "SIDE": {...}, "DEFENSIVE": {...}},
+        "default_path":    str,
+        "regime_paths":    {"BULL": str|None, "SIDE": str|None, "DEFENSIVE": str|None},
+      }
+
+    Rules:
+      - regime_compose.enabled=false → return single-signal dict (legacy).
+      - enabled=true but every regime_signal_paths is null/missing → single
+        mode (no-op composition).
+      - If a regime's path is set but the file is missing, that regime
+        falls back to default and a warning is printed.
+    """
+    default_path = conf["paths"]["frozen_signal"]
+    default_sig = load_frozen_signal(default_path)
+
+    rc = conf.get("regime_compose", {}) or {}
+    if not bool(rc.get("enabled", False)):
+        return default_sig
+
+    regime_paths_raw = (conf.get("paths", {}) or {}).get("regime_signal_paths", {}) or {}
+    regime_paths = {
+        rg: (regime_paths_raw.get(rg) if regime_paths_raw.get(rg) else None)
+        for rg in ("BULL", "SIDE", "DEFENSIVE")
+    }
+
+    any_override = any(v for v in regime_paths.values())
+    if not any_override:
+        print("  [compose] regime_compose.enabled=true but no regime_signal_paths "
+              "configured — falling back to single signal.")
+        return default_sig
+
+    regime_signals = {}
+    K = len(default_sig["mask"])
+    for rg in ("BULL", "SIDE", "DEFENSIVE"):
+        p = regime_paths[rg]
+        if p and os.path.exists(p):
+            try:
+                s = load_frozen_signal(p)
+                if len(s["mask"]) != K:
+                    print(f"  [compose][warn] {rg} signal has mismatched K "
+                          f"({len(s['mask'])} vs default {K}) — fallback to default.")
+                    regime_signals[rg] = default_sig
+                else:
+                    regime_signals[rg] = s
+            except Exception as e:
+                print(f"  [compose][warn] failed to load {rg} signal: {e} — "
+                      f"fallback to default.")
+                regime_signals[rg] = default_sig
+        else:
+            if p:
+                print(f"  [compose][warn] {rg} signal not found: {p} — "
+                      f"fallback to default.")
+            regime_signals[rg] = default_sig
+
+    union_mask = default_sig["mask"].copy()
+    for s in regime_signals.values():
+        union_mask = union_mask | np.asarray(s["mask"], dtype=bool)
+
+    print(f"  [compose] regime_compose.enabled=true")
+    for rg in ("BULL", "SIDE", "DEFENSIVE"):
+        s = regime_signals[rg]
+        k = int(np.asarray(s["mask"], dtype=bool).sum())
+        src = regime_paths[rg] or default_path
+        tag = "custom" if regime_paths[rg] and s is not default_sig else "default"
+        print(f"    {rg:10s}  k={k:2d}  [{tag}]  {os.path.basename(src)}")
+
+    return {
+        "mode": "compose",
+        "mask": union_mask,
+        "wb": default_sig["wb"],
+        "ws": default_sig["ws"],
+        "wd": default_sig["wd"],
+        "signal_summary": default_sig.get("signal_summary", {}),
+        "regime_signals": regime_signals,
+        "default_path": default_path,
+        "regime_paths": regime_paths,
+    }
+
+
+def pick_signal_for_regime(signal: dict, regime: str) -> dict:
+    """Route a regime label to the concrete single-signal dict.
+
+    CRASH and unknown regimes fall back to DEFENSIVE's signal.
+    For non-compose signals, returns the signal unchanged.
+    """
+    if signal.get("mode") != "compose":
+        return signal
+    key = "DEFENSIVE" if regime in ("CRASH", "BEAR") else regime
+    rs = signal.get("regime_signals") or {}
+    return rs.get(key) or rs.get("SIDE") or signal
+
+
+def describe_signal(signal: dict) -> str:
+    """Human-readable one-line description of a (possibly composed) signal."""
+    if signal.get("mode") == "compose":
+        parts = []
+        rs = signal.get("regime_signals") or {}
+        for rg in ("BULL", "SIDE", "DEFENSIVE"):
+            s = rs.get(rg)
+            if s is None:
+                continue
+            k = int(np.asarray(s["mask"], dtype=bool).sum())
+            parts.append(f"{rg}:k={k}")
+        return "compose[" + " ".join(parts) + "]"
+    mask = signal.get("mask")
+    if mask is None:
+        return "<no mask>"
+    return f"single[k={int(np.asarray(mask, dtype=bool).sum())}]"
+
+
+# ─────────────────────────────────────────────
 # VIX & Regime
 # ─────────────────────────────────────────────
 
-def get_current_vix(cfg) -> Tuple[float, str]:
-    """Get latest VIX close and current regime."""
+def get_current_vix(
+    cfg,
+    prev_regime: str = "SIDE",
+    blend_conf: Optional[dict] = None,
+) -> Tuple[float, str, Tuple[float, float, float]]:
+    """Get latest VIX close, regime (with hysteresis), and blend alphas.
+
+    Returns (vix_close, regime, (alpha_bull, alpha_side, alpha_def)).
+    When blend_conf is None or blend is disabled, alphas correspond to
+    the discrete regime (one of them is 1.0, the rest 0.0).
+    """
     vix_sym = getattr(cfg, "vix_symbol", "^VIX")
     now = datetime.now()
     df = engine.load_ohlcv_from_cache(cfg, vix_sym, now - timedelta(days=60), now)
     if df.empty:
-        return 20.0, "SIDE"
+        return 20.0, "SIDE", (0.0, 1.0, 0.0)
 
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
     vix_close = float(df["close"].iloc[-1])
 
-    if vix_close < cfg.vix_bull_threshold:
-        regime = "BULL"
-    elif vix_close >= cfg.vix_defensive_threshold:
-        regime = "DEFENSIVE"
+    sw = max(1, int(getattr(cfg, "vix_smoothing_window", 5)))
+    vix_smooth = float(
+        pd.to_numeric(df["close"], errors="coerce")
+        .dropna()
+        .ewm(span=sw, min_periods=max(1, sw // 2))
+        .mean()
+        .iloc[-1]
+    )
+
+    blend_enabled = bool((blend_conf or {}).get("regime_blend_enabled", False))
+
+    if blend_enabled:
+        from regime_blend import apply_hysteresis, compute_blend_alphas
+        bp = _build_blend_params(cfg, blend_conf)
+        regime = apply_hysteresis(prev_regime, vix_smooth, **bp)
+        alphas = compute_blend_alphas(vix_smooth, **bp)
     else:
-        regime = "SIDE"
+        if vix_close < cfg.vix_bull_threshold:
+            regime = "BULL"
+        elif vix_close >= cfg.vix_defensive_threshold:
+            regime = "DEFENSIVE"
+        else:
+            regime = "SIDE"
+        if vix_close >= cfg.circuit_breaker_vix_threshold:
+            regime = "CRASH"
+        alphas = {"BULL": (1., 0., 0.), "SIDE": (0., 1., 0.),
+                  "DEFENSIVE": (0., 0., 1.), "CRASH": (0., 0., 1.)}.get(regime, (0., 1., 0.))
 
-    if vix_close >= cfg.circuit_breaker_vix_threshold:
-        regime = "CRASH"
+    return vix_close, regime, alphas
 
-    return vix_close, regime
+
+def _build_blend_params(cfg, blend_conf: Optional[dict] = None) -> dict:
+    """Construct blend parameter dict from cfg + blend_conf overlay."""
+    return dict(
+        bull_threshold=float(getattr(cfg, "vix_bull_threshold", 18.0)),
+        def_threshold=float(getattr(cfg, "vix_defensive_threshold", 30.0)),
+        bull_side_blend_width=float((blend_conf or {}).get("bull_side_blend_width", 2.0)),
+        side_def_blend_width=float((blend_conf or {}).get("side_def_blend_width", 3.0)),
+        cb_threshold=float(getattr(cfg, "circuit_breaker_vix_threshold", 35.0)),
+        cb_enabled=bool(getattr(cfg, "enable_circuit_breaker", True)),
+    )
 
 
 # ─────────────────────────────────────────────
@@ -192,8 +369,9 @@ def check_triggers(
 # ─────────────────────────────────────────────
 
 def compute_today_scores(
-    cfg, pack: dict, signal: dict, regime: str,
-) -> pd.DataFrame:
+    cfg, pack: dict, signal: dict, regime: str, return_meta: bool = False,
+    blend_alphas: Optional[Tuple[float, float, float]] = None,
+) -> pd.DataFrame | Tuple[pd.DataFrame, Dict[str, Any]]:
     """Compute stock scores for the latest valid date in pack."""
     import dataclasses
     mask = signal["mask"]
@@ -205,7 +383,6 @@ def compute_today_scores(
     tickers = pack["tickers"]
     N = len(tickers)
 
-    # Find the most recent date with sufficient feature coverage
     sel = np.asarray(mask, dtype=bool)
     feat_valid = pack["feat_valid"]
     di = len(dates) - 1
@@ -215,15 +392,12 @@ def compute_today_scores(
         if valid_count >= min_valid_tickers:
             di = candidate_di
             break
-    print(f"  Using scoring date: {dates[di]} (di={di}, valid tickers at this date)")
+    scoring_date = str(dates[di])[:10]
+    print(f"  Using scoring date: {scoring_date} (di={di}, valid tickers at this date)")
 
     sel = np.asarray(mask, dtype=bool)
     print(f"  Signal mask: {sel.shape}, {int(sel.sum())} selected features out of {len(sel)}")
 
-    # Disable the chronic completeness history filter for live scoring.
-    # That filter requires 95% of a 252-day lookback to have all features valid,
-    # which fails when the cache has gaps in historical data.
-    # For live scoring we only need today's features to be valid.
     cfg_live = dataclasses.replace(cfg)
     cfg_live.enable_completeness_history_filter = False
 
@@ -232,20 +406,36 @@ def compute_today_scores(
     active_w_def = engine.get_regime_active_weight_vector(cfg_live, sel, sel, sel, wb, ws, wd, "DEFENSIVE")
 
     score_regime = regime if regime != "CRASH" else "DEFENSIVE"
-    regime_w = {"BULL": active_w_bull, "SIDE": active_w_side, "DEFENSIVE": active_w_def}.get(
-        score_regime, active_w_side
-    )
-    w_sum = float(np.sum(regime_w * sel.astype(np.float64)))
-    print(f"  Score regime: {score_regime} | Active weight sum (sel-masked): {w_sum:.6f}")
 
-    scores = engine._score_vector_for_regime(
-        pack=pack, di=di, sel=sel,
-        active_w_bull=active_w_bull,
-        active_w_side=active_w_side,
-        active_w_def=active_w_def,
-        score_regime=score_regime,
-        cfg=cfg_live,
-    )
+    use_blend = blend_alphas is not None and max(blend_alphas) < 1.0
+    if use_blend:
+        from regime_blend import blend_weight_vectors
+        ab, as_, ad = blend_alphas
+        w_blend = blend_weight_vectors(active_w_bull, active_w_side, active_w_def, blend_alphas)
+        w_sum = float(np.sum(w_blend * sel.astype(np.float64)))
+        print(f"  Blended score: α_bull={ab:.2f} α_side={as_:.2f} α_def={ad:.2f} | wsum={w_sum:.6f}")
+        scores = engine._score_vector_for_regime(
+            pack=pack, di=di, sel=sel,
+            active_w_bull=w_blend,
+            active_w_side=w_blend,
+            active_w_def=w_blend,
+            score_regime="SIDE",
+            cfg=cfg_live,
+        )
+    else:
+        regime_w = {"BULL": active_w_bull, "SIDE": active_w_side, "DEFENSIVE": active_w_def}.get(
+            score_regime, active_w_side
+        )
+        w_sum = float(np.sum(regime_w * sel.astype(np.float64)))
+        print(f"  Score regime: {score_regime} | Active weight sum (sel-masked): {w_sum:.6f}")
+        scores = engine._score_vector_for_regime(
+            pack=pack, di=di, sel=sel,
+            active_w_bull=active_w_bull,
+            active_w_side=active_w_side,
+            active_w_def=active_w_def,
+            score_regime=score_regime,
+            cfg=cfg_live,
+        )
 
     finite_mask = np.isfinite(scores)
     n_finite = int(finite_mask.sum())
@@ -277,10 +467,27 @@ def compute_today_scores(
 
     if not rows:
         print(f"  [WARN] No stocks scored > 0. Returning empty DataFrame.")
-        return pd.DataFrame(columns=["Ticker", "Score", "Price"])
+        empty_df = pd.DataFrame(columns=["Ticker", "Score", "Price"])
+        scoring_meta = {
+            "scoring_date": scoring_date,
+            "scoring_index": int(di),
+            "valid_ticker_count": int(np.all(feat_valid[sel, di, :], axis=0).sum()),
+            "selected_factor_count": int(sel.sum()),
+            "score_regime": score_regime,
+            "ticker_count": int(N),
+        }
+        return (empty_df, scoring_meta) if return_meta else empty_df
 
     df = pd.DataFrame(rows).sort_values("Score", ascending=False).reset_index(drop=True)
-    return df
+    scoring_meta = {
+        "scoring_date": scoring_date,
+        "scoring_index": int(di),
+        "valid_ticker_count": int(np.all(feat_valid[sel, di, :], axis=0).sum()),
+        "selected_factor_count": int(sel.sum()),
+        "score_regime": score_regime,
+        "ticker_count": int(N),
+    }
+    return (df, scoring_meta) if return_meta else df
 
 
 # ─────────────────────────────────────────────
@@ -318,6 +525,14 @@ def _compute_daily_limit(
 _RECO_COLS = [
     "Date", "Ticker", "Action", "Score", "TargetPct", "ActualPct",
     "GapPct", "Price", "Shares", "Capital", "Regime", "GraceCount",
+    # D1.4: per-row rank within today's scored universe (1-based).  Used
+    # by ``apply_actions`` / ``apply_recommendations`` to seed
+    # ``entry_rank`` on BUY_NEW.  ``-1`` = unranked (held ticker that
+    # dropped out of top-N, TRIM, DEFERRED, etc.).
+    "Rank",
+    # v2.1 — profit_target tier carried to ``apply_partial_execution``
+    # for ProfitTargetsHit persistence.  NaN for all other actions.
+    "ProfitTier",
 ]
 
 
@@ -326,6 +541,18 @@ def generate_recommendations(
     vix_close: float, holdings_mgr: HoldingsManager,
     total_capital: float, daily_buy_limit: float = 0.0,
     strategy_conf: Optional[Dict] = None,
+    sim_date: Optional[str] = None,
+    history: Optional[Any] = None,
+    # D4.2 — risk-off gate inputs.  All optional for backward compat;
+    # triggers that don't consult ``market.risk_off`` are indifferent.
+    vix_series: Optional[List[float]] = None,
+    recent_regimes: Optional[List[str]] = None,
+    portfolio_peak: Optional[float] = None,
+    # D4 diagnostics — if a list is supplied, each fired exit verdict
+    # (excluding sell_grace/STOP_LOSS which are legacy-tracked) is
+    # appended as a dict for offline analysis.  Does not affect portfolio
+    # behaviour.  See simulator / run_lab for CSV dump wiring.
+    trade_log: Optional[List[Dict]] = None,
 ) -> pd.DataFrame:
     """Generate gap-based incremental buy/sell recommendations.
 
@@ -343,6 +570,8 @@ def generate_recommendations(
     trim_threshold = strat.get("trim_threshold", 0.03)
     min_buy_shares = strat.get("min_buy_shares", 1)
     sell_grace_days = strat.get("sell_grace_days", 0)
+    grace_step1_days = strat.get("grace_step1_days", 0)
+    grace_step1_sell_pct = strat.get("grace_step1_sell_pct", 0.5)
     enable_stop_loss = strat.get("enable_stop_loss", False)
     stop_loss_pct = strat.get("stop_loss_pct", -15.0)
 
@@ -383,6 +612,15 @@ def generate_recommendations(
     score_map = dict(zip(candidates["Ticker"], candidates["Score"]))
     price_map = dict(zip(candidates["Ticker"], candidates["Price"]))
 
+    # D1.4: rank over today's full scored universe (1-based, stable by
+    # sort order of scores_df).  Stamped onto every recos row so
+    # ``apply_actions`` / ``apply_recommendations`` can seed
+    # ``entry_rank`` on BUY_NEW without re-deriving ranks from scores_df.
+    rank_map: Dict[str, int] = {}
+    if scores_df is not None and not scores_df.empty and "Ticker" in scores_df.columns:
+        for idx, ticker in enumerate(scores_df["Ticker"].tolist(), start=1):
+            rank_map[str(ticker)] = idx
+
     # --- 3. Actual weights + PnL from current holdings ---
     current = holdings_mgr.load_current()
     actual_value = {}
@@ -404,50 +642,233 @@ def generate_recommendations(
         for t, v in actual_value.items():
             actual_map[t] = v / investable_capital
 
-    # --- 3b. Load previous recommendations for grace period tracking ---
-    prev_grace = {}  # ticker → grace count from previous run
-    if sell_grace_days > 0:
-        prev_recos = holdings_mgr.load_recommendations()
-        if not prev_recos.empty and "Action" in prev_recos.columns:
-            grace_rows = prev_recos[prev_recos["Action"] == "SELL_GRACE"]
-            if not grace_rows.empty and "GraceCount" in grace_rows.columns:
-                for _, gr in grace_rows.iterrows():
-                    prev_grace[gr["Ticker"]] = int(gr.get("GraceCount", 1))
+    # --- 3b. Exit-trigger pipeline (Track D, D1 refactor) --------------------
+    # Replaces the legacy hardcoded stop-loss + sell-grace branches.  The
+    # pipeline is legacy-parity in stock config (build_triggers synthesises
+    # StopLossTrigger / SellGraceTrigger from enable_stop_loss /
+    # sell_grace_days / grace_step1_*) but also accepts the new
+    # ``strategy.exit_triggers`` explicit list for future D2 dynamic
+    # triggers.  Verdicts are consumed below in three places:
+    #   (1) STOP_LOSS  → emitted immediately (block directly below),
+    #   (2) SELL / SELL_GRACE / TRIM_GRACE → inside the classification
+    #       loop's "not in_target and is_held" branch,
+    #   (3) TRIM_GRACE partial_pct → in the TRIM_GRACE emission block.
+    today = sim_date if sim_date else datetime.now().strftime("%Y-%m-%d")
 
-    # --- 4. STOP_LOSS check (highest priority — before gap classification) ---
-    today = datetime.now().strftime("%Y-%m-%d")
+    exit_triggers = build_triggers(strat)
+    exit_verdicts: Dict[str, Any] = {}
+    prev_grace: Dict[str, int] = {}
+    same_day_rerun = False
+    if exit_triggers:
+        # Only pay for prev_recos I/O when a grace-state-consuming trigger
+        # is present — matches legacy's ``if sell_grace_days > 0`` gating.
+        needs_prev_recos = any(
+            getattr(t, "name", None) == "sell_grace" for t in exit_triggers
+        )
+        prev_recos_for_triggers = (
+            holdings_mgr.load_recommendations() if needs_prev_recos else None
+        )
+        holdings_store = getattr(holdings_mgr, "holdings", None)
+        # D4.2 — resolve RiskOffAssessor from strategy_conf.risk_off (dict)
+        # so arm configs can override thresholds without touching Python.
+        ro_conf = strat.get("risk_off") if isinstance(strat, dict) else None
+        ro_assessor = RiskOffAssessor.from_config(ro_conf) if ro_conf is not None else None
+
+        exit_verdicts, prev_grace, same_day_rerun = evaluate_exits(
+            triggers=exit_triggers,
+            current=current,
+            holdings_store=holdings_store,
+            scores_df=scores_df,
+            score_map=score_map,
+            regime=regime,
+            today=today,
+            vix=float(vix_close),
+            top_n=top_n,
+            total_capital=total_capital,
+            prev_recos=prev_recos_for_triggers,
+            history=history,
+            vix_series=vix_series,
+            recent_regimes=recent_regimes,
+            portfolio_peak=portfolio_peak,
+            risk_off_assessor=ro_assessor,
+        )
+
+    # --- 4. Upstream terminal-verdict emission ------------------------
+    # Every terminal verdict except ``sell_grace`` emits its recos row
+    # *here*, before the target/held classification loop.  Rationale:
+    # D2 triggers (peak_drawdown, score_decay, trend_break, rank_velocity,
+    # relative_rebar, regime_switch) fire on held tickers **regardless of
+    # top-N membership** — if routed through the classification loop they
+    # would be dropped in the ``in_target`` branch.  ``sell_grace`` is the
+    # single exception: its semantics are strictly rank-based (fires only
+    # when out-of-target), so it keeps legacy classification-loop routing
+    # and D1.5 byte-parity is preserved.
+    #
+    # STOP_LOSS is preserved bit-for-bit (GapPct=0, legacy row shape);
+    # other triggers use modern SELL/TRIM shapes with computed GapPct.
     target_tickers = set(target_map.keys())
     held_tickers = set(actual_value.keys())
 
     recos = []
-    stop_loss_tickers = set()
+    upstream_handled: set = set()
+    _UPSTREAM_EXCLUDED_TRIGGERS = {"sell_grace"}
 
-    if enable_stop_loss and not current.empty:
-        for ticker in held_tickers:
-            pnl = pnl_map.get(ticker, 0)
-            if pnl <= stop_loss_pct:
-                stop_loss_tickers.add(ticker)
-                recos.append({
-                    "Date": today, "Ticker": ticker, "Action": "STOP_LOSS",
-                    "Score": score_map.get(ticker, 0),
-                    "TargetPct": round(target_map.get(ticker, 0) * 100, 2),
-                    "ActualPct": round(actual_map.get(ticker, 0) * 100, 2),
-                    "GapPct": 0,
-                    "Price": held_price_map.get(ticker, 0),
-                    "Shares": held_shares_map.get(ticker, 0),
-                    "Capital": 0, "Regime": regime, "GraceCount": 0,
-                })
+    # STOP_LOSS first — preserve legacy row shape verbatim for D1.5 parity.
+    # Must emit before any other D2 trigger so STOP_LOSS takes precedence
+    # when two triggers both recommend SELL for the same ticker (the
+    # pipeline's priority sort already picks one, but this ordering keeps
+    # recos-row deterministic w.r.t. legacy).
+    stop_loss_tickers = {
+        t for t, v in exit_verdicts.items()
+        if v.recos_action == RecosAction.STOP_LOSS and t in held_tickers
+    }
+    for ticker in stop_loss_tickers:
+        recos.append({
+            "Date": today, "Ticker": ticker, "Action": RecosAction.STOP_LOSS,
+            "Score": score_map.get(ticker, 0),
+            "TargetPct": round(target_map.get(ticker, 0) * 100, 2),
+            "ActualPct": round(actual_map.get(ticker, 0) * 100, 2),
+            "GapPct": 0,
+            "Price": held_price_map.get(ticker, 0),
+            "Shares": held_shares_map.get(ticker, 0),
+            "Capital": 0, "Regime": regime, "GraceCount": 0,
+        })
+        upstream_handled.add(ticker)
+
+    # D2 terminal verdicts — any trigger that isn't stop_loss / sell_grace.
+    # Side-effect for D4.3: persist fired profit-target tiers into
+    # holdings_store so the trigger's tier-memory survives across days.
+    _holdings_store = getattr(holdings_mgr, "holdings", None)
+    for ticker, v in exit_verdicts.items():
+        if ticker not in held_tickers or ticker in upstream_handled:
+            continue
+        if getattr(v, "trigger_name", "") in _UPSTREAM_EXCLUDED_TRIGGERS:
+            continue
+        if not v.is_terminal():
+            continue
+        if v.recos_action == RecosAction.STOP_LOSS:
+            continue  # already handled above
+
+        price = held_price_map.get(ticker, 0)
+        shares = held_shares_map.get(ticker, 0)
+        act_v = v.action  # "SELL" / "TRIM" / "WARN"
+
+        # D4.3 — tier-memory persistence. Only writes on TRIM_PROFIT (SELL_PROFIT
+        # fully closes the position, so the set is discarded anyway when the
+        # ticker is removed from holdings_store).
+        if (v.recos_action == RecosAction.TRIM_PROFIT
+                and _holdings_store is not None
+                and ticker in _holdings_store):
+            tier = v.meta.get("profit_target_pct") if isinstance(v.meta, dict) else None
+            if tier is not None:
+                hit = _holdings_store[ticker].setdefault("profit_targets_hit", set())
+                if isinstance(hit, (list, tuple)):
+                    hit = set(float(x) for x in hit)
+                    _holdings_store[ticker]["profit_targets_hit"] = hit
+                hit.add(float(tier))
+
+        # D4 trade-log diagnostics — capture verdict context for every
+        # upstream-emitted non-STOP_LOSS terminal verdict.  Caller decides
+        # whether to pass a list (None = disabled, no overhead).
+        if trade_log is not None:
+            _hold_entry = (
+                _holdings_store.get(ticker)
+                if _holdings_store is not None and ticker in _holdings_store
+                else {}
+            ) or {}
+            entry_price = float(_hold_entry.get("entry_price", 0.0) or 0.0)
+            days_held = int(_hold_entry.get("days_held", 0) or 0)
+            pnl_pct = (
+                (price / entry_price - 1.0) * 100.0
+                if entry_price > 0 and price > 0 else 0.0
+            )
+            trade_log.append({
+                "Date": today,
+                "Ticker": ticker,
+                "Regime": regime,
+                "Trigger": getattr(v, "trigger_name", "") or "",
+                "Action": v.recos_action or act_v,
+                "Score": round(float(score_map.get(ticker, 0) or 0.0), 4),
+                "EntryPrice": round(entry_price, 4),
+                "Price": round(float(price), 4),
+                "Shares": int(shares),
+                "DaysHeld": days_held,
+                "PnLPct": round(pnl_pct, 2),
+                "PartialPct": round(float(v.partial_pct or 0.0), 4),
+                "TargetPct": round(target_map.get(ticker, 0) * 100, 2),
+                "ActualPct": round(actual_map.get(ticker, 0) * 100, 2),
+                "Meta": dict(v.meta) if isinstance(v.meta, dict) else {},
+                "Reason": str(v.reason or "")[:400],
+            })
+
+        if act_v == "SELL":
+            _tier = None
+            if isinstance(getattr(v, "meta", None), dict):
+                _tier = v.meta.get("profit_target_pct")
+            recos.append({
+                "Date": today, "Ticker": ticker,
+                "Action": v.recos_action or RecosAction.SELL,
+                "Score": score_map.get(ticker, 0),
+                "TargetPct": round(target_map.get(ticker, 0) * 100, 2),
+                "ActualPct": round(actual_map.get(ticker, 0) * 100, 2),
+                "GapPct": round(-actual_map.get(ticker, 0) * 100, 2),
+                "Price": price, "Shares": shares,
+                "Capital": 0, "Regime": regime,
+                "GraceCount": int(v.grace_count or 0),
+                "ProfitTier": float(_tier) if _tier is not None else np.nan,
+            })
+            upstream_handled.add(ticker)
+        elif act_v == "TRIM":
+            pct = max(0.0, min(1.0, float(v.partial_pct)))
+            sell_shares = max(1, int(np.floor(shares * pct)))
+            # v2.1 — surface profit_target tier so the Excel persistence
+            # layer can record it against ProfitTargetsHit on execution.
+            _tier = None
+            if isinstance(getattr(v, "meta", None), dict):
+                _tier = v.meta.get("profit_target_pct")
+            recos.append({
+                "Date": today, "Ticker": ticker,
+                "Action": v.recos_action or RecosAction.TRIM,
+                "Score": score_map.get(ticker, 0),
+                "TargetPct": round(target_map.get(ticker, 0) * 100, 2),
+                "ActualPct": round(actual_map.get(ticker, 0) * 100, 2),
+                "GapPct": round(-actual_map.get(ticker, 0) * pct * 100, 2),
+                "Price": price, "Shares": sell_shares,
+                "Capital": round(sell_shares * price, 2),
+                "Regime": regime,
+                "GraceCount": int(v.grace_count or 0),
+                "ProfitTier": float(_tier) if _tier is not None else np.nan,
+            })
+            upstream_handled.add(ticker)
+        elif act_v == "WARN":
+            # WARN = record-only, no portfolio change.  Used by D2 WARN
+            # verdicts (e.g. rank_velocity tier-1 warning).  sell_grace's
+            # SELL_GRACE is NOT handled here (sell_grace routes through
+            # classification loop by the excluded-triggers list above).
+            recos.append({
+                "Date": today, "Ticker": ticker,
+                "Action": v.recos_action or "WARN",
+                "Score": score_map.get(ticker, 0),
+                "TargetPct": round(target_map.get(ticker, 0) * 100, 2),
+                "ActualPct": round(actual_map.get(ticker, 0) * 100, 2),
+                "GapPct": 0,
+                "Price": price, "Shares": shares,
+                "Capital": 0, "Regime": regime,
+                "GraceCount": int(v.grace_count or 0),
+            })
+            upstream_handled.add(ticker)
 
     # --- 5. Classify remaining tickers ---
     all_tickers = target_tickers | held_tickers
     buy_items = []
     sell_items = []
     grace_items = []
+    trim_grace_items = []
     trim_items = []
     hold_items = []
 
     for ticker in all_tickers:
-        if ticker in stop_loss_tickers:
+        if ticker in upstream_handled:
             continue
 
         target_w = target_map.get(ticker, 0.0)
@@ -459,13 +880,24 @@ def generate_recommendations(
         is_held = ticker in held_tickers
 
         if not in_target and is_held:
-            if sell_grace_days > 0:
-                prev_count = prev_grace.get(ticker, 0)
-                new_count = prev_count + 1
-                if new_count > sell_grace_days:
+            # Decision comes from the trigger stack via ``exit_verdicts``
+            # computed in step 3b above.  Legacy fallback: when no
+            # grace-family trigger is configured (sell_grace_days = 0),
+            # no verdict is produced → sell immediately, matching the
+            # pre-D1 ``else: sell_items.append(ticker)`` branch.
+            v = exit_verdicts.get(ticker)
+            if v is not None:
+                a = v.recos_action
+                if a == "SELL":
                     sell_items.append(ticker)
-                else:
-                    grace_items.append((ticker, new_count))
+                elif a == "TRIM_GRACE":
+                    trim_grace_items.append((ticker, int(v.grace_count),
+                                             float(v.partial_pct)))
+                elif a == "SELL_GRACE":
+                    grace_items.append((ticker, int(v.grace_count)))
+                # Any other action here (STOP_LOSS handled upstream,
+                # TRIM/HOLD not expected from grace-family triggers) is
+                # ignored intentionally; ticker stays unclassified.
             else:
                 sell_items.append(ticker)
         elif in_target and gap_w > gap_threshold:
@@ -500,6 +932,27 @@ def generate_recommendations(
             "Price": held_price_map.get(ticker, 0),
             "Shares": held_shares_map.get(ticker, 0),
             "Capital": 0, "Regime": regime,
+            "GraceCount": grace_count,
+        })
+
+    # --- 6c. TRIM_GRACE: two-step grace partial sell ---
+    # ``partial_pct`` now flows in from the verdict so that D2 triggers can
+    # customise per-ticker trim fractions without touching this block.
+    # In legacy-mode this equals ``strat["grace_step1_sell_pct"]`` for every
+    # row, preserving pre-D1 behaviour bit-for-bit.
+    for ticker, grace_count, partial_pct in trim_grace_items:
+        total_shares = held_shares_map.get(ticker, 0)
+        sell_shares = max(1, int(np.floor(total_shares * partial_pct)))
+        price = held_price_map.get(ticker, 0)
+        recos.append({
+            "Date": today, "Ticker": ticker, "Action": "TRIM_GRACE",
+            "Score": score_map.get(ticker, 0),
+            "TargetPct": 0, "ActualPct": round(actual_map.get(ticker, 0) * 100, 2),
+            "GapPct": round(-actual_map.get(ticker, 0) * partial_pct * 100, 2),
+            "Price": price,
+            "Shares": sell_shares,
+            "Capital": round(sell_shares * price, 2),
+            "Regime": regime,
             "GraceCount": grace_count,
         })
 
@@ -629,6 +1082,12 @@ def generate_recommendations(
     df = pd.DataFrame(recos)
     if df.empty:
         return pd.DataFrame(columns=_RECO_COLS)
+    # D1.4: stamp Rank column on every row from the once-computed
+    # ``rank_map``.  Post-hoc rather than per-literal so the 8 row-
+    # construction sites stay legacy-identical and any future row types
+    # inherit the stamping for free.  Tickers not in today's scored
+    # universe (e.g. held legacy ticker outside top-N) get Rank=-1.
+    df["Rank"] = df["Ticker"].map(lambda t: rank_map.get(str(t), -1)).astype(int)
     return df
 
 
@@ -830,6 +1289,106 @@ def backfill_cache(cfg, tickers: List[str], scan_days: int = 180, max_gap_days: 
 
 
 # ─────────────────────────────────────────────
+# Universe delta
+# ─────────────────────────────────────────────
+
+def _print_universe_delta(scores_df: pd.DataFrame, hm, cfg, regime: str) -> str:
+    """Print and return top-N universe changes vs previous recommendations."""
+    if regime == "BULL":
+        top_n = cfg.regime_bull_top_n
+    elif regime in ("DEFENSIVE", "CRASH"):
+        top_n = cfg.regime_defensive_top_n
+    else:
+        top_n = cfg.regime_side_top_n
+
+    today_ranked = scores_df.dropna(subset=["Price"]).reset_index(drop=True)
+    today_top = set(today_ranked.head(top_n)["Ticker"].tolist())
+    today_rank = {row["Ticker"]: i + 1 for i, row in today_ranked.iterrows()}
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    prev_recos = hm.load_prev_day_recos(today_str=today_str)
+    if prev_recos.empty or "Action" not in prev_recos.columns:
+        # Fallback: if archive missing, try current Recommendations if it's from before today
+        cur = hm.load_recommendations()
+        if not cur.empty and "Date" in cur.columns:
+            cur_date = str(cur["Date"].iloc[0])[:10]
+            if cur_date < today_str:
+                prev_recos = cur
+    if prev_recos.empty or "Action" not in prev_recos.columns:
+        msg = f"\n  [Universe] top-{top_n} ({regime}): {len(today_top)} tickers (no previous day data)"
+        print(msg)
+        return msg
+    prev_date_str = str(prev_recos["Date"].iloc[0])[:10] if "Date" in prev_recos.columns else "?"
+    if prev_date_str == today_str:
+        msg = f"\n  [Universe] top-{top_n} ({regime}): {len(today_top)} tickers (no previous day data — first run today)"
+        print(msg)
+        return msg
+
+    prev_regime = "?"
+    if "Regime" in prev_recos.columns and not prev_recos["Regime"].dropna().empty:
+        prev_regime = str(prev_recos["Regime"].dropna().iloc[0])
+
+    in_top_actions = {"BUY_NEW", "BUY_MORE", "HOLD", "DEFERRED", "SELL_GRACE", "TRIM"}
+    prev_in_top = prev_recos[prev_recos["Action"].isin(in_top_actions)]
+    if "Score" in prev_in_top.columns:
+        prev_sorted = prev_in_top.sort_values("Score", ascending=False).reset_index(drop=True)
+        prev_rank = {row["Ticker"]: i + 1 for i, (_, row) in enumerate(prev_sorted.iterrows())}
+    else:
+        prev_rank = {}
+    prev_top = set(prev_in_top["Ticker"].tolist()) if not prev_in_top.empty else set()
+
+    get_in = today_top - prev_top
+    remain = today_top & prev_top
+    get_out = prev_top - today_top
+
+    lines = []
+    lines.append(f"[Universe Delta] top-{top_n} ({regime})  prev={prev_date_str} ({prev_regime})")
+    if prev_regime not in ("?", "", regime):
+        lines.append(
+            f"[WARN] Regime changed ({prev_regime} → {regime}): prev-rank uses "
+            f"{prev_regime} scoring weights while today uses {regime} — rank deltas "
+            f"reflect regime switch, not genuine signal moves."
+        )
+    lines.append(f"GET_IN={len(get_in)}  REMAIN={len(remain)}  GET_OUT={len(get_out)}")
+
+    if remain:
+        lines.append(f"\n{'Ticker':>8s}  {'Prev':>5s}  {'Now':>5s}  {'Delta':>6s}  {'Score':>6s}")
+        rows = []
+        for t in remain:
+            p_r = prev_rank.get(t, 0)
+            t_r = today_rank.get(t, 0)
+            delta = p_r - t_r if (p_r > 0 and t_r > 0) else 0
+            score = float(today_ranked.loc[today_ranked["Ticker"] == t, "Score"].iloc[0]) \
+                if not today_ranked[today_ranked["Ticker"] == t].empty else 0
+            rows.append((t, p_r, t_r, delta, score))
+        for t, p_r, t_r, delta, score in sorted(rows, key=lambda x: x[2]):
+            d_str = f"+{delta}" if delta > 0 else str(delta)
+            marker = " ▲" if delta > 0 else (" ▼" if delta < 0 else "  ")
+            lines.append(f"{t:>8s}  {p_r:5d}  {t_r:5d}  {d_str:>5s}{marker}  {score:6.1f}")
+
+    if get_in:
+        lines.append(f"\nGET_IN (new):")
+        for t in sorted(get_in, key=lambda x: today_rank.get(x, 999)):
+            r = today_rank.get(t, 0)
+            score = float(today_ranked.loc[today_ranked["Ticker"] == t, "Score"].iloc[0]) \
+                if not today_ranked[today_ranked["Ticker"] == t].empty else 0
+            lines.append(f"  {t:>8s}  rank={r:2d}  score={score:.1f}")
+
+    if get_out:
+        lines.append(f"\nGET_OUT (dropped):")
+        for t in sorted(get_out, key=lambda x: prev_rank.get(x, 999)):
+            p_r = prev_rank.get(t, 0)
+            t_r = today_rank.get(t, 0)
+            label = f"now #{t_r}" if t_r > 0 else "unranked"
+            lines.append(f"  {t:>8s}  was #{p_r:2d} → {label}")
+
+    text = "\n".join(lines)
+    for line in lines:
+        print(f"  {line}")
+    return text
+
+
+# ─────────────────────────────────────────────
 # Main orchestrator
 # ─────────────────────────────────────────────
 
@@ -837,11 +1396,17 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
     """Main daily execution flow."""
     conf = load_config(config_path)
     cfg = build_engine_cfg(conf)
+    rebalance_mode = conf.get("strategy", {}).get("rebalance_mode", "daily")
+    run_timestamp = datetime.now().astimezone()
+    run_id, run_dir = create_run_context(
+        conf["paths"]["output_dir"], run_timestamp, rebalance_mode, dry_run,
+    )
     now = datetime.now()
     et_now = _us_eastern_now()
     print(f"\n{'='*60}")
     print(f"  Phase 3 Daily Runner — {now.strftime('%Y-%m-%d %H:%M')} KST")
     print(f"  US Eastern         — {et_now.strftime('%Y-%m-%d %H:%M %Z')}")
+    print(f"  Artifact Run ID    — {run_id}")
     print(f"{'='*60}")
 
     # 1. Load frozen signal
@@ -876,23 +1441,94 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
     tickers, _ = engine.load_sp500_tickers_ttl(cfg, ttl_days=30)
     update_cache(cfg, tickers, max_stale_trading_days=0, refresh_days=30)
 
-    # 4. Get current VIX and regime
+    # 3.5 Post-refresh quality gate
+    print("\n[Step 2.5] Cache quality gate...")
+    from cache_health import check_vix_health, check_ohlcv_staleness
+    qg_vix = check_vix_health(cfg)
+    qg_sample = check_ohlcv_staleness(cfg, tickers[:30] + ["SPY"])
+    qg_stale = [t for t, r in qg_sample.items() if r["status"] in ("STALE", "CRITICAL")]
+    qg_missing = [t for t, r in qg_sample.items() if r["status"] == "MISSING"]
+    stale_pct = len(qg_stale) / max(len(qg_sample), 1)
+
+    if qg_vix["status"] == "CRITICAL":
+        print(f"  [CRITICAL] VIX data critically stale (last={qg_vix.get('latest_date','?')}, gap={qg_vix.get('gap_days','?')}d)")
+        print(f"  Regime detection will be unreliable. Aborting.")
+        if not dry_run and conf.get("email", {}).get("send_on_cache_error", True):
+            try:
+                from mailer import send_daily_email
+                send_daily_email(conf, ["CACHE_CRITICAL"], pd.DataFrame(), 0.0, "UNKNOWN",
+                                 HoldingsManager(conf["paths"]["holdings_log"]),
+                                 {"overall_status": "CRITICAL", "vix": qg_vix})
+            except Exception:
+                pass
+        return
+    elif qg_vix["status"] != "OK":
+        print(f"  [WARN] VIX cache stale (last={qg_vix.get('latest_date','?')}, gap={qg_vix.get('gap_days','?')}d)")
+
+    if qg_missing:
+        print(f"  [WARN] {len(qg_missing)} tickers MISSING in cache: {qg_missing[:5]}")
+    if qg_stale:
+        print(f"  [WARN] {len(qg_stale)}/{len(qg_sample)} sampled tickers stale: {qg_stale[:5]}")
+    if stale_pct > 0.5:
+        print(f"  [CRITICAL] >50% of sampled tickers stale ({stale_pct:.0%}). Recommendations may be unreliable.")
+
+    spy_status = qg_sample.get("SPY", {}).get("status", "?")
+    if spy_status not in ("OK",):
+        print(f"  [WARN] SPY cache: {spy_status} — benchmark tracking may be affected")
+
+    if not qg_stale and not qg_missing and qg_vix["status"] == "OK":
+        print(f"  Cache quality: OK ({len(qg_sample)} tickers checked)")
+    health["post_refresh_vix"] = qg_vix
+    health["post_refresh_stale_pct"] = stale_pct
+
+    # 4. Get current VIX and regime (with optional hysteresis + blend)
     print("\n[Step 3] VIX & Regime check...")
-    vix_close, regime = get_current_vix(cfg)
-    print(f"  VIX={vix_close:.2f}  Regime={regime}")
+    blend_conf = conf.get("regime", {})
+    hm_prev = HoldingsManager(conf["paths"]["holdings_log"])
+    prev_regime = "SIDE"
+    try:
+        dl = hm_prev.load_daily_log()
+        if not dl.empty and "regime" in dl.columns:
+            prev_regime = str(dl.iloc[-1]["regime"])
+    except Exception:
+        pass
+    vix_close, regime, blend_alphas = get_current_vix(cfg, prev_regime=prev_regime, blend_conf=blend_conf)
+    blend_on = bool(blend_conf.get("regime_blend_enabled", False))
+    if blend_on:
+        ab, as_, ad = blend_alphas
+        print(f"  VIX={vix_close:.2f}  Regime={regime} (hysteresis, prev={prev_regime})")
+        print(f"  Blend: α_bull={ab:.2f} α_side={as_:.2f} α_def={ad:.2f}")
+    else:
+        print(f"  VIX={vix_close:.2f}  Regime={regime}")
 
-    # 5. Check triggers
-    print("\n[Step 4] Trigger check...")
+    # 5. Rebalance mode & trigger check
     hm = HoldingsManager(conf["paths"]["holdings_log"])
-    triggers = check_triggers(cfg, vix_close, regime, hm, pack=None, signal=signal, force=force)
-    trigger_str = ", ".join(triggers) if triggers else "NONE"
-    print(f"  Triggers: {trigger_str}")
 
-    # 6. Always compute scores & generate recommendations
-    #    (trigger only controls whether recommendations are *applied*)
+    if rebalance_mode == "daily":
+        print(f"\n[Step 4] Rebalance mode: DAILY (all recommendations are actionable)")
+        triggers = ["DAILY"]
+        trigger_str = "DAILY"
+    else:
+        print("\n[Step 4] Trigger check (event-driven mode)...")
+        triggers = check_triggers(cfg, vix_close, regime, hm, pack=None, signal=signal, force=force)
+        trigger_str = ", ".join(triggers) if triggers else "NONE"
+        print(f"  Triggers: {trigger_str}")
+
+    # 6. Compute scores & generate recommendations
     recos = pd.DataFrame()
+    scores_df = pd.DataFrame(columns=["Ticker", "Score", "Price"])
+    scoring_meta: Dict[str, Any] = {}
+    current_before = pd.DataFrame()
+    current_after_refresh = pd.DataFrame()
+    strat_base: Dict[str, Any] = conf.get("strategy", {})
+    strat_conf: Dict[str, Any] = {}
+    holdings_value = 0.0
+    cash_balance = 0.0
+    total_capital = 0.0
+    artifact_error = ""
     trigger_actionable = bool(triggers)
     daily_limit = 0.0
+    universe_delta_text = ""
 
     print(f"\n[Step 5] Computing scores (regime={regime})...")
     import dataclasses
@@ -905,7 +1541,10 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
     try:
         result = engine.prepare_inputs(cfg_for_pack)
         pack = result["pack"]
-        scores_df = compute_today_scores(cfg, pack, signal, regime)
+        scores_df, scoring_meta = compute_today_scores(
+            cfg, pack, signal, regime, return_meta=True,
+            blend_alphas=blend_alphas if blend_on else None,
+        )
         print(f"  Scored {len(scores_df)} stocks. Top 5:")
         print(scores_df.head().to_string(index=False))
 
@@ -913,23 +1552,22 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
         current_before = hm.load_current()
         if not current_before.empty:
             hm.update_current_prices(price_map)
-            updated = hm.load_current()
-            print(f"\n  [Price Update] {len(updated)} holdings refreshed:")
-            for _, h in updated.iterrows():
+            current_after_refresh = hm.load_current()
+            print(f"\n  [Price Update] {len(current_after_refresh)} holdings refreshed:")
+            for _, h in current_after_refresh.iterrows():
                 pnl_pct = h.get("PnL_Pct", 0)
                 print(f"    {h['Ticker']:6s}  buy=${h['BuyPrice']:.2f}  "
                       f"now=${h['CurrentPrice']:.2f}  PnL={pnl_pct:+.2f}%")
+        else:
+            current_after_refresh = current_before.copy()
 
-        print(f"\n[Step 6] Generating recommendations...")
-        if not trigger_actionable:
-            print(f"  (Trigger=NONE → recommendations are PREVIEW only, not applied)")
+        print(f"\n[Step 6] Generating recommendations (mode={rebalance_mode})...")
 
         initial_cash = conf["portfolio"].get("initial_cash", conf["portfolio"]["total_capital"])
         hm.initialize_cash(initial_cash)
 
         holdings_value = hm.get_portfolio_value()
         cash_balance = hm.get_cash_balance()
-        strat_base = conf.get("strategy", {})
 
         from simulator import resolve_strategy
         strat_conf = resolve_strategy(strat_base, regime)
@@ -958,6 +1596,9 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
             strategy_conf=strat_conf,
         )
 
+        # ── Universe Delta: compare today's top-N vs previous ──
+        universe_delta_text = _print_universe_delta(scores_df, hm, cfg, regime)
+
         _ne = lambda col: recos[recos["Action"] == col] if not recos.empty and "Action" in recos.columns else pd.DataFrame()
         stop_losses = _ne("STOP_LOSS")
         sells = _ne("SELL")
@@ -974,7 +1615,9 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
         if len(stop_losses): parts.append(f"STOP_LOSS={len(stop_losses)}")
         if len(sells): parts.append(f"SELL={len(sells)}")
         if len(sell_grace): parts.append(f"SELL_GRACE={len(sell_grace)}")
+        trim_grace_count = len(recos[recos["Action"] == "TRIM_GRACE"]) if not recos.empty and "Action" in recos.columns else 0
         if len(trims): parts.append(f"TRIM={len(trims)}")
+        if trim_grace_count: parts.append(f"TRIM_GRACE={trim_grace_count}")
         parts.append(f"BUY_NEW={len(buy_new)} BUY_MORE={len(buy_more)} (${buy_total:,.0f})")
         parts.append(f"HOLD={len(holds)} DEFERRED={len(deferred)}")
         print(f"  {' | '.join(parts)}")
@@ -1000,6 +1643,15 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
                 remaining = conf.get("strategy", {}).get("sell_grace_days", 60) - int(r.get("GraceCount", 0))
                 print(f"    {r['Ticker']:6s}  grace {int(r['GraceCount'])}/{conf.get('strategy',{}).get('sell_grace_days',60)}  "
                       f"({remaining}d left)  weight={r['ActualPct']:.1f}%")
+        trim_grace = _ne("TRIM_GRACE")
+        if not trim_grace.empty:
+            print(f"\n  [TRIM_GRACE — two-step grace partial sell]")
+            for _, r in trim_grace.iterrows():
+                step1 = conf.get("strategy", {}).get("grace_step1_days", 0)
+                grace_end = conf.get("strategy", {}).get("sell_grace_days", 60)
+                sell_pct = conf.get("strategy", {}).get("grace_step1_sell_pct", 0.5)
+                print(f"    {r['Ticker']:6s}  sell {sell_pct:.0%} ({int(r['Shares'])} shares) @ ${r['Price']:.2f}  "
+                      f"grace {int(r['GraceCount'])}/{grace_end}  (step1@{step1}d)")
         if not trims.empty:
             print("\n  [TRIM — overweight reduction]")
             print(trims[["Ticker", "TargetPct", "ActualPct", "GapPct", "Price", "Shares"]].to_string(index=False))
@@ -1015,24 +1667,61 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
             print(deferred[["Ticker", "Score", "TargetPct", "GapPct", "Price"]].to_string(index=False))
 
     except Exception as e:
-            print(f"  [ERROR] Score computation failed: {e}")
-            traceback.print_exc()
+        artifact_error = f"{type(e).__name__}: {e}"
+        print(f"  [ERROR] Score computation failed: {e}")
+        traceback.print_exc()
 
-    # 7. Save recommendations — applied only when trigger fires
+    artifact_status = "awaiting_execution" if (not dry_run and trigger_actionable and artifact_error == "") else "generated"
+    if artifact_error:
+        artifact_status = "error"
+
+    try:
+        write_daily_run_artifact(
+            run_dir=run_dir,
+            run_id=run_id,
+            run_timestamp=run_timestamp,
+            dry_run=dry_run,
+            rebalance_mode=rebalance_mode,
+            status=artifact_status,
+            trigger_actionable=trigger_actionable,
+            triggers=triggers,
+            trigger_str=trigger_str,
+            regime=regime,
+            vix_close=vix_close,
+            frozen_signal_path=fs_path,
+            signal_summary=sig_summary,
+            config=conf,
+            strategy_base=strat_base,
+            strategy_resolved=strat_conf,
+            scores_df=scores_df,
+            recos_df=recos,
+            portfolio_before_df=current_before,
+            portfolio_after_refresh_df=current_after_refresh,
+            scoring_meta=scoring_meta,
+            daily_buy_limit=daily_limit,
+            holdings_value=holdings_value,
+            cash_balance=cash_balance,
+            total_capital=total_capital,
+            health=health,
+            error=artifact_error,
+        )
+        print(f"\n[Artifact] Run snapshot saved: {run_dir}")
+    except Exception as artifact_exc:
+        print(f"\n[Artifact][WARN] failed to save run snapshot: {type(artifact_exc).__name__}: {artifact_exc}")
+
+    # 7. Save recommendations
     if dry_run:
         print(f"\n[DRY RUN] No state changes applied.")
     else:
         if not recos.empty:
             hm.save_recommendations(recos)
-            if trigger_actionable:
-                print(f"\n[Step 7] Recommendations saved (ACTIONABLE)")
-                print(f"  -> Open T10 'Report Execution' to apply after you trade.")
-            else:
-                print(f"\n[Step 7] Recommendations saved (PREVIEW — no trigger)")
-                print(f"  -> Next trigger in ~{max(0, conf.get('triggers',{}).get('min_interval_days',7) - ((now - (hm.get_last_rebalance_date() or now)).days))}d")
+            print(f"\n[Step 7] Recommendations saved (ACTIONABLE)")
+            print(f"  -> Open T10 'Report Execution' to apply after you trade.")
 
         portfolio_value = hm.get_portfolio_value()
-        cash_pct = 0.0
+        log_cash = hm.get_cash_balance()
+        log_total = portfolio_value + max(log_cash, 0.0)
+        cash_pct = (log_cash / log_total * 100) if log_total > 0 else 0.0
         top_holding = ""
         current = hm.load_current()
         if not current.empty:
@@ -1044,16 +1733,19 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
             vix=vix_close, regime=regime,
             cash_pct=cash_pct,
             portfolio_value=portfolio_value,
+            cash_balance=log_cash,
+            total_capital=log_total,
             top_holding=top_holding,
         )
-        print(f"  Daily log recorded. Portfolio value: ${portfolio_value:,.2f}")
+        print(f"  Daily log recorded. Total: ${log_total:,.2f} (holdings ${portfolio_value:,.2f} + cash ${log_cash:,.2f})")
 
     # 8. Send email
     if not dry_run and conf.get("email", {}).get("enabled", False):
         try:
             from mailer import send_daily_email
             send_daily_email(conf, triggers, recos, vix_close, regime, hm, health,
-                             computed_daily_limit=daily_limit)
+                             computed_daily_limit=daily_limit,
+                             universe_delta_text=universe_delta_text)
             print("  Email sent.")
         except Exception as e:
             print(f"  [WARN] Email failed: {e}")
@@ -1070,7 +1762,7 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Phase 3 Daily Runner")
     parser.add_argument("--dry-run", action="store_true", help="Check only, no state changes")
-    parser.add_argument("--force-rebalance", action="store_true", help="Force trigger regardless of cooldown")
+    parser.add_argument("--force-rebalance", action="store_true", help="Force trigger (used in event-driven mode)")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
     args = parser.parse_args()
     run_daily(dry_run=args.dry_run, force=args.force_rebalance, config_path=args.config)

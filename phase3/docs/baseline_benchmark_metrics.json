@@ -1,0 +1,176 @@
+{
+  "meta": {
+    "generated_at": "2026-04-23T12:49:54",
+    "oos_window": {
+      "start": "2024-06-01",
+      "end": "2026-04-17"
+    },
+    "pack": "precompute_qresearch_v4_12_2017-01-03_2026-04-17.npz",
+    "initial_capital": 100000.0,
+    "commission_bps": 10.0,
+    "slippage_bps": 5.0,
+    "daily_buy_limit": 1000.0,
+    "note": "FROZEN baseline. Do not regenerate without version-bump."
+  },
+  "arms": [
+    {
+      "arm": "V1_BATCH11_legacy",
+      "signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P2_BATCH11_20260406_043415.npz",
+      "triggers": "LEGACY",
+      "window_start": "2024-06-01",
+      "window_end": "2026-04-17",
+      "metrics": {
+        "CAGR": 0.567612,
+        "Max_Drawdown": 0.318542,
+        "Net_Sharpe": 1.5821,
+        "Calmar_Ratio": 1.7819,
+        "Total_Return": 1.3128,
+        "Daily_Win_Rate": 0.583,
+        "Monthly_Win_Rate": 0.6818,
+        "Years": 1.87,
+        "Trading_Days": 470,
+        "Rebalance_Days": 470,
+        "Total_Commission": 1020.19,
+        "Commission_Pct_of_Capital": 1.02,
+        "Final_Value": 231278.52,
+        "turnover_annualized_proxy": 2.1962
+      },
+      "regime_breakdown": {
+        "BULL": {
+          "Days": 268,
+          "MaxStreak": 74,
+          "AnnRet": 0.4513,
+          "Sharpe": 1.618,
+          "MDD": 0.123,
+          "Calmar": 3.6683,
+          "WinRate": 0.5597
+        },
+        "SIDE": {
+          "Days": 189,
+          "MaxStreak": 45,
+          "AnnRet": 0.8661,
+          "Sharpe": 1.7353,
+          "MDD": 0.172,
+          "Calmar": 5.037,
+          "WinRate": 0.6138
+        },
+        "DEF": {
+          "Days": 13,
+          "MaxStreak": 13,
+          "AnnRet": 2.6641,
+          "Sharpe": 1.5745,
+          "MDD": 0.0728,
+          "Calmar": 36.5711,
+          "WinRate": 0.6154
+        }
+      },
+      "elapsed_sec": 3.4
+    },
+    {
+      "arm": "V2_ENS_L3_v1_legacy",
+      "signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+      "triggers": "LEGACY",
+      "window_start": "2024-06-01",
+      "window_end": "2026-04-17",
+      "metrics": {
+        "CAGR": 0.573899,
+        "Max_Drawdown": 0.316417,
+        "Net_Sharpe": 1.5985,
+        "Calmar_Ratio": 1.8137,
+        "Total_Return": 1.3301,
+        "Daily_Win_Rate": 0.5851,
+        "Monthly_Win_Rate": 0.6818,
+        "Years": 1.87,
+        "Trading_Days": 470,
+        "Rebalance_Days": 470,
+        "Total_Commission": 1095.02,
+        "Commission_Pct_of_Capital": 1.1,
+        "Final_Value": 233011.43,
+        "turnover_annualized_proxy": 2.345
+      },
+      "regime_breakdown": {
+        "BULL": {
+          "Days": 268,
+          "MaxStreak": 74,
+          "AnnRet": 0.4389,
+          "Sharpe": 1.5808,
+          "MDD": 0.1249,
+          "Calmar": 3.5152,
+          "WinRate": 0.5634
+        },
+        "SIDE": {
+          "Days": 189,
+          "MaxStreak": 45,
+          "AnnRet": 0.9049,
+          "Sharpe": 1.804,
+          "MDD": 0.1661,
+          "Calmar": 5.446,
+          "WinRate": 0.6138
+        },
+        "DEF": {
+          "Days": 13,
+          "MaxStreak": 13,
+          "AnnRet": 2.7166,
+          "Sharpe": 1.5877,
+          "MDD": 0.0725,
+          "Calmar": 37.4551,
+          "WinRate": 0.6154
+        }
+      },
+      "elapsed_sec": 3.5
+    },
+    {
+      "arm": "V2_ENS_L3_v1_SIDE_DEF_p12",
+      "signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+      "triggers": "SIDE_DEF_p12",
+      "window_start": "2024-06-01",
+      "window_end": "2026-04-17",
+      "metrics": {
+        "CAGR": 0.563348,
+        "Max_Drawdown": 0.314582,
+        "Net_Sharpe": 1.5883,
+        "Calmar_Ratio": 1.7908,
+        "Total_Return": 1.3011,
+        "Daily_Win_Rate": 0.5851,
+        "Monthly_Win_Rate": 0.6818,
+        "Years": 1.87,
+        "Trading_Days": 470,
+        "Rebalance_Days": 470,
+        "Total_Commission": 1120.13,
+        "Commission_Pct_of_Capital": 1.12,
+        "Final_Value": 230106.78,
+        "turnover_annualized_proxy": 2.4199
+      },
+      "regime_breakdown": {
+        "BULL": {
+          "Days": 268,
+          "MaxStreak": 74,
+          "AnnRet": 0.4303,
+          "Sharpe": 1.5658,
+          "MDD": 0.1238,
+          "Calmar": 3.4754,
+          "WinRate": 0.5634
+        },
+        "SIDE": {
+          "Days": 189,
+          "MaxStreak": 45,
+          "AnnRet": 0.8904,
+          "Sharpe": 1.8003,
+          "MDD": 0.1655,
+          "Calmar": 5.3799,
+          "WinRate": 0.6138
+        },
+        "DEF": {
+          "Days": 13,
+          "MaxStreak": 13,
+          "AnnRet": 2.5684,
+          "Sharpe": 1.5524,
+          "MDD": 0.0719,
+          "Calmar": 35.6983,
+          "WinRate": 0.6154
+        }
+      },
+      "elapsed_sec": 3.7
+    }
+  ]
+}

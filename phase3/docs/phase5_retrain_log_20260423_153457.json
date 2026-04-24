@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-04-23T15:34:57",
+  "mode": "FULL",
+  "train_window": {
+    "start": "2017-02-21",
+    "end": "2024-05-31"
+  },
+  "ga_seed": 20260428,
+  "overrides_applied": [
+    "end_date",
+    "enable_historical_universe",
+    "top_quantile",
+    "w_ic1",
+    "w_ic3",
+    "w_spread",
+    "factor_corr_penalty_lambda",
+    "weight_cap",
+    "enable_fitness_risk_penalty",
+    "enable_bull_floor_penalty",
+    "enable_bull_spread_bonus",
+    "enable_bull_factor_min_constraint",
+    "enable_side_soft_bias",
+    "enable_meta_search",
+    "stability_refine_population",
+    "ga_population",
+    "ga_generations",
+    "use_random_seed",
+    "ga_seed",
+    "excel_prefix"
+  ],
+  "pack_sec": 107.2,
+  "ga_sec": 4934.6,
+  "n_tickers": 972,
+  "n_dates": 1832,
+  "signal_quality": {
+    "k_selected": 15,
+    "MeanIC": NaN,
+    "Spread": NaN,
+    "PosICRatio": NaN,
+    "MeanIC_1M": NaN,
+    "MeanIC_3M": NaN
+  },
+  "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5_RETRAIN_20260423_153457.npz",
+  "notes": "Phase 5 stability-only retrain under patched GA formula (F1+F4+F11+S1). See phase3/docs/phase5_retrain_plan.md."
+}

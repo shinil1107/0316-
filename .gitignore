@@ -16,7 +16,33 @@
 !phase3/*.py
 !phase3/*.yaml
 !phase3/*.command
+!phase3/*.md
 phase3/config.local.yaml
+phase3/config.yaml.bak_*
+
+# track Phase 3 plans, reports and evaluation outputs
+!phase3/docs/
+!phase3/docs/*.md
+!phase3/docs/*.json
+!phase3/docs/*.jsonl
+
+# track Phase 3 tests / evaluation scripts
+!phase3/tests/
+!phase3/tests/*.py
+phase3/tests/__pycache__/
+
+# track Phase 3 exit-stack research scripts
+!phase3/exits/
+!phase3/exits/*.py
+phase3/exits/__pycache__/
+
+# track Phase 3 signal transition artifacts (xlsx kept for research history)
+!phase3/signal_transitions/
+!phase3/signal_transitions/*.xlsx
+
+# track project-level docs
+!CONTEXT.md
+!ARTIFACT_SCHEMA_V1.md
 
 # track supporting tools
 !fmp_cache_updater.py

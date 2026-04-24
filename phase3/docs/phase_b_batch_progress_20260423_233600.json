@@ -1,0 +1,44 @@
+{
+  "batch_started_at": "2026-04-23T23:36:00",
+  "dry_run": true,
+  "n_queued": 1,
+  "queue": [
+    "consv"
+  ],
+  "current": null,
+  "completed": [
+    "consv"
+  ],
+  "failed": [],
+  "results": [
+    {
+      "id": "consv",
+      "tag": "P5B_CONSV",
+      "batch": 1,
+      "status": "ok",
+      "elapsed_sec": 238.6,
+      "elapsed_min": 4.0,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5B_CONSV_DRYRUN_20260423_233959.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260423_233959.json",
+      "signal_quality": {
+        "k_selected": 9,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.4,
+      "w_cost": 0.25,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260428
+    }
+  ],
+  "updated_at": "2026-04-23T23:39:59",
+  "batch_finished_at": "2026-04-23T23:39:59",
+  "total_sec": 238.6,
+  "total_min": 4.0
+}

@@ -16,6 +16,8 @@ import dataclasses
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from exits import RecosAction  # noqa: E402  (action-dispatch constants)
+
 
 # ─────────────────────────────────────────────
 # In-memory portfolio tracker
@@ -27,6 +29,23 @@ class SimPortfolio:
     Implements the subset of HoldingsManager interface that
     generate_recommendations() requires: load_current(), load_recommendations(),
     save_recommendations().
+
+    D1.4 — holdings entries now mirror ``HoldingsManager.holdings`` exactly so
+    ``exits.build_holding_snapshots`` produces identical snapshots in sim and
+    live runs.  Per-ticker dict schema::
+
+        {
+          "shares":        int,
+          "avg_cost":      float,
+          "current_price": float,
+          "entry_date":    str  (YYYY-MM-DD, set at first BUY_NEW),
+          "entry_price":   float,
+          "entry_score":   float,
+          "entry_rank":    int (-1 if unknown — recos missing Rank col),
+          "entry_regime":  str,
+          "peak_price":    float (monotonic high-water mark since entry),
+          "last_score":    float (most recent score seen, for D2 decay triggers),
+        }
     """
 
     def __init__(self, initial_cash: float):
@@ -38,10 +57,19 @@ class SimPortfolio:
         self.total_commission = 0.0
 
     def load_current(self) -> pd.DataFrame:
+        """Materialise holdings dict into a HoldingsManager-shaped DataFrame.
+
+        Keeps parity with the live ``HoldingsManager.load_current`` schema
+        post-D1.6 (BuyDate, EntryScore, EntryRank, EntryRegime, PeakPrice,
+        LastScore) so ``build_holding_snapshots`` sees identical columns
+        regardless of where the portfolio state lives.
+        """
         if not self.holdings:
             return pd.DataFrame(columns=[
-                "Ticker", "Shares", "BuyPrice", "CurrentPrice",
+                "Ticker", "BuyDate", "BuyPrice", "Shares", "CurrentPrice",
                 "MarketValue", "PnL_Pct", "Weight",
+                "EntryScore", "EntryRank", "EntryRegime",
+                "PeakPrice", "LastScore",
             ])
         rows = []
         for t, h in self.holdings.items():
@@ -49,8 +77,19 @@ class SimPortfolio:
             mv = h["shares"] * cp
             pnl = ((cp / h["avg_cost"]) - 1) * 100 if h["avg_cost"] > 0 else 0
             rows.append({
-                "Ticker": t, "Shares": h["shares"], "BuyPrice": h["avg_cost"],
-                "CurrentPrice": cp, "MarketValue": mv, "PnL_Pct": pnl, "Weight": 0.0,
+                "Ticker": t,
+                "BuyDate": h.get("entry_date", ""),
+                "BuyPrice": h["avg_cost"],
+                "Shares": h["shares"],
+                "CurrentPrice": cp,
+                "MarketValue": mv,
+                "PnL_Pct": pnl,
+                "Weight": 0.0,
+                "EntryScore": float(h.get("entry_score", 0.0) or 0.0),
+                "EntryRank": int(h.get("entry_rank", -1) or -1),
+                "EntryRegime": str(h.get("entry_regime", "") or ""),
+                "PeakPrice": float(h.get("peak_price", 0.0) or 0.0),
+                "LastScore": float(h.get("last_score", 0.0) or 0.0),
             })
         return pd.DataFrame(rows)
 
@@ -61,9 +100,14 @@ class SimPortfolio:
         self._last_recos = recos.copy()
 
     def update_prices(self, price_map: dict):
+        """Update current_price and bump the PeakPrice high-water mark."""
         for t in list(self.holdings.keys()):
             if t in price_map and price_map[t] > 0:
-                self.holdings[t]["current_price"] = price_map[t]
+                p = float(price_map[t])
+                self.holdings[t]["current_price"] = p
+                prev_peak = float(self.holdings[t].get("peak_price", 0.0) or 0.0)
+                if p > prev_peak:
+                    self.holdings[t]["peak_price"] = p
 
     def get_value(self, price_map: dict = None) -> float:
         total = 0.0
@@ -83,7 +127,18 @@ class SimPortfolio:
     def apply_actions(self, recos: pd.DataFrame, price_map: dict,
                       date: str, commission_bps: float = 10.0,
                       slippage_bps: float = 5.0):
-        """Apply recommendation actions to portfolio with transaction costs."""
+        """Apply recommendation actions to portfolio with transaction costs.
+
+        D1.4 additions:
+          * ``BUY_NEW`` seeds ``entry_*`` / ``peak_price`` / ``last_score``
+            from the reco row (Score, Regime, Rank columns).  These fields
+            power Track D dynamic exit triggers (peak_drawdown,
+            score_decay, regime_switch, etc.).
+          * ``BUY_MORE`` keeps entry_* frozen, refreshes ``last_score`` and
+            bumps ``peak_price`` if the buy price is a new high.
+          * New-avg-cost still computed from the transacted ``gross``
+            (i.e. pre-commission value), preserving legacy backtest P&L.
+        """
         if recos.empty:
             return
 
@@ -96,7 +151,10 @@ class SimPortfolio:
             if price <= 0:
                 continue
 
-            if action in ("STOP_LOSS", "SELL"):
+            # D2-aware dispatch: ``RecosAction.FULL_CLOSE`` / ``PARTIAL_CLOSE``
+            # enumerate all SELL_* / TRIM_* variants so new triggers (D2.1-D2.6)
+            # route to the correct code path without touching this block.
+            if RecosAction.is_full_close(action):
                 if ticker in self.holdings:
                     h = self.holdings[ticker]
                     gross = h["shares"] * price
@@ -111,7 +169,7 @@ class SimPortfolio:
                     self.cash += proceeds
                     del self.holdings[ticker]
 
-            elif action == "TRIM":
+            elif RecosAction.is_partial_close(action):
                 shares = int(r.get("Shares", 0))
                 if ticker in self.holdings and shares > 0:
                     h = self.holdings[ticker]
@@ -122,7 +180,7 @@ class SimPortfolio:
                         self.total_commission += cost
                         proceeds = gross - cost
                         self.trade_log.append({
-                            "Date": date, "Action": "TRIM", "Ticker": ticker,
+                            "Date": date, "Action": action, "Ticker": ticker,
                             "Shares": actual_trim, "Price": price,
                             "Value": proceeds, "Commission": cost,
                         })
@@ -152,18 +210,37 @@ class SimPortfolio:
                 })
                 self.cash -= total_cost
 
+                # D1.4 — extract entry attribution off the reco row.  All
+                # three are optional; defaults keep behaviour identical
+                # to legacy SimPortfolio when Rank/Score/Regime absent.
+                reco_score = float(r.get("Score", 0.0) or 0.0)
+                reco_rank = int(r.get("Rank", -1) or -1)
+                reco_regime = str(r.get("Regime", "") or "")
+
                 if ticker in self.holdings:
+                    # BUY_MORE — entry_* FROZEN, live fields refreshed.
                     old = self.holdings[ticker]
                     new_shares = old["shares"] + shares
                     new_avg = (old["shares"] * old["avg_cost"] + gross) / new_shares
-                    self.holdings[ticker] = {
-                        "shares": new_shares, "avg_cost": new_avg,
-                        "current_price": price,
-                    }
+                    old["shares"] = new_shares
+                    old["avg_cost"] = new_avg
+                    old["current_price"] = price
+                    old["last_score"] = reco_score
+                    prev_peak = float(old.get("peak_price", 0.0) or 0.0)
+                    old["peak_price"] = max(prev_peak, float(price))
                 else:
+                    # BUY_NEW — seed entry_* exactly once.
                     self.holdings[ticker] = {
-                        "shares": shares, "avg_cost": price,
+                        "shares": shares,
+                        "avg_cost": price,
                         "current_price": price,
+                        "entry_date": date,
+                        "entry_price": price,
+                        "entry_score": reco_score,
+                        "entry_rank": reco_rank,
+                        "entry_regime": reco_regime,
+                        "peak_price": price,
+                        "last_score": reco_score,
                     }
 
 
@@ -300,6 +377,11 @@ def run_simulation(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     progress_fn: Optional[Callable] = None,
+    blend_conf: Optional[dict] = None,
+    vix_smooth_by_date: Optional[Dict[str, float]] = None,
+    # D4 diagnostics — if not None, each fired upstream exit verdict is
+    # appended as a dict.  Enabled per-run by run_lab / CLI dump flag.
+    trade_log: Optional[List[Dict]] = None,
 ) -> Dict:
     """
     Run Phase 3 daily trading simulation.
@@ -355,22 +437,66 @@ def run_simulation(
 
     date_to_di = {d: i for i, d in enumerate(dates)}
 
-    sel = np.asarray(signal["mask"], dtype=bool)
     cfg_sim = dataclasses.replace(cfg)
     cfg_sim.enable_completeness_history_filter = False
 
-    active_w_bull = engine.get_regime_active_weight_vector(
-        cfg_sim, sel, sel, sel, signal["wb"], signal["ws"], signal["wd"], "BULL")
-    active_w_side = engine.get_regime_active_weight_vector(
-        cfg_sim, sel, sel, sel, signal["wb"], signal["ws"], signal["wd"], "SIDE")
-    active_w_def = engine.get_regime_active_weight_vector(
-        cfg_sim, sel, sel, sel, signal["wb"], signal["ws"], signal["wd"], "DEFENSIVE")
+    # ── Path C: compose-aware precomputation ──
+    _compose_mode = (signal.get("mode") == "compose")
+    if _compose_mode:
+        _rs = signal.get("regime_signals") or {}
+        regime_slots = {}  # regime → (sel, w_bull, w_side, w_def, source_path)
+        for rg in ("BULL", "SIDE", "DEFENSIVE"):
+            s = _rs.get(rg)
+            if s is None:
+                s = signal  # shouldn't happen, but be defensive
+            _sel_rg = np.asarray(s["mask"], dtype=bool)
+            _wb = engine.get_regime_active_weight_vector(
+                cfg_sim, _sel_rg, _sel_rg, _sel_rg,
+                s["wb"], s["ws"], s["wd"], "BULL")
+            _ws = engine.get_regime_active_weight_vector(
+                cfg_sim, _sel_rg, _sel_rg, _sel_rg,
+                s["wb"], s["ws"], s["wd"], "SIDE")
+            _wd = engine.get_regime_active_weight_vector(
+                cfg_sim, _sel_rg, _sel_rg, _sel_rg,
+                s["wb"], s["ws"], s["wd"], "DEFENSIVE")
+            _src = (signal.get("regime_paths") or {}).get(rg) or signal.get("default_path", "")
+            regime_slots[rg] = (_sel_rg, _wb, _ws, _wd, _src)
+        sel = regime_slots["SIDE"][0]  # default mask used only for non-rebal logic paths
+        active_w_bull = regime_slots["SIDE"][1]  # unused in compose scoring path
+        active_w_side = regime_slots["SIDE"][2]
+        active_w_def = regime_slots["SIDE"][3]
+    else:
+        sel = np.asarray(signal["mask"], dtype=bool)
+        active_w_bull = engine.get_regime_active_weight_vector(
+            cfg_sim, sel, sel, sel, signal["wb"], signal["ws"], signal["wd"], "BULL")
+        active_w_side = engine.get_regime_active_weight_vector(
+            cfg_sim, sel, sel, sel, signal["wb"], signal["ws"], signal["wd"], "SIDE")
+        active_w_def = engine.get_regime_active_weight_vector(
+            cfg_sim, sel, sel, sel, signal["wb"], signal["ws"], signal["wd"], "DEFENSIVE")
+        regime_slots = None
 
     strat_base = strategy_conf or {}
     trig = trigger_conf or {}
     portfolio = SimPortfolio(initial_capital)
 
     close_arr = np.asarray(pack.get("close", pack.get("raw_close")), dtype=np.float64)
+
+    _bc = blend_conf or {}
+    _blend_on = bool(_bc.get("regime_blend_enabled", False))
+    if _compose_mode and _blend_on:
+        print("  [compose][warn] regime_compose + regime_blend_enabled are "
+              "mutually exclusive in C.1. Forcing blend OFF.")
+        _blend_on = False
+    if _blend_on:
+        from regime_blend import apply_hysteresis, compute_blend_alphas, blend_weight_vectors
+        _bp = dict(
+            bull_threshold=float(getattr(cfg, "vix_bull_threshold", 18.0)),
+            def_threshold=float(getattr(cfg, "vix_defensive_threshold", 30.0)),
+            bull_side_blend_width=float(_bc.get("bull_side_blend_width", 2.0)),
+            side_def_blend_width=float(_bc.get("side_def_blend_width", 3.0)),
+            cb_threshold=float(getattr(cfg, "circuit_breaker_vix_threshold", 35.0)),
+            cb_enabled=bool(getattr(cfg, "enable_circuit_breaker", True)),
+        )
 
     last_rebal_di = -9999
     prev_regime = "SIDE"
@@ -380,6 +506,14 @@ def run_simulation(
     daily_rows = []
     prev_value = initial_capital
     total_sim = len(sim_dates)
+
+    # D4.2 — rolling buffers for RiskOffAssessor inputs.
+    # VIX series length 10 covers the assessor's default 7-day lookback + buffer.
+    # Regime series length 10 covers the default 5-day transition window + buffer.
+    from collections import deque
+    _vix_hist = deque(maxlen=10)
+    _regime_hist = deque(maxlen=10)
+    _portfolio_peak = float(initial_capital)
 
     for day_idx, d in enumerate(sim_dates):
         di = date_to_di.get(d)
@@ -399,8 +533,19 @@ def run_simulation(
 
         portfolio.update_prices(price_map)
 
-        regime = vix_regime_by_date.get(d, "SIDE")
         vix = vix_close_by_date.get(d, 20.0)
+        # D4.2 — VIX & portfolio-peak buffers refreshed each sim day,
+        # independent of rebalance cadence (assessor needs fresh deltas even
+        # on non-rebal days to keep the 7-day delta meaningful).
+        _vix_hist.append(float(vix))
+        _portfolio_cur_value = portfolio.get_value(price_map) + max(portfolio.get_cash_balance(), 0.0)
+        if _portfolio_cur_value > _portfolio_peak:
+            _portfolio_peak = _portfolio_cur_value
+        vix_for_blend = (vix_smooth_by_date or {}).get(d, vix) if _blend_on else vix
+        if _blend_on:
+            regime = apply_hysteresis(prev_regime, vix_for_blend, **_bp)
+        else:
+            regime = vix_regime_by_date.get(d, "SIDE")
         score_regime = "DEFENSIVE" if regime in ("CRASH", "BEAR") else regime
 
         should_rebalance = False
@@ -432,14 +577,48 @@ def run_simulation(
 
         if should_rebalance:
             try:
-                scores = engine._score_vector_for_regime(
-                    pack=pack, di=di, sel=sel,
-                    active_w_bull=active_w_bull,
-                    active_w_side=active_w_side,
-                    active_w_def=active_w_def,
-                    score_regime=score_regime,
-                    cfg=cfg_sim,
-                )
+                if _compose_mode:
+                    _slot = regime_slots.get(score_regime) or regime_slots["SIDE"]
+                    _sel_rg, _wb_rg, _ws_rg, _wd_rg, _ = _slot
+                    scores = engine._score_vector_for_regime(
+                        pack=pack, di=di, sel=_sel_rg,
+                        active_w_bull=_wb_rg,
+                        active_w_side=_ws_rg,
+                        active_w_def=_wd_rg,
+                        score_regime=score_regime,
+                        cfg=cfg_sim,
+                    )
+                elif _blend_on:
+                    _alphas = compute_blend_alphas(vix_for_blend, **_bp)
+                    if max(_alphas) < 1.0:
+                        w_blend = blend_weight_vectors(
+                            active_w_bull, active_w_side, active_w_def, _alphas)
+                        scores = engine._score_vector_for_regime(
+                            pack=pack, di=di, sel=sel,
+                            active_w_bull=w_blend,
+                            active_w_side=w_blend,
+                            active_w_def=w_blend,
+                            score_regime="SIDE",
+                            cfg=cfg_sim,
+                        )
+                    else:
+                        scores = engine._score_vector_for_regime(
+                            pack=pack, di=di, sel=sel,
+                            active_w_bull=active_w_bull,
+                            active_w_side=active_w_side,
+                            active_w_def=active_w_def,
+                            score_regime=score_regime,
+                            cfg=cfg_sim,
+                        )
+                else:
+                    scores = engine._score_vector_for_regime(
+                        pack=pack, di=di, sel=sel,
+                        active_w_bull=active_w_bull,
+                        active_w_side=active_w_side,
+                        active_w_def=active_w_def,
+                        score_regime=score_regime,
+                        cfg=cfg_sim,
+                    )
 
                 score100 = 100.0 * np.clip(scores, 0.0, 1.0)
                 rows = []
@@ -465,9 +644,50 @@ def run_simulation(
                     daily_limit = _compute_daily_limit(
                         cash, holdings_val, strat, daily_buy_limit)
 
+                    # D1.4 — build a per-day HistoryView for exit triggers
+                    # that need price / score / rank lookback (D2 territory;
+                    # D1 triggers ignore it).  Same (sel, w_bull, w_side,
+                    # w_def) slot as used for *today's* scoring above, so
+                    # historical scores are computed under the same model.
+                    try:
+                        if _compose_mode:
+                            _slot = regime_slots.get(score_regime) or regime_slots["SIDE"]
+                            _hv_sel, _hv_wb, _hv_ws, _hv_wd, _ = _slot
+                        else:
+                            _hv_sel = sel
+                            _hv_wb = active_w_bull
+                            _hv_ws = active_w_side
+                            _hv_wd = active_w_def
+                        from exits import build_history_view
+                        history_view = build_history_view(
+                            pack=pack, engine=engine, di=di,
+                            tickers=tickers, cfg_sim=cfg_sim,
+                            sel=_hv_sel,
+                            active_w_bull=_hv_wb,
+                            active_w_side=_hv_ws,
+                            active_w_def=_hv_wd,
+                            score_regime=score_regime,
+                        )
+                    except Exception:
+                        # Defensive — never let history construction fail a
+                        # rebal day; legacy behaviour with history=None is
+                        # a full fallback for all D1 triggers.
+                        history_view = None
+
+                    # Regime history needs today's regime included as the last
+                    # entry so RiskOffAssessor can detect BULL→stress transitions
+                    # that just occurred.
+                    _regime_hist_snapshot = list(_regime_hist) + [regime]
+
                     recos = generate_recommendations(
                         cfg_sim, scores_df, regime, vix,
                         portfolio, total_capital, daily_limit, strat,
+                        sim_date=d,
+                        history=history_view,
+                        vix_series=list(_vix_hist),
+                        recent_regimes=_regime_hist_snapshot,
+                        portfolio_peak=_portfolio_peak,
+                        trade_log=trade_log,
                     )
 
                     if not recos.empty:
@@ -477,11 +697,13 @@ def run_simulation(
                         )
                         portfolio.save_recommendations(recos)
 
-                        n_sl = len(recos[recos["Action"] == "STOP_LOSS"])
-                        n_sells = len(recos[recos["Action"] == "SELL"])
-                        n_buys = len(recos[recos["Action"].isin(
-                            ["BUY_NEW", "BUY_MORE"])])
-                        n_trim = len(recos[recos["Action"] == "TRIM"])
+                        # Diagnostic counters — broadened to include D2/D4 new
+                        # action strings so per-day trace reflects actual closes.
+                        _actions_col = recos["Action"]
+                        n_sl = int((_actions_col == "STOP_LOSS").sum())
+                        n_sells = int(_actions_col.map(RecosAction.is_full_close).sum() - n_sl)
+                        n_buys = int(_actions_col.isin(["BUY_NEW", "BUY_MORE"]).sum())
+                        n_trim = int(_actions_col.map(RecosAction.is_partial_close).sum())
 
                     last_rebal_di = di
                     close_at_rebal = close_arr[di].copy()
@@ -525,6 +747,7 @@ def run_simulation(
 
         prev_value = total_val
         prev_regime = regime
+        _regime_hist.append(regime)
 
     daily_ts = pd.DataFrame(daily_rows)
     if not daily_ts.empty:
@@ -533,12 +756,41 @@ def run_simulation(
     trades = pd.DataFrame(portfolio.trade_log)
     metrics = compute_metrics(daily_ts, initial_capital, portfolio.total_commission)
 
-    return {
+    # ── regime_breakdown: flat BULL/SIDE/DEF_* keys → nested subdict ──
+    rb = {}
+    for rg in ("BULL", "SIDE", "DEF"):
+        rb[rg] = {
+            "Days":       metrics.get(f"{rg}_Days", 0),
+            "MaxStreak":  metrics.get(f"{rg}_MaxStreak", 0),
+            "AnnRet":     metrics.get(f"{rg}_AnnRet", 0.0),
+            "Sharpe":     metrics.get(f"{rg}_Sharpe", 0.0),
+            "MDD":        metrics.get(f"{rg}_MDD", 0.0),
+            "Calmar":     metrics.get(f"{rg}_Calmar", 0.0),
+            "WinRate":    metrics.get(f"{rg}_WinRate", 0.0),
+        }
+    metrics["regime_breakdown"] = rb
+
+    result = {
         "daily_ts": daily_ts,
         "trades": trades,
         "metrics": metrics,
         "portfolio": portfolio,
     }
+
+    if _compose_mode:
+        _paths = signal.get("regime_paths") or {}
+        _default = signal.get("default_path", "")
+        result["compose_meta"] = {
+            "mode": "compose",
+            "default_path": _default,
+            "regime_paths": {rg: (_paths.get(rg) or _default) for rg in ("BULL", "SIDE", "DEFENSIVE")},
+            "regime_k": {
+                rg: int(regime_slots[rg][0].sum())
+                for rg in ("BULL", "SIDE", "DEFENSIVE")
+            },
+        }
+
+    return result
 
 
 # ─────────────────────────────────────────────
@@ -781,11 +1033,14 @@ def prepare_and_run(
 
     vix_close_by_date = {}
     vix_regime_by_date = {}
+    vix_smooth_by_date = {}
     if vix_df is not None and not vix_df.empty:
         for _, row in vix_df.iterrows():
             d_str = str(row.get("date", row.name))[:10]
             vix_close_by_date[d_str] = float(row.get("close", row.get("vix_close", 20)))
             vix_regime_by_date[d_str] = str(row.get("regime", "SIDE"))
+            if "vix_smooth" in row.index:
+                vix_smooth_by_date[d_str] = float(row["vix_smooth"])
 
     if progress_fn:
         progress_fn(55, 100, "Running simulation...")
@@ -807,6 +1062,8 @@ def prepare_and_run(
         start_date=start_date,
         end_date=end_date,
         progress_fn=progress_fn,
+        blend_conf=conf.get("regime", {}),
+        vix_smooth_by_date=vix_smooth_by_date,
     )
 
     if progress_fn:

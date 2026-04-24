@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-04-23T22:19:05",
+  "pack_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+  "pack_start": "2011-01-03",
+  "pack_end": "2026-02-27",
+  "already_exists_before": false,
+  "force": false,
+  "rebuilt": true,
+  "elapsed_sec": 165.6,
+  "n_tickers": 1004,
+  "n_dates": 3811,
+  "first_date": "2011-01-03",
+  "last_date": "2026-02-27",
+  "notes": "Rebuilt to support 6-fold walk-forward (F0a 2012-14, F0b 2015-16, F1-F4 2019-2026). See phase3/docs/t5_walk_forward_plan.md v2."
+}

@@ -1,0 +1,133 @@
+{
+  "meta": {
+    "generated_at": "2026-04-23T18:31:24",
+    "oos_window": {
+      "start": "2024-06-01",
+      "end": "2026-04-17"
+    },
+    "pack": "precompute_qresearch_v4_12_2017-01-03_2026-04-17.npz",
+    "initial_capital": 100000.0,
+    "commission_bps": 10.0,
+    "slippage_bps": 5.0,
+    "baseline_arm": "V2_ENS_L3_v1_SIDE_DEF_p12"
+  },
+  "candidate": {
+    "arm": "P5_RETRAIN_T1",
+    "signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5_RETRAIN_T1_20260423_183119.npz",
+    "window_start": "2024-06-01",
+    "window_end": "2026-04-17",
+    "metrics": {
+      "CAGR": 0.248777,
+      "Max_Drawdown": 0.212432,
+      "Net_Sharpe": 1.22,
+      "Calmar_Ratio": 1.1711,
+      "Total_Return": 0.5134,
+      "Daily_Win_Rate": 0.5383,
+      "Monthly_Win_Rate": 0.7273,
+      "Years": 1.87,
+      "Trading_Days": 470,
+      "Rebalance_Days": 470,
+      "Total_Commission": 721.01,
+      "Commission_Pct_of_Capital": 0.72,
+      "Final_Value": 151339.43,
+      "turnover_annualized_proxy": 2.046
+    },
+    "oos_ic": {
+      "oos_mean_ic_1m": 0.013219805467460944,
+      "oos_mean_ic_3m": 0.0349151868758818,
+      "oos_mean_spread_1m": 0.0010211212614892867,
+      "oos_mean_spread_3m": 0.015288478862896483,
+      "oos_days_1m": 450,
+      "oos_days_3m": 410
+    },
+    "elapsed_sec": 2.7
+  },
+  "baseline_metrics": {
+    "CAGR": 0.563348,
+    "Max_Drawdown": 0.314582,
+    "Net_Sharpe": 1.5883,
+    "Calmar_Ratio": 1.7908,
+    "Total_Return": 1.3011,
+    "Daily_Win_Rate": 0.5851,
+    "Monthly_Win_Rate": 0.6818,
+    "Years": 1.87,
+    "Trading_Days": 470,
+    "Rebalance_Days": 470,
+    "Total_Commission": 1120.13,
+    "Commission_Pct_of_Capital": 1.12,
+    "Final_Value": 230106.78,
+    "turnover_annualized_proxy": 2.4199
+  },
+  "baseline_ic": {
+    "oos_mean_ic_1m": 0.006408716110741527,
+    "oos_mean_ic_3m": 0.02696888969330367,
+    "oos_mean_spread_1m": 0.00032662872187386703,
+    "oos_mean_spread_3m": 0.024585451422638335,
+    "oos_days_1m": 450,
+    "oos_days_3m": 410
+  },
+  "gate": {
+    "criteria": [
+      {
+        "#": 1,
+        "criterion": "OOS CAGR",
+        "cand": 0.248777,
+        "gate": ">= +0.5633",
+        "pass": false,
+        "mandatory": false
+      },
+      {
+        "#": 2,
+        "criterion": "OOS MDD",
+        "cand": 0.212432,
+        "gate": "<= 0.3460",
+        "pass": true,
+        "mandatory": true
+      },
+      {
+        "#": 3,
+        "criterion": "OOS Calmar",
+        "cand": 1.1711,
+        "gate": ">= 1.8803",
+        "pass": false,
+        "mandatory": false
+      },
+      {
+        "#": 4,
+        "criterion": "OOS IC (3M)",
+        "cand": 0.0349151868758818,
+        "gate": ">= 0.03197",
+        "pass": true,
+        "mandatory": false
+      },
+      {
+        "#": 5,
+        "criterion": "Commission %",
+        "cand": 0.72,
+        "gate": "<= 0.5600",
+        "pass": false,
+        "mandatory": true
+      },
+      {
+        "#": 6,
+        "criterion": "Temporal (T5)",
+        "cand": NaN,
+        "gate": "fold CAGR std <= mean * 0.5",
+        "pass": null,
+        "mandatory": false,
+        "deferred": true
+      }
+    ],
+    "n_pass_of_5": 2,
+    "mandatory_pass": false,
+    "verdict_full": "REJECT",
+    "verdict_interim": "REJECT*",
+    "thresholds": {
+      "CAGR_ge": 0.563348,
+      "MDD_le": 0.3460402,
+      "Calmar_ge": 1.8803400000000001,
+      "IC3M_ge": 0.03196888969330367,
+      "Comm_le": 0.56
+    }
+  }
+}
