@@ -1,0 +1,149 @@
+{
+  "batch_started_at": "2026-04-28T20:15:54",
+  "dry_run": false,
+  "n_queued": 4,
+  "queue": [
+    "p7_v2_full",
+    "p7_v2_no_deploy",
+    "p7_v2_mega",
+    "p7_v2_bull_agg"
+  ],
+  "current": null,
+  "completed": [
+    "p7_v2_full",
+    "p7_v2_no_deploy",
+    "p7_v2_mega",
+    "p7_v2_bull_agg"
+  ],
+  "failed": [],
+  "results": [
+    {
+      "id": "p7_v2_full",
+      "tag": "P7_V2_FULL",
+      "batch": 7,
+      "status": "ok",
+      "elapsed_sec": 82404.9,
+      "elapsed_min": 1373.4,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P7_V2_FULL_20260429_190918.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260429_190918.json",
+      "signal_quality": {
+        "k_selected": 8,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260801
+    },
+    {
+      "id": "p7_v2_no_deploy",
+      "tag": "P7_V2_NO_DEPLOY",
+      "batch": 7,
+      "status": "ok",
+      "elapsed_sec": 110391.0,
+      "elapsed_min": 1839.8,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P7_V2_NO_DEPLOY_20260501_014909.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260501_014909.json",
+      "signal_quality": {
+        "k_selected": 10,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.0,
+      "w_cost": 0.0,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260802
+    },
+    {
+      "id": "p7_v2_mega",
+      "tag": "P7_V2_MEGA",
+      "batch": 7,
+      "status": "ok",
+      "elapsed_sec": 140531.8,
+      "elapsed_min": 2342.2,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P7_V2_MEGA_20260502_165121.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260502_165121.json",
+      "signal_quality": {
+        "k_selected": 10,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260803
+    },
+    {
+      "id": "p7_v2_bull_agg",
+      "tag": "P7_V2_BULL_AGG",
+      "batch": 7,
+      "status": "ok",
+      "elapsed_sec": 84671.7,
+      "elapsed_min": 1411.2,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P7_V2_BULL_AGG_20260503_162233.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260503_162233.json",
+      "signal_quality": {
+        "k_selected": 8,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260804
+    }
+  ],
+  "updated_at": "2026-05-03T16:22:33",
+  "batch_finished_at": "2026-05-03T16:22:33",
+  "total_sec": 417999.4,
+  "total_min": 6966.7
+}

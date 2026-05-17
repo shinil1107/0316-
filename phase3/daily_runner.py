@@ -100,6 +100,31 @@ def load_frozen_signal(path: str) -> dict:
     }
     if "signal_summary" in fs:
         result["signal_summary"] = json.loads(str(fs["signal_summary"]))
+
+    # ── Phase ML — external-scores signal pass-through ──────────────
+    # Only honoured by the simulator (offline). The live path
+    # (run_daily) loads conf['paths']['frozen_signal'] which is
+    # validated to point at a GA-Linear signal, never an ML one.
+    if "signal_type" in fs:
+        sig_type = fs["signal_type"]
+        if isinstance(sig_type, np.ndarray):
+            sig_type = sig_type.item() if sig_type.shape == () else str(sig_type)
+        sig_type = str(sig_type)
+        if sig_type == "ml_external_scores":
+            result["signal_type"] = sig_type
+            result["scores_panel"] = np.asarray(fs["scores_panel"], dtype=np.float32)
+            if "dates" in fs:
+                result["dates"] = np.asarray(fs["dates"]).astype(str)
+            if "tickers" in fs:
+                result["tickers"] = np.asarray(fs["tickers"]).astype(str)
+            if "regime_labels" in fs:
+                result["regime_labels"] = np.asarray(fs["regime_labels"]).astype(str)
+            for k in ("fold_meta", "model_meta", "feature_importance"):
+                if k in fs:
+                    val = fs[k]
+                    if isinstance(val, np.ndarray) and val.dtype == object and val.shape == ():
+                        val = val.item()
+                    result[k] = val
     return result
 
 
@@ -245,6 +270,10 @@ def get_current_vix(
     Returns (vix_close, regime, (alpha_bull, alpha_side, alpha_def)).
     When blend_conf is None or blend is disabled, alphas correspond to
     the discrete regime (one of them is 1.0, the rest 0.0).
+
+    Only uses *settled* (post-market-close) daily bars.  Running during
+    US market hours no longer picks up intraday VIX and therefore cannot
+    flip the regime mid-session.
     """
     vix_sym = getattr(cfg, "vix_symbol", "^VIX")
     now = datetime.now()
@@ -253,6 +282,10 @@ def get_current_vix(
         return 20.0, "SIDE", (0.0, 1.0, 0.0)
 
     df["date"] = pd.to_datetime(df["date"])
+    settled = pd.Timestamp(_last_available_trading_date())
+    df = df[df["date"].dt.normalize() <= settled]
+    if df.empty:
+        return 20.0, "SIDE", (0.0, 1.0, 0.0)
     df = df.sort_values("date")
     vix_close = float(df["close"].iloc[-1])
 
@@ -553,6 +586,11 @@ def generate_recommendations(
     # appended as a dict for offline analysis.  Does not affect portfolio
     # behaviour.  See simulator / run_lab for CSV dump wiring.
     trade_log: Optional[List[Dict]] = None,
+    # Buy-grace blocked tickers — new-position buys are suppressed for
+    # these tickers.  BUY_MORE on already-held names is unaffected.
+    # Populated by run_daily's buy-grace logic; simulator handles its
+    # own grace filtering internally.
+    buy_grace_blocked: Optional[set] = None,
 ) -> pd.DataFrame:
     """Generate gap-based incremental buy/sell recommendations.
 
@@ -866,6 +904,7 @@ def generate_recommendations(
     trim_grace_items = []
     trim_items = []
     hold_items = []
+    grace_blocked_items = []  # tickers in top-N but buy-grace blocked (new-only)
 
     for ticker in all_tickers:
         if ticker in upstream_handled:
@@ -901,7 +940,12 @@ def generate_recommendations(
             else:
                 sell_items.append(ticker)
         elif in_target and gap_w > gap_threshold:
-            buy_items.append((ticker, gap_dollar))
+            if (ticker not in held_tickers
+                    and buy_grace_blocked
+                    and ticker in buy_grace_blocked):
+                grace_blocked_items.append((ticker, gap_dollar))
+            else:
+                buy_items.append((ticker, gap_dollar))
         elif in_target and enable_trim and gap_w < -trim_threshold:
             trim_items.append((ticker, gap_dollar))
         else:
@@ -1064,6 +1108,20 @@ def generate_recommendations(
                     "Price": price_map[ticker], "Shares": 0,
                     "Capital": 0, "Regime": regime, "GraceCount": 0,
                 })
+
+    # --- 8b. Buy-grace-blocked tickers → DEFERRED ---
+    for ticker, gap_d in grace_blocked_items:
+        target_w = target_map.get(ticker, 0)
+        actual_w = actual_map.get(ticker, 0)
+        recos.append({
+            "Date": today, "Ticker": ticker, "Action": "DEFERRED",
+            "Score": score_map.get(ticker, 0),
+            "TargetPct": round(target_w * 100, 2),
+            "ActualPct": round(actual_w * 100, 2),
+            "GapPct": round((target_w - actual_w) * 100, 2),
+            "Price": price_map.get(ticker, 0), "Shares": 0,
+            "Capital": 0, "Regime": regime, "GraceCount": 0,
+        })
 
     # --- 9. HOLD ---
     for ticker in hold_items:
@@ -1389,6 +1447,297 @@ def _print_universe_delta(scores_df: pd.DataFrame, hm, cfg, regime: str) -> str:
 
 
 # ─────────────────────────────────────────────
+# Shadow-run pass
+# ─────────────────────────────────────────────
+
+def _run_shadow_pass(
+    *,
+    conf: dict,
+    shadow_conf: dict,
+    cfg,
+    pack: dict,
+    regime: str,
+    vix_close: float,
+    blend_on: bool,
+    blend_alphas,
+    hm: HoldingsManager,
+    live_scores: pd.DataFrame,
+    live_recos: pd.DataFrame,
+    total_capital: float,
+    daily_limit: float,
+    strat_conf: dict,
+    run_timestamp: datetime,
+) -> str:
+    """Run shadow signal scoring + diff. Returns email text (empty on failure/skip)."""
+    from datetime import date as _date
+    try:
+        shadow_path = shadow_conf.get("frozen_signal", "")
+        label = shadow_conf.get("label", "shadow")
+        start_date_str = shadow_conf.get("start_date", "")
+        duration_days = int(shadow_conf.get("duration_days", 30))
+
+        if not shadow_path or not os.path.exists(shadow_path):
+            print(f"\n[Shadow] Signal file not found: {shadow_path} — skipped.")
+            return ""
+
+        today = _date.today()
+        start_date = _date.fromisoformat(start_date_str) if start_date_str else today
+        day_number = max(1, (today - start_date).days + 1)
+        expired = day_number > duration_days
+
+        if expired:
+            print(f"\n[Shadow] Expired (day {day_number}/{duration_days}). "
+                  f"Generating final report and disabling.")
+            _shadow_auto_expire(conf, shadow_conf)
+            return ""
+
+        print(f"\n[Shadow] Pass — {label} (Day {day_number}/{duration_days})")
+        print(f"  Signal: {os.path.basename(shadow_path)}")
+
+        shadow_signal = load_frozen_signal(shadow_path)
+        shadow_scores, _ = compute_today_scores(
+            cfg, pack, shadow_signal, regime, return_meta=True,
+            blend_alphas=blend_alphas if blend_on else None,
+        )
+        print(f"  Shadow scored {len(shadow_scores)} stocks. Top 5:")
+        print(f"  {shadow_scores.head().to_string(index=False)}")
+
+        shadow_recos = generate_recommendations(
+            cfg, shadow_scores, regime, vix_close, hm, total_capital,
+            daily_buy_limit=daily_limit,
+            strategy_conf=strat_conf,
+        )
+        print(f"  Shadow recos: {len(shadow_recos)} rows")
+
+        from shadow_diff import compare_recommendations, format_email_section, save_diff_artifact
+        if regime == "BULL":
+            shadow_top_n = getattr(cfg, "regime_bull_top_n", 20)
+        elif regime in ("DEFENSIVE", "CRASH"):
+            shadow_top_n = getattr(cfg, "regime_defensive_top_n", 10)
+        else:
+            shadow_top_n = getattr(cfg, "regime_side_top_n", 15)
+        diff = compare_recommendations(
+            live_scores, shadow_scores,
+            live_recos, shadow_recos,
+            label=label,
+            day_number=day_number,
+            duration_days=duration_days,
+            top_n=shadow_top_n,
+        )
+        print(f"  Top-N overlap: {diff['topn_overlap_count']}/{diff['topn_union_count']} "
+              f"({diff['topn_overlap_rate']:.0%}) | "
+              f"Rank corr: {diff.get('rank_correlation', 'N/A')}")
+
+        shadow_run_id = run_timestamp.strftime("%Y%m%d_%H%M%S") + "_shadow"
+        shadow_run_dir = (
+            Path(conf["paths"]["output_dir"]).expanduser()
+            / "daily_runs" / shadow_run_id
+        )
+
+        from run_artifact import write_daily_run_artifact
+        write_daily_run_artifact(
+            run_dir=shadow_run_dir,
+            run_id=shadow_run_id,
+            run_timestamp=run_timestamp,
+            dry_run=True,
+            rebalance_mode="shadow",
+            status="shadow",
+            trigger_actionable=False,
+            triggers=["SHADOW"],
+            trigger_str=f"SHADOW:{label}",
+            regime=regime,
+            vix_close=vix_close,
+            frozen_signal_path=shadow_path,
+            signal_summary=shadow_signal.get("signal_summary"),
+            config=conf,
+            strategy_base=conf.get("strategy", {}),
+            strategy_resolved=strat_conf,
+            scores_df=shadow_scores,
+            recos_df=shadow_recos,
+            portfolio_before_df=pd.DataFrame(),
+            portfolio_after_refresh_df=pd.DataFrame(),
+            scoring_meta={},
+            daily_buy_limit=daily_limit,
+            holdings_value=0.0,
+            cash_balance=0.0,
+            total_capital=total_capital,
+        )
+        save_diff_artifact(shadow_run_dir, diff)
+        print(f"  Shadow artifact saved: {shadow_run_dir}")
+
+        email_text = ""
+        if shadow_conf.get("include_in_email", True):
+            email_text = format_email_section(diff)
+        return email_text
+
+    except Exception as e:
+        print(f"\n[Shadow] ERROR (non-fatal): {type(e).__name__}: {e}")
+        traceback.print_exc()
+        return ""
+
+
+def _run_shadow_ledger_update(
+    *,
+    conf: dict,
+    shadow_conf: dict,
+    config_path: str = None,
+    expected_shadow_run_dir: Path = None,
+) -> str:
+    """Update stateful shadow ledger from daily/shadow artifacts.
+
+    This is intentionally non-blocking: a ledger replay/reporting failure should
+    not invalidate the daily recommendation artifact that was already produced.
+    """
+    if not shadow_conf.get("ledger_enabled", True):
+        print("\n[Shadow Ledger] Skipped (shadow.ledger_enabled=false).")
+        return ""
+
+    if expected_shadow_run_dir is not None and not expected_shadow_run_dir.exists():
+        print("\n[Shadow Ledger] Skipped (fresh shadow artifact not found).")
+        return ""
+
+    script_path = _THIS_DIR / "shadow_ledger.py"
+    if not script_path.exists():
+        print(f"\n[Shadow Ledger] Skipped (missing {script_path}).")
+        return ""
+
+    output_dir = Path(conf["paths"]["output_dir"]).expanduser()
+    daily_runs_dir = output_dir / "daily_runs"
+    output_root = output_dir / "shadow_ledgers"
+    cfg_path = Path(config_path).expanduser() if config_path else (_THIS_DIR / "config.yaml")
+
+    label = str(shadow_conf.get("label", "") or "")
+    start_date = str(shadow_conf.get("start_date", "") or "")
+    min_runs = str(int(shadow_conf.get("ledger_min_runs", 1) or 1))
+    commission_bps = str(float(shadow_conf.get("ledger_commission_bps", 10.0)))
+    slippage_bps = str(float(shadow_conf.get("ledger_slippage_bps", 5.0)))
+    timeout_sec = int(shadow_conf.get("ledger_timeout_sec", 600) or 600)
+
+    cmd = [
+        sys.executable,
+        str(script_path),
+        "update-latest",
+        "--config",
+        str(cfg_path),
+        "--daily-runs-dir",
+        str(daily_runs_dir),
+        "--output-root",
+        str(output_root),
+        "--min-runs",
+        min_runs,
+        "--commission-bps",
+        commission_bps,
+        "--slippage-bps",
+        slippage_bps,
+    ]
+    if label:
+        cmd.extend(["--shadow-label", label])
+    if start_date:
+        cmd.extend(["--start", start_date])
+
+    print("\n[Shadow Ledger] Updating stateful baseline vs shadow ledger...")
+    import subprocess
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(_THIS_DIR.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_sec,
+        )
+        if proc.stdout.strip():
+            for line in proc.stdout.strip().splitlines():
+                print(f"  {line}")
+        if proc.stderr.strip():
+            print("  [Shadow Ledger stderr]")
+            for line in proc.stderr.strip().splitlines():
+                print(f"  {line}")
+        if proc.returncode != 0:
+            print(f"  [Shadow Ledger][WARN] update-latest exited rc={proc.returncode} (non-fatal).")
+            return ""
+        else:
+            pointer_path = output_root / label / "latest_pointer.json"
+            print(f"  [Shadow Ledger] Latest pointer: {pointer_path}")
+            return _format_shadow_ledger_email(pointer_path)
+    except subprocess.TimeoutExpired:
+        print(f"  [Shadow Ledger][WARN] update-latest timed out after {timeout_sec}s (non-fatal).")
+    except Exception as e:
+        print(f"  [Shadow Ledger][WARN] update-latest failed: {type(e).__name__}: {e}")
+    return ""
+
+
+def _format_shadow_ledger_email(pointer_path: Path) -> str:
+    """Build a compact email section from shadow ledger latest_pointer.json."""
+    try:
+        pointer = json.loads(Path(pointer_path).read_text(encoding="utf-8"))
+        summary_path = pointer.get("latest_summary_json")
+        summary = {}
+        if summary_path and Path(summary_path).exists():
+            summary = json.loads(Path(summary_path).read_text(encoding="utf-8"))
+
+        baseline = pointer.get("baseline", {}) or {}
+        shadow = pointer.get("shadow", {}) or {}
+        comp = pointer.get("comparison", {}) or {}
+        label = pointer.get("shadow_label", "shadow")
+        start = summary.get("start", "?")
+        end = pointer.get("latest_date") or summary.get("end", "?")
+        run_count = summary.get("run_count", "?")
+        replay_dir = pointer.get("latest_replay_dir", "")
+
+        return "\n".join([
+            "",
+            "[Stateful Shadow Ledger]",
+            f"  Label   : {label}",
+            f"  Window  : {start} -> {end} ({run_count} runs)",
+            f"  Baseline: ${float(baseline.get('final_nav', 0.0)):,.2f} "
+            f"({float(baseline.get('total_return_pct', 0.0)):+.4f}%)",
+            f"  Shadow  : ${float(shadow.get('final_nav', 0.0)):,.2f} "
+            f"({float(shadow.get('total_return_pct', 0.0)):+.4f}%)",
+            f"  Delta   : ${float(comp.get('shadow_minus_baseline_final_nav', 0.0)):,.2f} | "
+            f"{float(comp.get('shadow_minus_baseline_return_pp', 0.0)):+.4f} pp return | "
+            f"{float(comp.get('shadow_minus_baseline_mdd_pp', 0.0)):+.4f} pp MDD",
+            f"  Replay  : {replay_dir}",
+        ])
+    except Exception as e:
+        return "\n".join([
+            "",
+            "[Stateful Shadow Ledger]",
+            f"  Summary unavailable: {type(e).__name__}: {e}",
+            f"  Pointer: {pointer_path}",
+        ])
+
+
+def _shadow_auto_expire(conf: dict, shadow_conf: dict) -> None:
+    """Disable shadow in config.yaml and generate the expiry report."""
+    try:
+        from shadow_diff import generate_expiry_report
+        report_path = generate_expiry_report(
+            output_dir=conf["paths"]["output_dir"],
+            label=shadow_conf.get("label", "shadow"),
+            start_date=shadow_conf.get("start_date", ""),
+            duration_days=int(shadow_conf.get("duration_days", 30)),
+        )
+        print(f"  Shadow expiry report saved: {report_path}")
+    except Exception as e:
+        print(f"  [Shadow] WARN: expiry report failed: {e}")
+
+    try:
+        config_path = _THIS_DIR / "config.yaml"
+        if config_path.exists():
+            text = config_path.read_text(encoding="utf-8")
+            if "shadow:" in text:
+                idx = text.index("shadow:")
+                chunk = text[idx:idx + 200]
+                if "enabled: true" in chunk:
+                    offset = idx + chunk.index("enabled: true")
+                    updated = text[:offset] + "enabled: false" + text[offset + len("enabled: true"):]
+                    config_path.write_text(updated, encoding="utf-8")
+                    print(f"  Shadow auto-disabled in config.yaml")
+    except Exception as e:
+        print(f"  [Shadow] WARN: failed to auto-disable: {e}")
+
+
+# ─────────────────────────────────────────────
 # Main orchestrator
 # ─────────────────────────────────────────────
 
@@ -1415,6 +1764,19 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
         print(f"  [ERROR] Frozen signal not found: {fs_path}")
         return
     signal = load_frozen_signal(fs_path)
+    # ── LIVE-SAFETY GUARD ────────────────────────────────────────────
+    # Phase ML signals (signal_type='ml_external_scores') are *strictly
+    # offline* artefacts produced by phase3/ml/run_ml_v1.py for
+    # walk-forward research. They MUST never drive real recommendations
+    # until a full live qualification has been performed.  Refuse to
+    # proceed if such a signal is mis-pointed by the live config.
+    if signal.get("signal_type") == "ml_external_scores":
+        raise RuntimeError(
+            f"REFUSED: live frozen_signal points at an ML research "
+            f"artefact ({fs_path}). ML signals are evaluation-only "
+            f"and must not drive run_daily(). Update conf['paths']"
+            f"['frozen_signal'] to a GA-Linear signal."
+        )
     sig_summary = signal.get("signal_summary", {})
     print(f"  Signal: MeanIC={sig_summary.get('Invest_MeanIC', '?')}, "
           f"Spread={sig_summary.get('Invest_Spread', '?')}")
@@ -1530,11 +1892,17 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
     daily_limit = 0.0
     universe_delta_text = ""
 
+    pack = None  # set by step 5; needed by shadow pass
+
     print(f"\n[Step 5] Computing scores (regime={regime})...")
     import dataclasses
     cfg_for_pack = dataclasses.replace(cfg)
-    cfg_for_pack.start_panel_date = now - timedelta(days=365)
-    cfg_for_pack.end_date = now
+    _settled_date = _last_available_trading_date()
+    _settled_dt = datetime(_settled_date.year, _settled_date.month, _settled_date.day)
+    cfg_for_pack.start_panel_date = _settled_dt - timedelta(days=365)
+    cfg_for_pack.end_date = _settled_dt
+    print(f"  Panel window: {cfg_for_pack.start_panel_date.date()} → {_settled_date} "
+          f"(settled; ET now={_us_eastern_now().strftime('%H:%M %Z')})")
     cfg_for_pack.enable_historical_universe = True
     cfg_for_pack.historical_universe_expand_tickers = True
     cfg_for_pack.enable_coverage_based_universe = True
@@ -1590,10 +1958,72 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
         if total_capital < 1.0:
             total_capital = conf["portfolio"]["total_capital"]
         print(f"  Total capital: ${total_capital:,.2f} (holdings ${holdings_value:,.2f} + cash ${max(cash_balance,0):,.2f})")
+
+        # T-buy-grace — live parity with simulator (2026-04-25 fix).
+        # phase3/simulator.py applies buy_grace_days via an in-memory
+        # ``_top_n_history`` deque that is rebuilt fresh on every
+        # ``run_simulation`` call — fine for backtests but invisible to
+        # daily_runner, which doesn't go through the simulator.
+        #
+        # Pre-2026-05-01 behaviour filtered scores_df in-place, which
+        # coupled scoring universe to portfolio holdings and caused
+        # Paper/Real profiles to diverge on rankings, SELL_GRACE counts,
+        # and Universe-Delta even though they use the same signal.
+        #
+        # Fixed: scores_df is never mutated.  Instead a
+        # ``_buy_grace_blocked`` set is computed and forwarded to
+        # ``generate_recommendations``, which suppresses BUY_NEW only
+        # (BUY_MORE on existing holdings is unaffected).  Target-weight
+        # calculations, SELL_GRACE verdicts, and Universe Delta now use
+        # the full, profile-independent scored universe.
+        _buy_grace_blocked: Optional[set] = None
+        try:
+            _bg_days = int(strat_conf.get("buy_grace_days", 0) or 0)
+        except (TypeError, ValueError):
+            _bg_days = 0
+        if _bg_days > 0:
+            from buy_grace_history import BuyGraceHistory  # local import — avoid circulars
+            _bgh_path = os.path.join(
+                os.path.dirname(conf["paths"]["holdings_log"]),
+                "top_n_history.jsonl",
+            )
+            _bgh = BuyGraceHistory(_bgh_path)
+            if regime == "BULL":
+                _topn_today = int(getattr(cfg, "regime_bull_top_n", 20))
+            elif regime in ("DEFENSIVE", "CRASH"):
+                _topn_today = int(getattr(cfg, "regime_defensive_top_n", 10))
+            else:
+                _topn_today = int(getattr(cfg, "regime_side_top_n", 15))
+            _prefilter_topn = scores_df["Ticker"].head(_topn_today).tolist()
+
+            _today_str = now.strftime("%Y-%m-%d")
+            _recent_sets = _bgh.get_recent_topn_sets(_bg_days + 1)
+            if _bgh.latest_date() == _today_str and _recent_sets:
+                _recent_sets = _recent_sets[:-1]
+            _recent_sets = _recent_sets[-_bg_days:]
+            if len(_recent_sets) >= _bg_days:
+                _persistent: set = set.intersection(*_recent_sets)
+                _all_scored = set(scores_df["Ticker"].tolist())
+                _buy_grace_blocked = _all_scored - _persistent
+                _n_blocked = len(_buy_grace_blocked)
+                print(f"  [Buy-Grace] grace={_bg_days}d, history={len(_recent_sets)}d warmed | "
+                      f"persistent={len(_persistent)}, blocked={_n_blocked} new-buy candidates "
+                      f"(scores_df unchanged, {len(scores_df)} tickers)")
+            else:
+                print(f"  [Buy-Grace] grace={_bg_days}d, history={len(_recent_sets)}d "
+                      f"(WARMUP — need {_bg_days}d, filter skipped this run)")
+
+            try:
+                _bgh.append(_today_str, str(regime), _prefilter_topn, _topn_today)
+                print(f"  [Buy-Grace] snapshot appended → {os.path.basename(_bgh_path)}")
+            except Exception as _e:  # never fail the run on snapshot write
+                print(f"  [Buy-Grace] WARN: snapshot append failed: {_e}")
+
         recos = generate_recommendations(
             cfg, scores_df, regime, vix_close, hm, total_capital,
             daily_buy_limit=daily_limit,
             strategy_conf=strat_conf,
+            buy_grace_blocked=_buy_grace_blocked,
         )
 
         # ── Universe Delta: compare today's top-N vs previous ──
@@ -1664,7 +2094,9 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
             print(holds[["Ticker", "Score", "TargetPct", "ActualPct"]].to_string(index=False))
         if not deferred.empty:
             print("\n  [DEFERRED — budget exhausted]")
-            print(deferred[["Ticker", "Score", "TargetPct", "GapPct", "Price"]].to_string(index=False))
+            _def_display = deferred[["Ticker", "Score", "TargetPct", "GapPct", "Price"]].copy()
+            _def_display["1sh"] = deferred["Price"].apply(lambda p: f"${p:,.0f}")
+            print(_def_display.to_string(index=False))
 
     except Exception as e:
         artifact_error = f"{type(e).__name__}: {e}"
@@ -1739,13 +2171,49 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
         )
         print(f"  Daily log recorded. Total: ${log_total:,.2f} (holdings ${portfolio_value:,.2f} + cash ${log_cash:,.2f})")
 
+    # 7.5 Shadow pass — score candidate signal, compare, save artifacts.
+    shadow_email_text = ""
+    shadow_conf = conf.get("shadow", {})
+    if shadow_conf.get("enabled", False) and pack is not None and artifact_error == "":
+        shadow_email_text = _run_shadow_pass(
+            conf=conf,
+            shadow_conf=shadow_conf,
+            cfg=cfg,
+            pack=pack,
+            regime=regime,
+            vix_close=vix_close,
+            blend_on=blend_on,
+            blend_alphas=blend_alphas,
+            hm=hm,
+            live_scores=scores_df,
+            live_recos=recos,
+            total_capital=total_capital,
+            daily_limit=daily_limit,
+            strat_conf=strat_conf,
+            run_timestamp=run_timestamp,
+        )
+        expected_shadow_run_dir = (
+            Path(conf["paths"]["output_dir"]).expanduser()
+            / "daily_runs"
+            / f"{run_timestamp.strftime('%Y%m%d_%H%M%S')}_shadow"
+        )
+        shadow_ledger_text = _run_shadow_ledger_update(
+            conf=conf,
+            shadow_conf=shadow_conf,
+            config_path=config_path,
+            expected_shadow_run_dir=expected_shadow_run_dir,
+        )
+        if shadow_ledger_text:
+            shadow_email_text = (shadow_email_text + "\n" + shadow_ledger_text).strip()
+
     # 8. Send email
     if not dry_run and conf.get("email", {}).get("enabled", False):
         try:
             from mailer import send_daily_email
             send_daily_email(conf, triggers, recos, vix_close, regime, hm, health,
                              computed_daily_limit=daily_limit,
-                             universe_delta_text=universe_delta_text)
+                             universe_delta_text=universe_delta_text,
+                             shadow_text=shadow_email_text)
             print("  Email sent.")
         except Exception as e:
             print(f"  [WARN] Email failed: {e}")

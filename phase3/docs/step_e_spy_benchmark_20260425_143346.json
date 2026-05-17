@@ -1,0 +1,202 @@
+{
+  "generated_at": "2026-04-25T14:33:46",
+  "spy_full": {
+    "window_start": "2012-01-01",
+    "window_end": "2026-02-27",
+    "actual_start": "2012-01-03",
+    "actual_end": "2025-12-31",
+    "metrics": {
+      "CAGR": 0.1273048853369645,
+      "Sharpe": 0.8017407816956564,
+      "MDD": 0.34104746704498423,
+      "Calmar": 0.37327614962222533,
+      "Total_Return": 4.348392156862745,
+      "Years": 13.993,
+      "n_days": 3520
+    },
+    "fold_id": "FULL"
+  },
+  "spy_folds": [
+    {
+      "window_start": "2012-01-01",
+      "window_end": "2014-12-31",
+      "actual_start": "2012-01-03",
+      "actual_end": "2014-12-31",
+      "metrics": {
+        "CAGR": 0.17301252964624236,
+        "Sharpe": 1.4227407438534099,
+        "MDD": 0.09686971235194586,
+        "Calmar": 1.7860332754747463,
+        "Total_Return": 0.6120784313725489,
+        "Years": 2.992,
+        "n_days": 754
+      },
+      "fold_id": "F0a",
+      "group": "pre_oos"
+    },
+    {
+      "window_start": "2015-01-01",
+      "window_end": "2016-12-31",
+      "actual_start": "2015-01-02",
+      "actual_end": "2016-12-30",
+      "metrics": {
+        "CAGR": 0.04327534214047435,
+        "Sharpe": 0.36601179914885673,
+        "MDD": 0.1435128805620609,
+        "Calmar": 0.30154326197752196,
+        "Total_Return": 0.08810787129435815,
+        "Years": 1.993,
+        "n_days": 504
+      },
+      "fold_id": "F0b",
+      "group": "pre_oos"
+    },
+    {
+      "window_start": "2019-01-01",
+      "window_end": "2020-12-31",
+      "actual_start": "2019-01-02",
+      "actual_end": "2020-12-31",
+      "metrics": {
+        "CAGR": 0.2229799264023229,
+        "Sharpe": 0.921965596886194,
+        "MDD": 0.34104746704498434,
+        "Calmar": 0.6538090675011866,
+        "Total_Return": 0.49444400031976965,
+        "Years": 1.996,
+        "n_days": 505
+      },
+      "fold_id": "F1",
+      "group": "in_sample"
+    },
+    {
+      "window_start": "2021-01-01",
+      "window_end": "2022-12-31",
+      "actual_start": "2021-01-04",
+      "actual_end": "2022-12-30",
+      "metrics": {
+        "CAGR": 0.018465299304279315,
+        "Sharpe": 0.19110860716150993,
+        "MDD": 0.2536057440706705,
+        "Calmar": 0.07281104523852473,
+        "Total_Return": 0.036985818487486055,
+        "Years": 1.985,
+        "n_days": 503
+      },
+      "fold_id": "F2",
+      "group": "in_sample"
+    },
+    {
+      "window_start": "2023-01-01",
+      "window_end": "2024-05-31",
+      "actual_start": "2023-01-03",
+      "actual_end": "2024-05-31",
+      "metrics": {
+        "CAGR": 0.2603065831519207,
+        "Sharpe": 1.895210552660549,
+        "MDD": 0.10290744664584195,
+        "Calmar": 2.529521347932876,
+        "Total_Return": 0.38482747754844815,
+        "Years": 1.407,
+        "n_days": 355
+      },
+      "fold_id": "F3",
+      "group": "in_sample"
+    },
+    {
+      "window_start": "2024-06-01",
+      "window_end": "2026-02-27",
+      "actual_start": "2024-06-03",
+      "actual_end": "2025-12-31",
+      "metrics": {
+        "CAGR": 0.17639765934275387,
+        "Sharpe": 1.0203978917486811,
+        "MDD": 0.18998906889856904,
+        "Calmar": 0.9284621497720412,
+        "Total_Return": 0.292004547176961,
+        "Years": 1.577,
+        "n_days": 397
+      },
+      "fold_id": "F4",
+      "group": "post_oos"
+    }
+  ],
+  "g7_per_signal": {
+    "Baseline_V2": {
+      "G7_C_per_fold_beats_spy": {
+        "wins": 6,
+        "total": 6,
+        "win_folds": [
+          "F0a",
+          "F0b",
+          "F1",
+          "F2",
+          "F3",
+          "F4"
+        ],
+        "loss_folds": [],
+        "threshold": "\u22655/6",
+        "pass": true
+      },
+      "G7_D_info_ratio_proxy": {
+        "mean_alpha": 0.16251977666866776,
+        "std_alpha": 0.11529139708834373,
+        "ir_proxy": 1.4096435707525914,
+        "threshold": "\u22650.5 (proxy: per-fold alpha mean/std, NOT true daily IR)",
+        "pass": true
+      }
+    },
+    "T1b_BULL_INJECTED": {
+      "G7_C_per_fold_beats_spy": {
+        "wins": 6,
+        "total": 6,
+        "win_folds": [
+          "F0a",
+          "F0b",
+          "F1",
+          "F2",
+          "F3",
+          "F4"
+        ],
+        "loss_folds": [],
+        "threshold": "\u22655/6",
+        "pass": true
+      },
+      "G7_D_info_ratio_proxy": {
+        "mean_alpha": 0.1411081100020011,
+        "std_alpha": 0.08608032054318764,
+        "ir_proxy": 1.6392609729096594,
+        "threshold": "\u22650.5 (proxy: per-fold alpha mean/std, NOT true daily IR)",
+        "pass": true
+      }
+    },
+    "P6_ENSEMBLE_C": {
+      "G7_C_per_fold_beats_spy": {
+        "wins": 6,
+        "total": 6,
+        "win_folds": [
+          "F0a",
+          "F0b",
+          "F1",
+          "F2",
+          "F3",
+          "F4"
+        ],
+        "loss_folds": [],
+        "threshold": "\u22655/6",
+        "pass": true
+      },
+      "G7_D_info_ratio_proxy": {
+        "mean_alpha": 0.13929144333533441,
+        "std_alpha": 0.09061926611208466,
+        "ir_proxy": 1.5371062833707831,
+        "threshold": "\u22650.5 (proxy: per-fold alpha mean/std, NOT true daily IR)",
+        "pass": true
+      }
+    }
+  },
+  "args": {
+    "walk_forward": "phase3/docs/t5_walk_forward_results_20260425_143335.json",
+    "full_period_json": null,
+    "signals": "all"
+  }
+}

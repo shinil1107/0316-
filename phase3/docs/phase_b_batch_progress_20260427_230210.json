@@ -1,0 +1,215 @@
+{
+  "batch_started_at": "2026-04-27T23:02:11",
+  "dry_run": false,
+  "n_queued": 6,
+  "queue": [
+    "b6_baseline_10y",
+    "b6_baseline_15y",
+    "b6_side_tech_10y",
+    "b6_side_tech_15y",
+    "b6_side_fund_10y",
+    "b6_side_fund_15y"
+  ],
+  "current": null,
+  "completed": [
+    "b6_baseline_10y",
+    "b6_baseline_15y",
+    "b6_side_tech_10y",
+    "b6_side_tech_15y",
+    "b6_side_fund_10y",
+    "b6_side_fund_15y"
+  ],
+  "failed": [],
+  "results": [
+    {
+      "id": "b6_baseline_10y",
+      "tag": "P6_BASELINE_10Y",
+      "batch": 6,
+      "status": "ok",
+      "elapsed_sec": 6399.0,
+      "elapsed_min": 106.7,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_BASELINE_10Y_20260428_004850.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260428_004850.json",
+      "signal_quality": {
+        "k_selected": 9,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2016-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260701
+    },
+    {
+      "id": "b6_baseline_15y",
+      "tag": "P6_BASELINE_15Y",
+      "batch": 6,
+      "status": "ok",
+      "elapsed_sec": 9356.9,
+      "elapsed_min": 155.9,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_BASELINE_15Y_20260428_032446.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260428_032446.json",
+      "signal_quality": {
+        "k_selected": 12,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260702
+    },
+    {
+      "id": "b6_side_tech_10y",
+      "tag": "P6_SIDE_TECH_10Y",
+      "batch": 6,
+      "status": "ok",
+      "elapsed_sec": 9064.3,
+      "elapsed_min": 151.1,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_SIDE_TECH_10Y_20260428_055551.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260428_055551.json",
+      "signal_quality": {
+        "k_selected": 6,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.2,
+      "w_cost": 0.12,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.2,
+      "w_turnover_def": 0.2,
+      "w_cost_bull": 0.03,
+      "w_cost_side": 0.12,
+      "w_cost_def": 0.12,
+      "train_window": [
+        "2016-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260703
+    },
+    {
+      "id": "b6_side_tech_15y",
+      "tag": "P6_SIDE_TECH_15Y",
+      "batch": 6,
+      "status": "ok",
+      "elapsed_sec": 13114.3,
+      "elapsed_min": 218.6,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_SIDE_TECH_15Y_20260428_093425.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260428_093425.json",
+      "signal_quality": {
+        "k_selected": 5,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.2,
+      "w_cost": 0.12,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.2,
+      "w_turnover_def": 0.2,
+      "w_cost_bull": 0.03,
+      "w_cost_side": 0.12,
+      "w_cost_def": 0.12,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260704
+    },
+    {
+      "id": "b6_side_fund_10y",
+      "tag": "P6_SIDE_FUND_10Y",
+      "batch": 6,
+      "status": "ok",
+      "elapsed_sec": 8100.5,
+      "elapsed_min": 135.0,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_SIDE_FUND_10Y_20260428_114926.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260428_114926.json",
+      "signal_quality": {
+        "k_selected": 5,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.18,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.3,
+      "w_turnover_def": 0.2,
+      "w_cost_bull": 0.03,
+      "w_cost_side": 0.18,
+      "w_cost_def": 0.12,
+      "train_window": [
+        "2016-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260705
+    },
+    {
+      "id": "b6_side_fund_15y",
+      "tag": "P6_SIDE_FUND_15Y",
+      "batch": 6,
+      "status": "ok",
+      "elapsed_sec": 12269.3,
+      "elapsed_min": 204.5,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_SIDE_FUND_15Y_20260428_151355.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260428_151355.json",
+      "signal_quality": {
+        "k_selected": 6,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.18,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.3,
+      "w_turnover_def": 0.2,
+      "w_cost_bull": 0.03,
+      "w_cost_side": 0.18,
+      "w_cost_def": 0.12,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260706
+    }
+  ],
+  "updated_at": "2026-04-28T15:13:55",
+  "batch_finished_at": "2026-04-28T15:13:55",
+  "total_sec": 58304.4,
+  "total_min": 971.7
+}

@@ -99,6 +99,31 @@ class App(tk.Tk):
         )
         sec_core.pack(fill=tk.X, pady=4)
 
+        profile_row = tk.Frame(sec_core, bg="#1e1e2e")
+        profile_row.pack(fill=tk.X, padx=8, pady=(6, 2))
+        tk.Label(
+            profile_row, text="Profile:", font=("Helvetica", 11, "bold"),
+            fg="#f9e2af", bg="#1e1e2e",
+        ).pack(side=tk.LEFT, padx=(0, 6))
+        self._profile_var = tk.StringVar(value="Paper ($100K)")
+        self._profile_map = {
+            "Paper ($100K)": None,
+            "Real ($10K)": str(_THIS_DIR / "config_real.yaml"),
+        }
+        profile_menu = tk.OptionMenu(
+            profile_row, self._profile_var, *self._profile_map.keys(),
+        )
+        profile_menu.config(
+            font=("Helvetica", 11, "bold"), bg="#45475a", fg="#cdd6f4",
+            activebackground="#585b70", activeforeground="#cdd6f4",
+            highlightthickness=0, width=16,
+        )
+        profile_menu["menu"].config(
+            font=("Helvetica", 11), bg="#45475a", fg="#cdd6f4",
+            activebackground="#89b4fa", activeforeground="#1e1e2e",
+        )
+        profile_menu.pack(side=tk.LEFT, padx=4)
+
         sec_ops = tk.LabelFrame(
             btn_frame, text=" Operations ", font=("Helvetica", 11, "bold"),
             fg="#f38ba8", bg="#1e1e2e", bd=1, relief=tk.GROOVE,
@@ -146,7 +171,7 @@ class App(tk.Tk):
             ("T24 Compose vs Baseline", self._t24_compose_vs_baseline),
             ("T25 P5 Retrain (GA)", self._t25_p5_retrain),
             ("T26 Walk-Forward (T5)", self._t26_walk_forward),
-            ("T27 Phase B Batch (B1/B2/B3)", self._t27_phase_b_batch),
+            ("T27 Phase B Batch (B1-7)", self._t27_phase_b_batch),
         ]
 
         for section, btns in [
@@ -442,6 +467,8 @@ class App(tk.Tk):
 
     # ── T5: VIX & Trigger ──
     def _t5_vix_trigger(self):
+        _pconf = self._load_profile_conf()
+
         def _run():
             if not self._ensure_signal():
                 return
@@ -450,7 +477,7 @@ class App(tk.Tk):
             vix, regime, _alphas = get_current_vix(_cfg)
             print(f"  VIX={vix:.2f}, Regime={regime}")
 
-            hm = HoldingsManager(_conf["paths"]["holdings_log"])
+            hm = HoldingsManager(_pconf["paths"]["holdings_log"])
             triggers = check_triggers(
                 _cfg, vix, regime, hm, pack=None, signal=_signal, force=False,
             )
@@ -472,21 +499,39 @@ class App(tk.Tk):
             print(f"  Current holdings: {len(curr)} positions")
         self._run_task("T5: VIX & Trigger", _run)
 
+    def _get_active_config_path(self) -> str | None:
+        """Return the config file path for the currently selected profile."""
+        return self._profile_map.get(self._profile_var.get())
+
+    def _get_profile_label(self) -> str:
+        return self._profile_var.get()
+
+    def _load_profile_conf(self) -> dict:
+        """Load config dict for the currently selected profile."""
+        from cache_health import load_config
+        return load_config(self._get_active_config_path())
+
     # ── T6: Daily Dry Run ──
     def _t6_dry_run(self):
+        cfg_path = self._get_active_config_path()
+        profile = self._get_profile_label()
         def _run():
             self._ensure_engine()
             import importlib, daily_runner
             importlib.reload(daily_runner)
-            daily_runner.run_daily(dry_run=True, force=True)
-        self._run_task("T6: Daily Run (Dry)", _run)
+            print(f"  [Profile: {profile}]")
+            daily_runner.run_daily(dry_run=True, force=True, config_path=cfg_path)
+        self._run_task(f"T6: Daily Run (Dry) [{profile}]", _run)
 
     # ── T7: Daily Live Run ──
     def _t7_live_run(self):
+        cfg_path = self._get_active_config_path()
+        profile = self._get_profile_label()
+
         def _confirm_and_run():
             from cache_health import load_config as _load_conf
             from holdings_manager import HoldingsManager
-            conf = _load_conf()
+            conf = _load_conf(cfg_path)
             hm = HoldingsManager(conf["paths"]["holdings_log"])
             today_str = datetime.now().strftime("%Y-%m-%d")
             daily_log = hm.load_daily_log()
@@ -495,16 +540,23 @@ class App(tk.Tk):
                 and today_str in daily_log["Date"].astype(str).values
             )
 
+            holdings_file = Path(conf["paths"]["holdings_log"]).name
             if already_ran:
                 msg = (
+                    f"Profile: {profile}\n"
+                    f"Holdings: {holdings_file}\n\n"
                     f"Already ran today ({today_str}).\n"
                     "Re-running will create duplicate log entries.\n\n"
                     "Proceed anyway?"
                 )
             else:
-                msg = "This will modify holdings_log.xlsx.\nProceed?"
+                msg = (
+                    f"Profile: {profile}\n"
+                    f"Holdings: {holdings_file}\n\n"
+                    "This will modify the holdings file.\nProceed?"
+                )
 
-            if not messagebox.askyesno("Confirm Live Run", msg):
+            if not messagebox.askyesno(f"Confirm Live Run — {profile}", msg):
                 self._log_write("  Cancelled by user.")
                 return
 
@@ -512,8 +564,9 @@ class App(tk.Tk):
                 self._ensure_engine()
                 import importlib, daily_runner
                 importlib.reload(daily_runner)
-                daily_runner.run_daily(dry_run=False, force=True)
-            self._run_task("T7: Daily Run (LIVE)", _run)
+                print(f"  [Profile: {profile}]")
+                daily_runner.run_daily(dry_run=False, force=True, config_path=cfg_path)
+            self._run_task(f"T7: Daily Run (LIVE) [{profile}]", _run)
 
         _confirm_and_run()
 
@@ -534,9 +587,11 @@ class App(tk.Tk):
 
     # ── T9: Email Test ──
     def _t9_email(self):
+        _pconf = self._load_profile_conf()
+
         def _run():
             self._ensure_engine()
-            email_conf = _conf.get("email", {})
+            email_conf = _pconf.get("email", {})
             if not email_conf.get("enabled"):
                 print("  Email is DISABLED in config.yaml")
                 print("  To enable: set email.enabled=true and fill in credentials.")
@@ -546,9 +601,9 @@ class App(tk.Tk):
             from mailer import send_daily_email
             from holdings_manager import HoldingsManager
             import pandas as pd
-            hm = HoldingsManager(_conf["paths"]["holdings_log"])
+            hm = HoldingsManager(_pconf["paths"]["holdings_log"])
             send_daily_email(
-                _conf, triggers=["TEST_EMAIL"],
+                _pconf, triggers=["TEST_EMAIL"],
                 recos=pd.DataFrame(), vix=20.0, regime="BULL",
                 holdings_mgr=hm, health={"overall_status": "OK"},
             )
@@ -566,15 +621,17 @@ class App(tk.Tk):
             record_execution_artifact,
             record_execution_reversal,
         )
-        hm = HoldingsManager(_conf["paths"]["holdings_log"])
+        _pconf = self._load_profile_conf()
+        profile = self._get_profile_label()
+        hm = HoldingsManager(_pconf["paths"]["holdings_log"])
         recos = hm.load_recommendations()
 
         if recos.empty:
-            self._log_write("  No recommendations to report. Run T7 first.")
+            self._log_write(f"  [{profile}] No recommendations to report. Run T7 first.")
             return
 
         artifact_run_dir, artifact_meta, artifact_recos = find_matching_execution_run(
-            _conf["paths"]["output_dir"], recos,
+            _pconf["paths"]["output_dir"], recos,
         )
         artifact_run_id = ""
         if artifact_run_dir is not None and artifact_meta is not None and not artifact_recos.empty:
@@ -637,7 +694,7 @@ class App(tk.Tk):
         recos = recos.sort_values("_sort").drop(columns=["_sort"])
 
         popup = tk.Toplevel(self)
-        popup.title("T10: Report Execution")
+        popup.title(f"T10: Report Execution — {profile}")
         popup.geometry("900x700")
         popup.configure(bg="#1e1e2e")
         popup.transient(self)
@@ -793,7 +850,7 @@ class App(tk.Tk):
                     info_parts.append(f"tgt={float(row['TargetPct']):.1f}%")
                 if action == "SELL_GRACE" and pd.notna(row.get("GraceCount")):
                     gc = int(row["GraceCount"])
-                    grace_max = _conf.get("strategy", {}).get("sell_grace_days", 60)
+                    grace_max = _pconf.get("strategy", {}).get("sell_grace_days", 60)
                     info_parts.append(f"grace {gc}/{grace_max} ({grace_max-gc}d left)")
                 if action == "DEFERRED":
                     info_parts.append("budget exhausted")
@@ -1096,15 +1153,17 @@ class App(tk.Tk):
     # ── T11: Deposit Cash ──
     def _t11_deposit(self):
         from holdings_manager import HoldingsManager
-        hm = HoldingsManager(_conf["paths"]["holdings_log"])
+        _pconf = self._load_profile_conf()
+        profile = self._get_profile_label()
+        hm = HoldingsManager(_pconf["paths"]["holdings_log"])
 
-        initial_cash = _conf["portfolio"].get(
-            "initial_cash", _conf["portfolio"]["total_capital"]
+        initial_cash = _pconf["portfolio"].get(
+            "initial_cash", _pconf["portfolio"]["total_capital"]
         )
         hm.initialize_cash(initial_cash)
 
         popup = tk.Toplevel(self)
-        popup.title("Deposit Cash")
+        popup.title(f"Deposit Cash — {profile}")
         popup.geometry("420x280")
         popup.configure(bg="#1e1e2e")
         popup.transient(self)
@@ -1180,15 +1239,17 @@ class App(tk.Tk):
     def _t14_manual_trade(self):
         import pandas as pd
         from holdings_manager import HoldingsManager
-        hm = HoldingsManager(_conf["paths"]["holdings_log"])
+        _pconf = self._load_profile_conf()
+        profile = self._get_profile_label()
+        hm = HoldingsManager(_pconf["paths"]["holdings_log"])
 
-        initial_cash = _conf["portfolio"].get(
-            "initial_cash", _conf["portfolio"]["total_capital"]
+        initial_cash = _pconf["portfolio"].get(
+            "initial_cash", _pconf["portfolio"]["total_capital"]
         )
         hm.initialize_cash(initial_cash)
 
         popup = tk.Toplevel(self)
-        popup.title("Manual Trade Entry")
+        popup.title(f"Manual Trade Entry — {profile}")
         popup.geometry("620x520")
         popup.configure(bg="#1e1e2e")
         popup.transient(self)
@@ -2420,34 +2481,39 @@ class App(tk.Tk):
             bd=0, cursor="hand2", command=popup.destroy,
         ).pack(side=tk.LEFT, padx=6)
 
-    # ── T27: Phase B overnight batch orchestrator (Batches 1 / 2 / 3) ──
+    # ── T27: Phase B overnight batch orchestrator (Batches 1-7) ──
     def _t27_phase_b_batch(self):
-        """Phase B — overnight batch (Batches 1 scalar profile / 2 scalar window / 3 regime-conditional).
+        """Phase B — overnight batch (Batches 1-7).
 
         Batches 1-2 (scalar) reference: phase3/docs/phase_b_batch_plan.md
         Batch 3 (regime-conditional Option 3a): phase3/docs/phase_b2_regime_cond_plan.md
+        Batch 4 (SIDE specialist B2.1): phase3/docs/phase_b2_1_side_specialist_plan.md
+        Batch 5 (SIDE specialist v2 B2.2): phase3/docs/phase_b2_2_side_specialist_v2_plan.md
+        Batch 6 (post-backfill retrain B3): 3 configs × 2 windows
+        Batch 7 (V2-recipe reproduction): 4 variants × expanded 15Y data
         """
         popup = tk.Toplevel(self)
         popup.title("T27: Phase B Batch")
-        popup.geometry("720x760")
+        popup.geometry("760x1200")
         popup.configure(bg="#1e1e2e")
 
         tk.Label(
-            popup, text="Phase B — Overnight Batch (1 scalar / 2 scalar-win / 3 regime-cond)",
-            font=("Helvetica", 14, "bold"), bg="#1e1e2e", fg="#cdd6f4",
+            popup, text="Phase B — Overnight Batch (B1-7)",
+            font=("Helvetica", 13, "bold"), bg="#1e1e2e", fg="#cdd6f4",
         ).pack(pady=(12, 4))
         tk.Label(
             popup,
             text=(
-                "B1/B2 sweep scalar w_turnover × w_cost. B3 uses the Phase-B2\n"
-                "Option-3a engine change (per-regime BULL/SIDE/DEF penalties)."
+                "B1/B2 sweep scalar w_turnover × w_cost. B3 regime-conditional.\n"
+                "B4/B5 SIDE specialist family. B6 post-backfill retrain.\n"
+                "B7 V2-recipe reproduction on expanded 15Y data (4 variants)."
             ),
             font=("Helvetica", 10), bg="#1e1e2e", fg="#9399b2", justify=tk.CENTER,
         ).pack(pady=(0, 8))
 
         # ── Preset summary (read-only) ───────────────────────────────
         presets_frame = tk.LabelFrame(
-            popup, text=" 12 presets (Batches 1-3) ", font=("Helvetica", 10, "bold"),
+            popup, text=" 27 presets (Batches 1-7) ", font=("Helvetica", 10, "bold"),
             fg="#89b4fa", bg="#1e1e2e", bd=1, relief=tk.GROOVE,
         )
         presets_frame.pack(fill=tk.X, padx=20, pady=4)
@@ -2464,11 +2530,26 @@ class App(tk.Tk):
             ("B3 bull_free","P5C_BULL_FREE   to=(.00,.30,.40) co=(.00,.20,.25)   BULL=0 × SIDE/DEF mid"),
             ("B3 def_heavy","P5C_DEF_HEAVY   to=(.05,.15,.60) co=(.02,.10,.35)   DEF isolated"),
             ("B3 side_heavy","P5C_SIDE_HEAVY to=(.05,.50,.30) co=(.02,.30,.15)   SIDE focused"),
+            ("B4 side_pure","P5D_SIDE_PURE   to=(.00,.70,.00) co=(.00,.40,.00)   SIDE-only, BULL/DEF off"),
+            ("B4 side_deep","P5D_SIDE_DEEP   to=(.02,.60,.20) co=(.01,.35,.10)   harder SIDE w/ small B/D tax"),
+            ("B4 side_win", "P5D_SIDE_WIN    to=(.05,.50,.30) co=(.02,.30,.15)   2014-2024 SIDE-rich window"),
+            ("B5 side_tech",     "P5E_SIDE_TECH       to=(.05,.20,.20) co=(.03,.12,.12)   pool=tech12  (~3 h)"),
+            ("B5 side_fund_brk", "P5E_SIDE_FUND_BRK   to=(.05,.30,.20) co=(.03,.18,.12)   pool=fund+brk  (~3 h)"),
+            ("B6 baseline 10Y",  "P6_BASELINE_10Y     T1b recipe  2016→2026  expanded financials  (~3 h)"),
+            ("B6 baseline 15Y",  "P6_BASELINE_15Y     T1b recipe  2011→2026  expanded financials  (~3 h)"),
+            ("B6 side_tech 10Y", "P6_SIDE_TECH_10Y    tech pool   2016→2026  expanded financials  (~3 h)"),
+            ("B6 side_tech 15Y", "P6_SIDE_TECH_15Y    tech pool   2011→2026  expanded financials  (~3 h)"),
+            ("B6 side_fund 10Y", "P6_SIDE_FUND_10Y    fund+brk    2016→2026  expanded financials  (~3 h)"),
+            ("B6 side_fund 15Y", "P6_SIDE_FUND_15Y    fund+brk    2011→2026  expanded financials  (~3 h)"),
+            ("B7 v2_full",       "P7_V2_FULL          V2 recipe (meta ON, entropy 0.10)       (~6-12 h)"),
+            ("B7 v2_no_deploy",  "P7_V2_NO_DEPLOY     V2 recipe, deploy penalty OFF           (~6-12 h)"),
+            ("B7 v2_mega",       "P7_V2_MEGA          V2 recipe, 2× budget (pop800/gen30)     (~12-24 h)"),
+            ("B7 v2_bull_agg",   "P7_V2_BULL_AGG      V2 recipe, aggressive BULL tuning       (~6-12 h)"),
         ]
         for i, (k, v) in enumerate(preset_lines):
             tk.Label(
                 presets_frame, text=k, font=("Helvetica", 9, "bold"),
-                bg="#1e1e2e", fg="#9399b2", anchor=tk.W, width=13,
+                bg="#1e1e2e", fg="#9399b2", anchor=tk.W, width=15,
             ).grid(row=i, column=0, sticky=tk.W, padx=6, pady=1)
             tk.Label(
                 presets_frame, text=v, font=("Menlo", 9),
@@ -2482,19 +2563,75 @@ class App(tk.Tk):
         )
         target_frame.pack(fill=tk.X, padx=20, pady=8)
 
-        target_var = tk.StringVar(value="3")
+        target_var = tk.StringVar(value="7")
         for val, lbl in (
-            ("3",   "Batch 3 only  (6× Phase B2 regime-cond)     — NEXT OVERNIGHT  (~12 h)"),
-            ("1",   "Batch 1 only  (consv + prop + aggr)         — scalar profile sweep  (~6.5 h)"),
-            ("2",   "Batch 2 only  (win_base + win_fwd + win_back) — scalar window sweep  (~6.5 h)"),
-            ("all", "All batches back-to-back  (12 runs)         — single-shot long run  (~26 h)"),
-            ("dry", "Dry-run smoke   (12 × ~2 min)               — wiring validation     (~25 min)"),
+            ("7",   "Batch 7  (V2-recipe reproduction: 4 variants × 15Y)  — NEW  (~24-48 h)"),
+            ("6",   "Batch 6  (post-backfill retrain: 3 configs × 2 windows)  — completed  (~18 h)"),
+            ("5",   "Batch 5 only  (2× B2.2 SIDE specialist v2)  — completed  (~6 h)"),
+            ("4",   "Batch 4 only  (3× B2.1 SIDE specialist)     — completed  (~6 h)"),
+            ("3",   "Batch 3 only  (6× Phase B2 regime-cond)     — completed  (~12 h)"),
+            ("1",   "Batch 1 only  (consv + prop + aggr)         — completed  (~6.5 h)"),
+            ("2",   "Batch 2 only  (win_base + win_fwd + win_back) — completed  (~6.5 h)"),
+            ("all", "All batches back-to-back  (27 runs)         — long run   (~80+ h)"),
+            ("dry", "Dry-run smoke   (27 × ~2 min)               — wiring     (~54 min)"),
         ):
             tk.Radiobutton(
                 target_frame, text=lbl, variable=target_var, value=val,
                 font=("Menlo", 9), bg="#1e1e2e", fg="#cdd6f4",
                 activebackground="#1e1e2e", activeforeground="#cdd6f4",
                 selectcolor="#313244", anchor=tk.W, justify=tk.LEFT,
+            ).pack(anchor=tk.W, padx=8, pady=1)
+
+        # ── Batch 6 checkbox sub-panel (visible only when target=6) ──
+        b6_frame = tk.LabelFrame(
+            popup, text=" Batch 6 — select runs ", font=("Helvetica", 10, "bold"),
+            fg="#a6e3a1", bg="#1e1e2e", bd=1, relief=tk.GROOVE,
+        )
+
+        B6_RUNS = [
+            ("b6_baseline_10y", "Baseline (T1b)  — 10Y  (2016-2026)     ~3 h"),
+            ("b6_baseline_15y", "Baseline (T1b)  — 15Y  (2011-2026)     ~3 h"),
+            ("b6_side_tech_10y","SIDE Tech       — 10Y  (2016-2026)     ~3 h"),
+            ("b6_side_tech_15y","SIDE Tech       — 15Y  (2011-2026)     ~3 h"),
+            ("b6_side_fund_10y","SIDE Fund+Brk   — 10Y  (2016-2026)     ~3 h"),
+            ("b6_side_fund_15y","SIDE Fund+Brk   — 15Y  (2011-2026)     ~3 h"),
+        ]
+        b6_vars: dict[str, tk.BooleanVar] = {}
+        for run_id, run_lbl in B6_RUNS:
+            var = tk.BooleanVar(value=True)
+            b6_vars[run_id] = var
+            tk.Checkbutton(
+                b6_frame, text=run_lbl, variable=var,
+                onvalue=True, offvalue=False,
+                font=("Menlo", 9), bg="#1e1e2e", fg="#cdd6f4",
+                activebackground="#1e1e2e", activeforeground="#cdd6f4",
+                selectcolor="#313244",
+                command=lambda: _update_estimate(),
+            ).pack(anchor=tk.W, padx=8, pady=1)
+
+        # ── Batch 7 checkbox sub-panel (visible only when target=7) ──
+        b7_frame = tk.LabelFrame(
+            popup, text=" Batch 7 — select runs ", font=("Helvetica", 10, "bold"),
+            fg="#a6e3a1", bg="#1e1e2e", bd=1, relief=tk.GROOVE,
+        )
+
+        B7_RUNS = [
+            ("p7_v2_full",      "V2 Full Recipe  (meta ON, entropy 0.10, BULL tuning)         ~6-12 h"),
+            ("p7_v2_no_deploy", "V2 No Deploy    (deployment penalty OFF)                     ~6-12 h"),
+            ("p7_v2_mega",      "V2 Mega Budget  (pop 800, gen 30, 12 seeds)                  ~12-24 h"),
+            ("p7_v2_bull_agg",  "V2 BULL Aggr    (spread_mix 0.008, lambda 1.50)              ~6-12 h"),
+        ]
+        b7_vars: dict[str, tk.BooleanVar] = {}
+        for run_id, run_lbl in B7_RUNS:
+            var = tk.BooleanVar(value=True)
+            b7_vars[run_id] = var
+            tk.Checkbutton(
+                b7_frame, text=run_lbl, variable=var,
+                onvalue=True, offvalue=False,
+                font=("Menlo", 9), bg="#1e1e2e", fg="#cdd6f4",
+                activebackground="#1e1e2e", activeforeground="#cdd6f4",
+                selectcolor="#313244",
+                command=lambda: _update_estimate(),
             ).pack(anchor=tk.W, padx=8, pady=1)
 
         # ── Options ──────────────────────────────────────────────────
@@ -2505,14 +2642,15 @@ class App(tk.Tk):
         opt_frame.pack(fill=tk.X, padx=20, pady=4)
 
         force_pack_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(
+        force_pack_cb = tk.Checkbutton(
             opt_frame,
-            text="Force rebuild training pack for every run (slower; use only on cache suspicion)",
+            text="Force rebuild training pack (B6 already rebuilt; not needed for B7)",
             variable=force_pack_var, onvalue=True, offvalue=False,
             font=("Helvetica", 10), bg="#1e1e2e", fg="#cdd6f4",
             activebackground="#1e1e2e", activeforeground="#cdd6f4",
             selectcolor="#313244",
-        ).pack(anchor=tk.W, padx=8, pady=2)
+        )
+        force_pack_cb.pack(anchor=tk.W, padx=8, pady=2)
 
         estimate_lbl = tk.Label(
             popup, text="", font=("Helvetica", 10, "bold"),
@@ -2520,36 +2658,107 @@ class App(tk.Tk):
         )
         estimate_lbl.pack(pady=(6, 0))
 
+        def _b6_checked_count() -> int:
+            return sum(1 for v in b6_vars.values() if v.get())
+
+        def _b7_checked_count() -> int:
+            return sum(1 for v in b7_vars.values() if v.get())
+
+        def _toggle_batch_panels(*_):
+            t = target_var.get()
+            if t == "6":
+                b6_frame.pack(fill=tk.X, padx=20, pady=4, after=target_frame)
+                b7_frame.pack_forget()
+                force_pack_var.set(True)
+            elif t == "7":
+                b7_frame.pack(fill=tk.X, padx=20, pady=4, after=target_frame)
+                b6_frame.pack_forget()
+                force_pack_var.set(False)
+            else:
+                b6_frame.pack_forget()
+                b7_frame.pack_forget()
+
         def _update_estimate(*_):
             t = target_var.get()
-            if t == "dry":
-                estimate_lbl.config(text="Estimated runtime: ~25 min  (12 presets × ~2 min each)")
+            if t == "7":
+                n = _b7_checked_count()
+                hrs_lo = sum(12 if rid == "p7_v2_mega" else 6 for rid, var in b7_vars.items() if var.get())
+                hrs_hi = sum(24 if rid == "p7_v2_mega" else 12 for rid, var in b7_vars.items() if var.get())
+                estimate_lbl.config(
+                    text=f"Estimated runtime: ~{hrs_lo}-{hrs_hi} h  ({n} variant{'s' if n != 1 else ''})")
+            elif t == "6":
+                n = _b6_checked_count()
+                hrs = n * 3
+                estimate_lbl.config(
+                    text=f"Estimated runtime: ~{hrs} h  ({n} run{'s' if n != 1 else ''} × ~3 h)")
+            elif t == "dry":
+                estimate_lbl.config(text="Estimated runtime: ~54 min  (27 presets × ~2 min each)")
             elif t == "all":
-                estimate_lbl.config(text="Estimated runtime: ~25–30 h  (12 runs back-to-back)")
+                estimate_lbl.config(text="Estimated runtime: ~80+ h  (27 runs back-to-back)")
             elif t == "3":
                 estimate_lbl.config(text="Estimated runtime: ~12 h  (6 Phase-B2 regime-cond runs)")
+            elif t == "4":
+                estimate_lbl.config(text="Estimated runtime: ~6 h  (3 B2.1 SIDE-specialist runs)")
+            elif t == "5":
+                estimate_lbl.config(text="Estimated runtime: ~6 h  (2 B2.2 SIDE-spec-v2 runs × ~3 h)")
             else:
                 estimate_lbl.config(text="Estimated runtime: ~6.5 h  (3 scalar runs back-to-back)")
+
+        target_var.trace_add("write", _toggle_batch_panels)
         target_var.trace_add("write", _update_estimate)
+        _toggle_batch_panels()
         _update_estimate()
 
         def _start():
             t          = target_var.get()
             force_pack = bool(force_pack_var.get())
+
+            b6_selected = []
+            b7_selected = []
+            if t == "6":
+                b6_selected = [rid for rid, var in b6_vars.items() if var.get()]
+                if not b6_selected:
+                    from tkinter import messagebox
+                    messagebox.showwarning(
+                        "No runs selected",
+                        "Select at least one Batch 6 run.",
+                        parent=popup,
+                    )
+                    return
+            elif t == "7":
+                b7_selected = [rid for rid, var in b7_vars.items() if var.get()]
+                if not b7_selected:
+                    from tkinter import messagebox
+                    messagebox.showwarning(
+                        "No runs selected",
+                        "Select at least one Batch 7 run.",
+                        parent=popup,
+                    )
+                    return
+
             popup.destroy()
 
             def _run():
                 from run_phase5_batch_b import run_batch
                 kwargs = {"force_rebuild_pack": force_pack}
-                if t == "1":
+                if t == "7":
+                    kwargs["batch"] = 7
+                    kwargs["runs"] = b7_selected
+                elif t == "6":
+                    kwargs["batch"] = 6
+                    kwargs["runs"] = b6_selected
+                elif t == "1":
                     kwargs["batch"] = 1
                 elif t == "2":
                     kwargs["batch"] = 2
                 elif t == "3":
                     kwargs["batch"] = 3
+                elif t == "4":
+                    kwargs["batch"] = 4
+                elif t == "5":
+                    kwargs["batch"] = 5
                 elif t == "dry":
                     kwargs["dry_run"] = True
-                # "all" → no batch filter, full run
                 result = run_batch(**kwargs)
                 n_ok   = result.get("n_completed", 0)
                 n_fail = result.get("n_failed", 0)
@@ -2578,6 +2787,8 @@ class App(tk.Tk):
         self._ensure_engine()
         if not _conf:
             return
+        _pconf = self._load_profile_conf()
+        profile = self._get_profile_label()
 
         def _run():
             import pandas as _pd
@@ -2586,7 +2797,7 @@ class App(tk.Tk):
             from holdings_manager import HoldingsManager
             from engine_loader import engine
 
-            hm = HoldingsManager(_conf["paths"]["holdings_log"])
+            hm = HoldingsManager(_pconf["paths"]["holdings_log"])
             log = hm.load_daily_log()
 
             if log.empty or len(log) < 2:
@@ -2607,7 +2818,7 @@ class App(tk.Tk):
             capital = _np.array(log[capital_col].astype(float).values, copy=True)
             dates = _np.array(log["Date"].values, copy=True)
 
-            initial_capital = _conf.get("portfolio", {}).get("total_capital", 100000.0)
+            initial_capital = _pconf.get("portfolio", {}).get("total_capital", 100000.0)
             if capital[0] <= 0:
                 capital[0] = initial_capital
 

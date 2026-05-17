@@ -36,6 +36,7 @@ def _build_trigger_body(
     health: dict,
     daily_buy_limit: float = 0.0,
     universe_delta_text: str = "",
+    shadow_text: str = "",
 ) -> str:
     """Build actionable TODO-list email body."""
     lines = []
@@ -56,6 +57,8 @@ def _build_trigger_body(
         lines.append(_build_portfolio_section(holdings_mgr, regime, vix))
         lines.append(_build_cash_section(holdings_mgr, daily_buy_limit))
         lines.append(_build_health_section(health))
+        if shadow_text:
+            lines.append(shadow_text)
         return "\n".join(lines)
 
     is_preview = not triggers
@@ -146,7 +149,7 @@ def _build_trigger_body(
             gap_info = f"  gap {r.get('GapPct', 0):.1f}%" if has_gap else ""
             lines.append(
                 f"  ---  {r['Ticker']:6s}  Score {r['Score']:.1f}  "
-                f"@ ${r['Price']:.2f}{gap_info}"
+                f"@ ${r['Price']:.2f}{gap_info}  (1sh=${r['Price']:,.0f})"
             )
         lines.append("")
 
@@ -176,6 +179,9 @@ def _build_trigger_body(
     lines.append(_build_portfolio_section(holdings_mgr, regime, vix))
     lines.append(_build_cash_section(holdings_mgr, daily_buy_limit))
     lines.append(_build_health_section(health))
+
+    if shadow_text:
+        lines.append(shadow_text)
 
     lines.append(f"\n{'=' * 55}")
     lines.append("After executing, open the launcher and click")
@@ -235,6 +241,7 @@ def send_daily_email(
     health: dict,
     computed_daily_limit: float = 0.0,
     universe_delta_text: str = "",
+    shadow_text: str = "",
 ):
     """Send daily email via Gmail SMTP."""
     email_conf = conf.get("email", {})
@@ -277,14 +284,17 @@ def send_daily_email(
     if not buys.empty:
         parts.append(f"{len(buys)} BUY ${buy_total:,.0f}")
 
+    profile_tag = conf.get("profile_tag", "")
+    tag_prefix = f"[{profile_tag}]" if profile_tag else ""
+
     if is_preview:
         action_summary = f" | {' / '.join(parts)}" if parts else ""
-        subject = f"[Quant Preview] {today}{action_summary} | {regime} VIX={vix:.1f}"
+        subject = f"{tag_prefix}[Quant Preview] {today}{action_summary} | {regime} VIX={vix:.1f}"
     elif parts:
-        prefix = "[URGENT]" if not stop_losses.empty else "[Quant TODO]"
-        subject = f"{prefix} {today} | {' / '.join(parts)} | {regime} VIX={vix:.1f}"
+        urgency = "[URGENT]" if not stop_losses.empty else "[Quant TODO]"
+        subject = f"{tag_prefix}{urgency} {today} | {' / '.join(parts)} | {regime} VIX={vix:.1f}"
     else:
-        subject = f"[Quant] {today} | {trigger_str} | {regime} VIX={vix:.1f}"
+        subject = f"{tag_prefix}[Quant] {today} | {trigger_str} | {regime} VIX={vix:.1f}"
 
     daily_limit = computed_daily_limit if computed_daily_limit > 0 else \
         conf.get("portfolio", {}).get("daily_buy_limit", 0.0)
@@ -292,6 +302,7 @@ def send_daily_email(
         triggers, recos, vix, regime, holdings_mgr, health,
         daily_buy_limit=daily_limit,
         universe_delta_text=universe_delta_text,
+        shadow_text=shadow_text,
     )
 
     msg = MIMEMultipart()

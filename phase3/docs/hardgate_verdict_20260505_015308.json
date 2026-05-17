@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T01:53:08",
+    "fold_sets": [
+      "default",
+      "rolling",
+      "regime"
+    ],
+    "total_elapsed_sec": 843.7
+  },
+  "verdicts": {
+    "p7_l3_h": {
+      "per_foldset": {
+        "default": false,
+        "rolling": false,
+        "regime": false
+      },
+      "verdict": "REJECT"
+    },
+    "p7_j": {
+      "per_foldset": {
+        "default": false,
+        "rolling": false,
+        "regime": false
+      },
+      "verdict": "REJECT"
+    },
+    "p7_k": {
+      "per_foldset": {
+        "default": false,
+        "rolling": false,
+        "regime": false
+      },
+      "verdict": "REJECT"
+    },
+    "p7_l": {
+      "per_foldset": {
+        "default": false,
+        "rolling": false,
+        "regime": false
+      },
+      "verdict": "REJECT"
+    },
+    "p7_n": {
+      "per_foldset": {
+        "default": false,
+        "rolling": false,
+        "regime": false
+      },
+      "verdict": "REJECT"
+    }
+  }
+}

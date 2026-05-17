@@ -1,0 +1,198 @@
+{
+  "generated_at": "2026-04-25T16:29:15",
+  "window_start": "2026-04-12",
+  "window_end": "2026-04-24",
+  "signal_basename": "frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+  "initial_capital": 100000.0,
+  "daily_buy_limit": 1000.0,
+  "summary": {
+    "n_days_compared": 9,
+    "first_date": "2026-04-13",
+    "last_date": "2026-04-23",
+    "ramp_up_days": 5,
+    "steady_state_days": 4,
+    "live_total_cum_pct": 0.7404200000000083,
+    "sim_total_cum_pct": 0.4360099999999978,
+    "delta_cum_pp_total": 0.3044100000000105,
+    "delta_cum_pp_30d": 0.29128000000000487,
+    "delta_ret_mean_bps": 5.8826789808109075,
+    "delta_ret_std_bps": 49.5224320933857,
+    "delta_ret_max_abs_bps": 125.39848666448064,
+    "tracking_error_pct": 7.861442378290944,
+    "corr_full": -0.5470223430651797,
+    "corr_30d": -0.5470223430651797,
+    "live_final_capital": 100740.42,
+    "sim_final_capital": 100436.01,
+    "delta_final_dollars": 304.4100000000035
+  },
+  "flags": [
+    {
+      "level": "OK",
+      "message": "|\u0394_cum_30d| = 0.29pp \u2264 2.0pp"
+    },
+    {
+      "level": "ALERT",
+      "message": "corr_30d = -0.547 < 0.50"
+    },
+    {
+      "level": "WARN",
+      "message": "tracking_error = 7.86% > 5.0%/yr"
+    },
+    {
+      "level": "INFO",
+      "message": "cum_total \u0394 = 0.30pp (whole window)"
+    }
+  ],
+  "spy": {
+    "window_start": "2026-04-12",
+    "window_end": "2026-04-24",
+    "actual_start": "2026-04-13",
+    "actual_end": "2026-04-15",
+    "metrics": {
+      "CAGR": 18.598621134661784,
+      "Sharpe": 32.51569694652303,
+      "MDD": -0.0,
+      "Calmar": NaN,
+      "Total_Return": 0.016426176942136772,
+      "Years": 0.005,
+      "n_days": 3
+    }
+  },
+  "rows": [
+    {
+      "Date": "2026-04-13",
+      "TotalCapital": 100000.0,
+      "CashPct": 100.0,
+      "Regime": "SIDE",
+      "VIX": 19.96,
+      "ret_live": 0.0,
+      "cum_live": 0.0,
+      "TotalCapital_sim": 99986.87,
+      "ret_sim": -0.000131,
+      "cum_sim": -0.00013130000000005637,
+      "delta_ret": 0.000131,
+      "delta_cum_pp": 0.013130000000005637,
+      "ramp_up": true
+    },
+    {
+      "Date": "2026-04-14",
+      "TotalCapital": 100066.36,
+      "CashPct": 82.87,
+      "Regime": "SIDE",
+      "VIX": 18.02,
+      "ret_live": 0.0006635999999999864,
+      "cum_live": 0.0006635999999999864,
+      "TotalCapital_sim": 99884.8,
+      "ret_sim": -0.001021,
+      "cum_sim": -0.0011519999999999309,
+      "delta_ret": 0.0016845999999999864,
+      "delta_cum_pp": 0.18155999999999173,
+      "ramp_up": true
+    },
+    {
+      "Date": "2026-04-15",
+      "TotalCapital": 99974.3,
+      "CashPct": 82.95,
+      "Regime": "BULL",
+      "VIX": 17.96,
+      "ret_live": -0.0009199894949710741,
+      "cum_live": -0.0002569999999999517,
+      "TotalCapital_sim": 99860.84,
+      "ret_sim": -0.00024,
+      "cum_sim": -0.0013916000000000484,
+      "delta_ret": -0.0006799894949710741,
+      "delta_cum_pp": 0.11346000000000966,
+      "ramp_up": true
+    },
+    {
+      "Date": "2026-04-16",
+      "TotalCapital": 100051.97,
+      "CashPct": 67.07,
+      "Regime": "SIDE",
+      "VIX": 18.17,
+      "ret_live": 0.0007768996632133707,
+      "cum_live": 0.0005196999999999008,
+      "TotalCapital_sim": 100111.41,
+      "ret_sim": 0.002509,
+      "cum_sim": 0.0011141000000001178,
+      "delta_ret": -0.0017321003367866293,
+      "delta_cum_pp": -0.0594400000000217,
+      "ramp_up": true
+    },
+    {
+      "Date": "2026-04-17",
+      "TotalCapital": 100754.92,
+      "CashPct": 60.64,
+      "Regime": "BULL",
+      "VIX": 17.94,
+      "ret_live": 0.007025848666448065,
+      "cum_live": 0.007549199999999923,
+      "TotalCapital_sim": 99559.38,
+      "ret_sim": -0.005514,
+      "cum_sim": -0.004406199999999916,
+      "delta_ret": 0.012539848666448064,
+      "delta_cum_pp": 1.1955399999999838,
+      "ramp_up": true
+    },
+    {
+      "Date": "2026-04-20",
+      "TotalCapital": 100527.75,
+      "CashPct": 49.52,
+      "Regime": "BULL",
+      "VIX": 17.48,
+      "ret_live": 0.0,
+      "cum_live": 0.005277500000000046,
+      "TotalCapital_sim": 99676.87,
+      "ret_sim": 0.00118,
+      "cum_sim": -0.003231300000000048,
+      "delta_ret": -0.00118,
+      "delta_cum_pp": 0.8508800000000094,
+      "ramp_up": false
+    },
+    {
+      "Date": "2026-04-21",
+      "TotalCapital": 101005.14,
+      "CashPct": 40.12,
+      "Regime": "SIDE",
+      "VIX": 18.87,
+      "ret_live": 0.004748838007415879,
+      "cum_live": 0.010051400000000044,
+      "TotalCapital_sim": 99944.78,
+      "ret_sim": 0.002688,
+      "cum_sim": -0.0005522000000000027,
+      "delta_ret": 0.002060838007415879,
+      "delta_cum_pp": 1.0603600000000046,
+      "ramp_up": false
+    },
+    {
+      "Date": "2026-04-22",
+      "TotalCapital": 100737.72,
+      "CashPct": 36.56,
+      "Regime": "SIDE",
+      "VIX": 19.09,
+      "ret_live": -0.002647588033638626,
+      "cum_live": 0.007377200000000084,
+      "TotalCapital_sim": 100150.15,
+      "ret_sim": 0.002055,
+      "cum_sim": 0.0015015000000000445,
+      "delta_ret": -0.0047025880336386255,
+      "delta_cum_pp": 0.5875700000000039,
+      "ramp_up": false
+    },
+    {
+      "Date": "2026-04-23",
+      "TotalCapital": 100740.42,
+      "CashPct": 33.77,
+      "Regime": "SIDE",
+      "VIX": 19.33,
+      "ret_live": 2.6802274262216486e-05,
+      "cum_live": 0.007404200000000083,
+      "TotalCapital_sim": 100436.01,
+      "ret_sim": 0.002854,
+      "cum_sim": 0.004360099999999978,
+      "delta_ret": -0.0028271977257377837,
+      "delta_cum_pp": 0.3044100000000105,
+      "ramp_up": false
+    }
+  ]
+}

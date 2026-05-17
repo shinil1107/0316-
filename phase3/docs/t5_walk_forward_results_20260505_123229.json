@@ -1,0 +1,402 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T12:32:29",
+    "pack_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/precompute_qresearch_v4_12_2011-01-03_2026-03-31.npz",
+    "pack_basename": "precompute_qresearch_v4_12_2011-01-03_2026-03-31.npz",
+    "pack_start": "2011-01-03",
+    "pack_end": "2026-03-31",
+    "fold_set": "rolling",
+    "total_elapsed_sec": 127.7,
+    "signals": [
+      {
+        "id": "baseline",
+        "arm": "Baseline_V2",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz"
+      },
+      {
+        "id": "p7_k",
+        "arm": "P7_STITCH_K",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P7_STITCH_K_20260503_164726.npz"
+      }
+    ],
+    "folds": [
+      {
+        "id": "R1",
+        "start": "2011-01-01",
+        "end": "2018-12-31",
+        "group": "sliding"
+      },
+      {
+        "id": "R8",
+        "start": "2018-01-01",
+        "end": "2026-02-27",
+        "group": "sliding"
+      }
+    ],
+    "protocol": {
+      "initial_capital": 100000.0,
+      "daily_buy_limit": 1000.0,
+      "commission_bps": 10.0,
+      "slippage_bps": 5.0,
+      "rebalance_mode": "daily",
+      "strategy_stack": "SIDE_DEF_p12",
+      "regime_blend": false
+    }
+  },
+  "per_signal": [
+    {
+      "signal_id": "baseline",
+      "arm": "Baseline_V2",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+      "folds": [
+        {
+          "fold": "R1",
+          "group": "sliding",
+          "window_start": "2011-01-01",
+          "window_end": "2018-12-31",
+          "regime_dist": {
+            "BULL": 1496,
+            "SIDE": 435,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.199092,
+            "Max_Drawdown": 0.31456,
+            "Net_Sharpe": 0.8263,
+            "Calmar_Ratio": 0.6329,
+            "Total_Return": 3.2616,
+            "Daily_Win_Rate": 0.5591,
+            "Monthly_Win_Rate": 0.6211,
+            "Years": 7.98,
+            "Trading_Days": 2012,
+            "Rebalance_Days": 2012,
+            "Total_Commission": 10187.14,
+            "Commission_Pct_of_Capital": 10.19,
+            "Final_Value": 426155.21,
+            "turnover_annualized_proxy": 3.235,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.007646066915384955,
+            "oos_mean_ic_3m": 0.012430362018413244,
+            "oos_mean_spread_1m": 0.002039791479418851,
+            "oos_mean_spread_3m": 0.0041670256188293155,
+            "oos_days_1m": 1887,
+            "oos_days_3m": 1887
+          },
+          "elapsed_sec": 25.7
+        },
+        {
+          "fold": "R8",
+          "group": "sliding",
+          "window_start": "2018-01-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 1045,
+            "SIDE": 888,
+            "DEF": 0,
+            "CRASH": 140
+          },
+          "metrics": {
+            "CAGR": 0.360405,
+            "Max_Drawdown": 0.382453,
+            "Net_Sharpe": 1.2611,
+            "Calmar_Ratio": 0.9423,
+            "Total_Return": 11.2287,
+            "Daily_Win_Rate": 0.5712,
+            "Monthly_Win_Rate": 0.6598,
+            "Years": 8.13,
+            "Trading_Days": 2050,
+            "Rebalance_Days": 2050,
+            "Total_Commission": 14594.98,
+            "Commission_Pct_of_Capital": 14.59,
+            "Final_Value": 1222867.57,
+            "turnover_annualized_proxy": 1.8094,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.005291676572793394,
+            "oos_mean_ic_3m": 0.007554433507937036,
+            "oos_mean_spread_1m": 0.0006753029817571663,
+            "oos_mean_spread_3m": 0.0065252777761096725,
+            "oos_days_1m": 2050,
+            "oos_days_3m": 2012
+          },
+          "elapsed_sec": 31.0
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 2,
+          "mean": 0.27974849999999996,
+          "std": 0.08065649999999999,
+          "cv": 0.28831789982788114,
+          "min": 0.199092,
+          "max": 0.360405,
+          "pos_count": 2
+        },
+        "sliding": {
+          "n": 2,
+          "mean": 0.27974849999999996,
+          "std": 0.08065649999999999,
+          "cv": 0.28831789982788114,
+          "min": 0.199092,
+          "max": 0.360405,
+          "pos_count": 2
+        }
+      },
+      "gates": {
+        "G_A_cv_le_base": {
+          "cv_cand": 0.28831789982788114,
+          "cv_base": 0.28831789982788114,
+          "tolerance": 0.05,
+          "pass": true,
+          "hard": true
+        },
+        "G_B_cagr_ge_90pct": {
+          "cagr_cand": 0.27974849999999996,
+          "cagr_base": 0.27974849999999996,
+          "ratio": 1.0,
+          "pass": true,
+          "hard": true
+        },
+        "G_C_worst_ge_base": {
+          "worst_cand": 0.199092,
+          "worst_base": 0.199092,
+          "tolerance": 0.01,
+          "pass": true,
+          "hard": true
+        },
+        "G_D_pos_ge_base": {
+          "pos_cand": 2,
+          "pos_base": 2,
+          "n": 2,
+          "pass": true,
+          "hard": true
+        },
+        "G_E_mdd_le_110pct": {
+          "mdd_cand": 0.382453,
+          "mdd_base": 0.382453,
+          "pass": true,
+          "hard": false
+        },
+        "G_F_sharpe_ge_90pct": {
+          "sharpe_cand": 1.0437,
+          "sharpe_base": 1.0437,
+          "pass": true,
+          "hard": false
+        },
+        "G_G_oos_std_le_base": {
+          "oos_std_cand": NaN,
+          "oos_std_base": NaN,
+          "tolerance": 0.01,
+          "pass": false,
+          "hard": false
+        },
+        "all_hard_pass": true
+      }
+    },
+    {
+      "signal_id": "p7_k",
+      "arm": "P7_STITCH_K",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P7_STITCH_K_20260503_164726.npz",
+      "folds": [
+        {
+          "fold": "R1",
+          "group": "sliding",
+          "window_start": "2011-01-01",
+          "window_end": "2018-12-31",
+          "regime_dist": {
+            "BULL": 1496,
+            "SIDE": 435,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.173631,
+            "Max_Drawdown": 0.323599,
+            "Net_Sharpe": 0.6929,
+            "Calmar_Ratio": 0.5366,
+            "Total_Return": 2.5904,
+            "Daily_Win_Rate": 0.5641,
+            "Monthly_Win_Rate": 0.6,
+            "Years": 7.98,
+            "Trading_Days": 2012,
+            "Rebalance_Days": 2012,
+            "Total_Commission": 9047.69,
+            "Commission_Pct_of_Capital": 9.05,
+            "Final_Value": 359043.82,
+            "turnover_annualized_proxy": 3.2933,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.00935359662805705,
+            "oos_mean_ic_3m": 0.016209405464504837,
+            "oos_mean_spread_1m": 0.0012515664890990132,
+            "oos_mean_spread_3m": 0.0031758883940373904,
+            "oos_days_1m": 1887,
+            "oos_days_3m": 1887
+          },
+          "elapsed_sec": 25.4
+        },
+        {
+          "fold": "R8",
+          "group": "sliding",
+          "window_start": "2018-01-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 1045,
+            "SIDE": 888,
+            "DEF": 0,
+            "CRASH": 140
+          },
+          "metrics": {
+            "CAGR": 0.332438,
+            "Max_Drawdown": 0.361393,
+            "Net_Sharpe": 1.1769,
+            "Calmar_Ratio": 0.9199,
+            "Total_Return": 9.3275,
+            "Daily_Win_Rate": 0.5776,
+            "Monthly_Win_Rate": 0.6289,
+            "Years": 8.13,
+            "Trading_Days": 2050,
+            "Rebalance_Days": 2050,
+            "Total_Commission": 11437.42,
+            "Commission_Pct_of_Capital": 11.44,
+            "Final_Value": 1032747.53,
+            "turnover_annualized_proxy": 1.6559,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.010971610094135699,
+            "oos_mean_ic_3m": 0.019928516910050695,
+            "oos_mean_spread_1m": 0.0018356034298120819,
+            "oos_mean_spread_3m": 0.009050437867757404,
+            "oos_days_1m": 2050,
+            "oos_days_3m": 2012
+          },
+          "elapsed_sec": 35.7
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 2,
+          "mean": 0.2530345,
+          "std": 0.0794035,
+          "cv": 0.31380503449134406,
+          "min": 0.173631,
+          "max": 0.332438,
+          "pos_count": 2
+        },
+        "sliding": {
+          "n": 2,
+          "mean": 0.2530345,
+          "std": 0.0794035,
+          "cv": 0.31380503449134406,
+          "min": 0.173631,
+          "max": 0.332438,
+          "pos_count": 2
+        }
+      },
+      "gates": {
+        "G_A_cv_le_base": {
+          "cv_cand": 0.31380503449134406,
+          "cv_base": 0.28831789982788114,
+          "tolerance": 0.05,
+          "pass": true,
+          "hard": true
+        },
+        "G_B_cagr_ge_90pct": {
+          "cagr_cand": 0.2530345,
+          "cagr_base": 0.27974849999999996,
+          "ratio": 0.9045070840415589,
+          "pass": true,
+          "hard": true
+        },
+        "G_C_worst_ge_base": {
+          "worst_cand": 0.173631,
+          "worst_base": 0.199092,
+          "tolerance": 0.01,
+          "pass": false,
+          "hard": true
+        },
+        "G_D_pos_ge_base": {
+          "pos_cand": 2,
+          "pos_base": 2,
+          "n": 2,
+          "pass": true,
+          "hard": true
+        },
+        "G_E_mdd_le_110pct": {
+          "mdd_cand": 0.361393,
+          "mdd_base": 0.382453,
+          "pass": true,
+          "hard": false
+        },
+        "G_F_sharpe_ge_90pct": {
+          "sharpe_cand": 0.9349000000000001,
+          "sharpe_base": 1.0437,
+          "pass": false,
+          "hard": false
+        },
+        "G_G_oos_std_le_base": {
+          "oos_std_cand": NaN,
+          "oos_std_base": NaN,
+          "tolerance": 0.01,
+          "pass": false,
+          "hard": false
+        },
+        "all_hard_pass": false
+      }
+    }
+  ]
+}

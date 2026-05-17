@@ -1,0 +1,120 @@
+{
+  "generated_at": "2026-04-25T14:20:02",
+  "pack_basename": "precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+  "pack_start": "2011-01-03",
+  "pack_end": "2026-02-27",
+  "window_start": "2012-01-01",
+  "window_end": "2026-02-27",
+  "total_elapsed_sec": 65.2,
+  "leg_a": {
+    "name": "BASELINE_V2_grace0",
+    "signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+    "window_start": "2012-01-01",
+    "window_end": "2026-02-27",
+    "elapsed_sec": 32.7,
+    "metrics": {
+      "CAGR": 0.304284,
+      "Max_Drawdown": 0.342269,
+      "Net_Sharpe": 1.2468,
+      "Calmar_Ratio": 0.889,
+      "Total_Return": 41.5993,
+      "Final_Value": 4259930.64,
+      "Years": 14.12,
+      "Trading_Days": 3559,
+      "Rebalance_Days": 3559,
+      "Total_Commission": 42343.04,
+      "Commission_Pct": 42.34,
+      "Daily_Win_Rate": 0.5676,
+      "Monthly_Win_Rate": 0.6923
+    },
+    "regime_breakdown": {
+      "BULL": {
+        "Days": 2282,
+        "MaxStreak": 310,
+        "AnnRet": 0.3911,
+        "Sharpe": 1.8258,
+        "MDD": 0.1444,
+        "Calmar": 2.7089,
+        "WinRate": 0.5806
+      },
+      "SIDE": {
+        "Days": 1136,
+        "MaxStreak": 118,
+        "AnnRet": 0.1924,
+        "Sharpe": 0.6594,
+        "MDD": 0.2363,
+        "Calmar": 0.8144,
+        "WinRate": 0.5431
+      },
+      "DEF": {
+        "Days": 141,
+        "MaxStreak": 58,
+        "AnnRet": 0.9099,
+        "Sharpe": 1.1874,
+        "MDD": 0.2849,
+        "Calmar": 3.1933,
+        "WinRate": 0.5532
+      }
+    }
+  },
+  "leg_b": {
+    "name": "BASELINE_V2_legacy",
+    "signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+    "window_start": "2012-01-01",
+    "window_end": "2026-02-27",
+    "elapsed_sec": 32.4,
+    "metrics": {
+      "CAGR": 0.304284,
+      "Max_Drawdown": 0.342269,
+      "Net_Sharpe": 1.2468,
+      "Calmar_Ratio": 0.889,
+      "Total_Return": 41.5993,
+      "Final_Value": 4259930.64,
+      "Years": 14.12,
+      "Trading_Days": 3559,
+      "Rebalance_Days": 3559,
+      "Total_Commission": 42343.04,
+      "Commission_Pct": 42.34,
+      "Daily_Win_Rate": 0.5676,
+      "Monthly_Win_Rate": 0.6923
+    },
+    "regime_breakdown": {
+      "BULL": {
+        "Days": 2282,
+        "MaxStreak": 310,
+        "AnnRet": 0.3911,
+        "Sharpe": 1.8258,
+        "MDD": 0.1444,
+        "Calmar": 2.7089,
+        "WinRate": 0.5806
+      },
+      "SIDE": {
+        "Days": 1136,
+        "MaxStreak": 118,
+        "AnnRet": 0.1924,
+        "Sharpe": 0.6594,
+        "MDD": 0.2363,
+        "Calmar": 0.8144,
+        "WinRate": 0.5431
+      },
+      "DEF": {
+        "Days": 141,
+        "MaxStreak": 58,
+        "AnnRet": 0.9099,
+        "Sharpe": 1.1874,
+        "MDD": 0.2849,
+        "Calmar": 3.1933,
+        "WinRate": 0.5532
+      }
+    }
+  },
+  "protocol": {
+    "initial_capital": 100000.0,
+    "daily_buy_limit": 1000.0,
+    "commission_bps": 10.0,
+    "slippage_bps": 5.0,
+    "rebalance_mode": "daily",
+    "strategy_stack": "SIDE_DEF_p12",
+    "regime_blend": false
+  }
+}

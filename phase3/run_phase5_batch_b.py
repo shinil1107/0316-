@@ -1,4 +1,4 @@
-"""Phase B — overnight batch orchestrator (Batches 1 / 2 / 3).
+"""Phase B — overnight batch orchestrator (Batches 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8).
 
 Runs sequential GA retrains that explore the deployment-penalty design
 space, leaving the rest of the Phase-5 recipe (patched formula, BULL
@@ -35,6 +35,60 @@ Batch 3 — **Phase B2 regime-conditional penalties** (Option 3a engine
        def_heavy    w_to = (0.05, 0.15, 0.60)   w_co = (0.02, 0.10, 0.35)
        side_heavy   w_to = (0.05, 0.50, 0.30)   w_co = (0.02, 0.30, 0.15)
 
+Batch 4 — **Phase B2.1 SIDE-specialist family** (added 2026-04-25):
+
+       side_pure    w_to = (0.00, 0.70, 0.00)  w_co = (0.00, 0.40, 0.00)  base window
+       side_deep    w_to = (0.02, 0.60, 0.20)  w_co = (0.01, 0.35, 0.10)  base window
+       side_win     w_to = (0.05, 0.50, 0.30)  w_co = (0.02, 0.30, 0.15)  2014-01→2024-05
+
+  Goal: produce a frozen signal that is best-in-class on SIDE folds (F2,
+  F0b) so the engine can ensemble it as the SIDE component on top of
+  V2_GOLDEN (analogous to T1b_BULL_INJECTED for BULL).  Output signals
+  will be evaluated by t26 walk-forward + the sandbox composer in
+  ``tests/p2_ensemble_composer.py`` after the batch completes.
+
+Batch 5 — **Phase B2.2 SIDE-specialist v2 (anti-collapse + carry-over)**
+          (added 2026-04-26):
+
+  Diagnosis from B4 walk-forward + per-regime weight audit:
+    1. All 3 B4 ws collapsed to 1-2 features (P5D_SIDE_PURE.ws=[24],
+       SIDE_DEEP.ws=[24,27], SIDE_WIN.ws=[27]).  Root cause: extreme
+       SIDE turnover penalty (0.6-0.7) drove GA to the 4 fundamental
+       features (VAL_*, QUAL_ROE, CF_FCF_YIELD) which rebalance only
+       quarterly (turnover ≈ 0).  All anti-collapse knobs (conc_penalty,
+       entropy_bonus, weight_cap) auto-degenerate when k_regime=1
+       (formula: ``conc_pen = lambda * max(0, maxw - 1/k)`` → 0 at k=1).
+    2. F3 (BULL 76%) ENS_D CAGR −17.95pp vs Baseline traced to the
+       sparse ws picking value-tilt stocks that under-perform on BULL
+       carry-over days; F4 (BULL 63% post-OOS) showed +4.4pp BULL
+       improvement → F3 result is in-sample anomaly.
+
+  Strategy: split the SIDE feature pool into two non-overlapping halves
+  to force GA into different feature regions.  After the batch, the
+  composer averages the 2 new specialists with the 3 B4 specialists
+  using regime-aware weights → dense ws (5+ features) by construction
+  (mirrors V2_GOLDEN's ensemble-averaging path).
+
+       side_tech       SIDE pool = tech_short ONLY (12 features, no
+                       fundamental escape hatch).  Forces diversification
+                       into 4-8 short-horizon technical features.
+                       w_to=(0.05, 0.20, 0.20)  w_co=(0.03, 0.12, 0.12)
+                       window 2014-01 → 2024-05  seed 20260601
+
+       side_fund_brk   SIDE pool = fund + breakout/momentum (11 features,
+                       NO tech_short).  Explicitly opens BULL-aligned
+                       trend features (excluded from engine default
+                       SIDE pool) to tackle BULL carry-over disruption.
+                       w_to=(0.05, 0.30, 0.20)  w_co=(0.03, 0.18, 0.12)
+                       factor_corr_penalty_lambda 0.10→0.05 (allow
+                       cross-regime feature sharing); window 2012-01 →
+                       2024-05; seed 20260602
+
+  Each B5 preset uses a +60% budget vs B4 (ga_pop 300→400, generations
+  20→25, stability 300×12 → 400×15, fast 100×8 → 120×10) — runtime ~3 h
+  per preset, 6 h overnight total.  Anti-collapse knobs strengthened:
+  conc_penalty 0.12 → 0.25; entropy_bonus 0.04 → 0.10.
+
 Runtime
 -------
 Each GA run takes ~2.0–2.5 h on Apple Silicon. Batch 3 is designed to
@@ -61,10 +115,13 @@ Usage
     python3 -u phase3/run_phase5_batch_b.py --batch 1   # scalar profile sweep
     python3 -u phase3/run_phase5_batch_b.py --batch 2   # scalar window sweep
     python3 -u phase3/run_phase5_batch_b.py --batch 3   # regime-conditional (Phase B2)
+    python3 -u phase3/run_phase5_batch_b.py --batch 4   # SIDE specialist (Phase B2.1)
+    python3 -u phase3/run_phase5_batch_b.py --batch 6   # post-backfill retrain (Phase B3)
 
     # Pick specific runs by id
     python3 -u phase3/run_phase5_batch_b.py --runs mild,deep
     python3 -u phase3/run_phase5_batch_b.py --runs bull_free,side_heavy
+    python3 -u phase3/run_phase5_batch_b.py --runs side_pure,side_deep,side_win
 
     # Enumerate configs and exit (useful from launcher UI)
     python3 -u phase3/run_phase5_batch_b.py --list
@@ -79,9 +136,10 @@ After every run, an aggregated status JSON is written to
 overnight status without tailing stdout. On failure the orchestrator
 records the traceback and continues with the next preset (fail-soft).
 
-See ``phase3/docs/phase_b_batch_plan.md`` (Batches 1-2) and
-``phase3/docs/phase_b2_regime_cond_plan.md`` (Batch 3) for the full
-decision record.
+See ``phase3/docs/phase_b_batch_plan.md`` (Batches 1-2),
+``phase3/docs/phase_b2_regime_cond_plan.md`` (Batch 3), and
+``phase3/docs/phase_b2_1_side_specialist_plan.md`` (Batch 4) for the
+full decision record.
 """
 from __future__ import annotations
 
@@ -113,6 +171,66 @@ from phase3.run_phase5_retrain import run_phase5_retrain  # noqa: E402
 SEED_A = 20260428   # baseline seed (matches legacy P5_RETRAIN_T1b)
 SEED_B = 20260429   # Batch-2 seed-variance run
 SEED_C = 20260501   # Batch-3 Phase B2 regime-conditional
+SEED_D = 20260502   # Batch-4 SIDE Specialist family (Phase B2.1)
+SEED_E_TECH  = 20260601  # Batch-5 E1 (tech-only SIDE pool)
+SEED_E_FUNDB = 20260602  # Batch-5 E2 (fund+breakout SIDE pool)
+
+# Batch 6 — post-backfill retrain (expanded financials universe)
+SEED_F_BL_10 = 20260701  # B6 baseline 10Y
+SEED_F_BL_15 = 20260702  # B6 baseline 15Y
+SEED_F_ST_10 = 20260703  # B6 side_tech 10Y
+SEED_F_ST_15 = 20260704  # B6 side_tech 15Y
+SEED_F_SF_10 = 20260705  # B6 side_fund_brk 10Y
+SEED_F_SF_15 = 20260706  # B6 side_fund_brk 15Y
+
+
+# ── Batch 5 SIDE feature pools (override engine default
+# `side_allowed_factor_pool`).  E1 and E2 are non-overlapping by design so
+# averaging their ws produces a 5+ feature SIDE slot.
+B5_SIDE_POOL_TECH: tuple = (
+    # 12 short-horizon technical features (engine default SIDE pool minus
+    # the 4 fundamental "low-turnover escape hatches" VAL_*, QUAL_ROE,
+    # CF_FCF_YIELD).  Forces the GA to find diversified tech alpha
+    # rather than collapsing to quarterly-rebalanced fundamentals.
+    "RSI", "MACD", "SMA_CROSS", "BBP", "CCI", "STOCH",
+    "ATR_LOW", "MFI", "WILLR", "VWAP_ABOVE", "VOL_SPIKE", "OBV_POS",
+)
+
+B5_SIDE_POOL_FUND_BRK: tuple = (
+    # 11 features: 4 fundamentals + 7 trend/breakout/long-momentum.
+    # Engine default SIDE pool excludes mom_long/breakout because they
+    # tend to fail in pure SIDE tape.  We re-admit them HERE on purpose
+    # to test the BULL carry-over hypothesis (F3 ENS_D −17.95pp issue):
+    # if SIDE picks share trend features with BULL, the carry-over from
+    # SIDE → BULL days should be smoother.
+    "VAL_EARN_YIELD", "VAL_BOOK2PRICE", "QUAL_ROE", "CF_FCF_YIELD",
+    "MOM_3M", "MOM_6M", "MOM_12M_EX1M",
+    "BREAKOUT_252", "BREAKOUT_126", "RSI_TREND", "SMA50_SLOPE",
+)
+
+
+# ── Anti-collapse + budget overrides applied to every Batch 5 preset.
+# Knob diagnosis (B4 audit, 2026-04-26):
+#   - conc_penalty 0.12 with formula  `lambda * max(0, maxw - 1/k)`
+#     auto-degenerates to 0 when a regime collapses to k=1 (1/k=1.0,
+#     maxw=1.0 → penalty=0).  Bumping to 0.25 widens the gradient against
+#     near-collapse (k=2, maxw≥0.5 → penalty>0.03; was ~0.01).
+#   - entropy_bonus 0.04 (F1 fix lowered from 0.08) similarly returns 0
+#     for k=1.  Bumped to 0.10 to give a stronger pull toward k≥3 within
+#     each regime.
+#   - GA budget +60% (ga_pop 300→400, gen 20→25; refine 300×12→400×15;
+#     fast 100×8→120×10) → ~3 h per preset; gives the larger SIDE search
+#     space (12 / 11 features vs 16 default) headroom to converge.
+B5_ANTI_COLLAPSE_OVERRIDES: Dict[str, Any] = {
+    "conc_penalty":  0.25,
+    "entropy_bonus": 0.10,
+    "ga_population":  400,
+    "ga_generations": 25,
+    "stability_fast_population":   120,
+    "stability_fast_generations":   10,
+    "stability_refine_population":  400,
+    "stability_refine_generations":  15,
+}
 
 
 def _rc(w_to_bsd: tuple, w_co_bsd: tuple) -> Dict[str, Any]:
@@ -142,6 +260,204 @@ def _rc(w_to_bsd: tuple, w_co_bsd: tuple) -> Dict[str, Any]:
         "w_cost_side":     float(cs),
         "w_cost_def":      float(cd),
     }
+
+
+def _b5(
+    w_to_bsd: tuple,
+    w_co_bsd: tuple,
+    side_pool: tuple,
+    factor_corr_lambda: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Build a Batch-5 override dict.
+
+    Layers regime-conditional turnover/cost (same as :func:`_rc`) on top
+    of the :data:`B5_ANTI_COLLAPSE_OVERRIDES` block, plus a SIDE-only
+    feature pool override.  Optional ``factor_corr_lambda`` overrides
+    the global ``factor_corr_penalty_lambda`` (engine default 0.08, but
+    PHASE5_OVERRIDES bumps to 0.10) — used by E2 to explicitly allow
+    BULL/SIDE feature sharing for carry-over alignment.
+    """
+    rc = _rc(w_to_bsd, w_co_bsd)
+    rc.update(B5_ANTI_COLLAPSE_OVERRIDES)
+    rc["side_allowed_factor_pool"] = tuple(side_pool)
+    if factor_corr_lambda is not None:
+        rc["factor_corr_penalty_lambda"] = float(factor_corr_lambda)
+    return rc
+
+
+# Batch 7 — V2-recipe reproduction on expanded data (Phase 2 Breakthrough)
+SEED_G_FULL    = 20260801
+SEED_G_NODEP   = 20260802
+SEED_G_MEGA    = 20260803
+SEED_G_BULLAGG = 20260804
+
+# Batch 8 — targeted specialist sweep for V2 breakthrough
+SEED_H_SIDE = 20260901   # B8 SIDE specialist v3
+SEED_H_BULL = 20260902   # B8 BULL dense specialist
+SEED_H_BAL  = 20260903   # B8 balanced specialist
+
+P7_V2_RECIPE_BASE: Dict[str, Any] = {
+    # ── Meta search ON (the critical missing piece from P5/P6) ──
+    "enable_meta_search": True,
+    "meta_search_mode": "TEMPLATE_PLUS_RANDOM",
+    "meta_search_trials": 8,
+    "meta_disabled_template_name": "TPL_SPREAD",
+
+    # Meta candidate spaces (must include the base entropy_bonus=0.10)
+    "meta_entropy_bonus_candidates": (0.04, 0.06, 0.08, 0.10),
+    "meta_conc_penalty_candidates": (0.08, 0.10, 0.12, 0.14),
+    "meta_alpha_floor_candidates": (0.12, 0.18, 0.22, 0.28, 0.34, 0.40),
+    "meta_top_quantile_candidates": (0.10, 0.12, 0.15, 0.18, 0.20, 0.22),
+    "meta_factor_corr_penalty_lambda_candidates": (0.04, 0.06, 0.08, 0.10),
+
+    # Meta perturbation flags
+    "meta_perturb_alpha_floor": True,
+    "meta_perturb_top_quantile": True,
+    "meta_perturb_corr_penalty": True,
+    "meta_perturb_entropy_bonus": True,
+    "meta_perturb_conc_penalty": True,
+
+    # Meta scoring weights (from P2_BATCH11)
+    "meta_score_w_inner_fitness": 0.45,
+    "meta_score_w_spread": 2.50,
+    "meta_score_w_mean_ic": 1.75,
+    "meta_score_w_positive_ic": 0.25,
+    "meta_score_w_portfolio_fwd1m": 0.75,
+    "meta_score_w_turnover": 0.40,
+    "meta_score_target_bonus_cap": 0.30,
+    "meta_score_target_bonus_lambda": 0.40,
+    "meta_score_shortfall_penalty_lambda": 1.00,
+    "meta_score_turnover_penalty_lambda": 0.75,
+    "meta_score_core_metric_gate_floor": 0.50,
+    "meta_score_core_metric_gate_penalty": 0.75,
+
+    # ── GA fitness recipe ──
+    "entropy_bonus": 0.10,
+    "conc_penalty": 0.12,
+    "weight_cap": 0.40,
+    "factor_corr_penalty_lambda": 0.10,
+
+    # ── BULL floor tuning ──
+    "bull_min_spread_mix": 0.006,
+    "bull_penalty_lambda_spread": 1.25,
+
+    "top_quantile": 0.12,
+    "w_ic1": 0.34, "w_ic3": 0.34, "w_spread": 0.32,
+
+    "enable_fitness_risk_penalty": True,
+    "fitness_downside_vol_lambda": 0.50,
+    "fitness_max_neg_spread_ratio_lambda": 0.30,
+
+    "enable_deployment_penalty": True,
+    "w_turnover": 0.3, "w_cost": 0.2,
+
+    # ── Generous budget ──
+    "ga_population": 500,
+    "ga_generations": 25,
+    "stability_seed_runs": 8,
+    "stability_top_n_seeds": 6,
+    "stability_fast_population": 200,
+    "stability_fast_generations": 12,
+    "stability_refine_population": 500,
+    "stability_refine_generations": 15,
+
+    "use_random_seed": True,
+}
+
+
+def _p7(extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Layer extra overrides on top of P7_V2_RECIPE_BASE."""
+    ov = dict(P7_V2_RECIPE_BASE)
+    if extra:
+        ov.update(extra)
+    return ov
+
+
+def _p8_side() -> Dict[str, Any]:
+    """Batch 8a — SIDE specialist v3 with meta-search ON.
+
+    Key differences from B5 SIDE specialists:
+      - Meta-search ON (B5 had it off → sparse collapse to k=1-2)
+      - Higher entropy_bonus candidate space (0.08-0.14)
+      - Regime-conditional turnover: SIDE low (0.05), BULL/DEF near zero
+      - Uses full SIDE pool (no feature restriction) to let meta-search decide
+      - Generous budget matching B7
+    """
+    base = dict(P7_V2_RECIPE_BASE)
+    base.update({
+        # Regime-conditional: suppress SIDE turnover, free BULL/DEF
+        "w_turnover_bull": 0.00,
+        "w_turnover_side": 0.05,
+        "w_turnover_def":  0.00,
+        "w_cost_bull":     0.00,
+        "w_cost_side":     0.05,
+        "w_cost_def":      0.00,
+        "w_turnover":      0.05,
+        "w_cost":          0.05,
+        "enable_deployment_penalty": True,
+        # Higher entropy to avoid collapse
+        "entropy_bonus": 0.10,
+        "conc_penalty":  0.25,
+        "meta_entropy_bonus_candidates": (0.04, 0.06, 0.08, 0.10, 0.12, 0.14),
+        "meta_conc_penalty_candidates":  (0.08, 0.10, 0.12, 0.14, 0.18, 0.22, 0.25),
+        # Stronger spread emphasis for SIDE differentiation
+        "meta_score_w_spread": 3.00,
+    })
+    return base
+
+
+def _p8_bull() -> Dict[str, Any]:
+    """Batch 8b — BULL dense specialist targeting k=15+ features.
+
+    Key differences from B7:
+      - Much higher entropy_bonus (0.15) and candidate range (0.10-0.18)
+      - Higher conc_penalty (0.18) to punish sparse solutions
+      - Lower weight_cap (0.25) to force spreading across features
+      - Larger GA budget for convergence at higher feature counts
+    """
+    base = dict(P7_V2_RECIPE_BASE)
+    base.update({
+        "entropy_bonus": 0.15,
+        "conc_penalty":  0.18,
+        "weight_cap":    0.25,
+        "meta_entropy_bonus_candidates": (0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18),
+        "meta_conc_penalty_candidates":  (0.08, 0.10, 0.12, 0.14, 0.15, 0.18, 0.22),
+        # Larger budget for dense feature space exploration
+        "ga_population": 700,
+        "ga_generations": 30,
+        "stability_seed_runs": 10,
+        "stability_top_n_seeds": 8,
+        "stability_fast_population": 250,
+        "stability_fast_generations": 15,
+        "stability_refine_population": 700,
+        "stability_refine_generations": 18,
+    })
+    return base
+
+
+def _p8_balanced() -> Dict[str, Any]:
+    """Batch 8c — full-regime balanced specialist.
+
+    Based on P7_V2_NO_DEPLOY (best B7 mean=29.74%) with modifications:
+      - Deployment penalty OFF (more freedom for turnover)
+      - Stronger downside vol penalty (1.0 vs 0.5) for tail-risk defense
+      - Higher spread weight in meta-scoring (3.0 vs 2.5)
+      - All 3 slots (wb/ws/wd) usable as ensemble ingredients
+    """
+    base = dict(P7_V2_RECIPE_BASE)
+    base.update({
+        "enable_deployment_penalty": False,
+        "w_turnover": 0.0,
+        "w_cost":     0.0,
+        "fitness_downside_vol_lambda":       1.00,
+        "fitness_max_neg_spread_ratio_lambda": 0.50,
+        "meta_score_w_spread": 3.00,
+        "meta_score_w_turnover": 0.0,
+        # Slightly higher entropy for feature diversity
+        "entropy_bonus": 0.12,
+        "meta_entropy_bonus_candidates": (0.04, 0.06, 0.08, 0.10, 0.12, 0.14),
+    })
+    return base
 
 
 BATCH_CONFIGS: List[Dict[str, Any]] = [
@@ -282,6 +598,308 @@ BATCH_CONFIGS: List[Dict[str, Any]] = [
         "overrides": _rc(w_to_bsd=(0.05, 0.50, 0.30), w_co_bsd=(0.02, 0.30, 0.15)),
         "intent": "F2 SIDE-collapse direct attack (strongest SIDE churn penalty).",
     },
+    # ──── Batch 4 — SIDE Specialist family (Phase B2.1, 2026-04-25) ────
+    # Purpose: train GA signals specifically engineered for the SIDE
+    # regime, where Baseline_V2 underperforms (+18.7% AnnRet, weakest of
+    # 3 regimes).  Result will be ensembled with V2_GOLDEN's wb/wd in a
+    # SIDE-only override (analog of the surgical bull-injection used for
+    # T1b_BULL_INJECTED).  Keep BULL/DEF penalties near zero so the GA's
+    # selection pressure is concentrated on SIDE-quality alpha.
+    #
+    # Three complementary points spanning the SIDE-spec design space:
+    #   side_pure  : extreme SIDE concentration, BULL/DEF effectively off
+    #   side_deep  : harder SIDE than P5C_SIDE_HEAVY w/ small BULL/DEF tax
+    #   side_win   : retrain the previous SIDE-heavy preset on a SIDE-rich
+    #                window (2014-01 → 2024-05; drops F0a/F0b BULL recovery)
+    {
+        "id": "side_pure",
+        "batch": 4,
+        "tag": "P5D_SIDE_PURE",
+        "train_start": datetime(2012, 1, 3),
+        "train_end":   datetime(2024, 5, 31),
+        "ga_seed": SEED_D,
+        "excel_prefix": "SP500_P5D_SIDE_PURE",
+        "overrides": _rc(w_to_bsd=(0.00, 0.70, 0.00), w_co_bsd=(0.00, 0.40, 0.00)),
+        "intent": "SIDE-only penalty; BULL/DEF zeroed → max SIDE specialisation.",
+    },
+    {
+        "id": "side_deep",
+        "batch": 4,
+        "tag": "P5D_SIDE_DEEP",
+        "train_start": datetime(2012, 1, 3),
+        "train_end":   datetime(2024, 5, 31),
+        "ga_seed": SEED_D,
+        "excel_prefix": "SP500_P5D_SIDE_DEEP",
+        "overrides": _rc(w_to_bsd=(0.02, 0.60, 0.20), w_co_bsd=(0.01, 0.35, 0.10)),
+        "intent": "Harder SIDE than P5C_SIDE_HEAVY; small BULL/DEF tax preserved.",
+    },
+    {
+        "id": "side_win",
+        "batch": 4,
+        "tag": "P5D_SIDE_WIN",
+        "train_start": datetime(2014, 1, 3),     # +2y forward shift
+        "train_end":   datetime(2024, 5, 31),
+        "ga_seed": SEED_D,
+        "excel_prefix": "SP500_P5D_SIDE_WIN",
+        "overrides": _rc(w_to_bsd=(0.05, 0.50, 0.30), w_co_bsd=(0.02, 0.30, 0.15)),
+        "intent": "Re-train P5C_SIDE_HEAVY recipe on a SIDE-rich (2014-2024) window.",
+    },
+    # ──── Batch 5 — SIDE Specialist v2 (Phase B2.2, 2026-04-26) ────
+    # Anti-collapse + BULL carry-over fix.  Each preset uses +60% GA
+    # budget (~3 h each, ~6 h overnight total) and bumps anti-collapse
+    # knobs (conc_penalty 0.12→0.25, entropy_bonus 0.04→0.10) on top of
+    # a SIDE-only feature pool override that splits the engine default
+    # SIDE pool (16 features) into two non-overlapping halves.  After
+    # the batch, the composer averages B4+B5 SIDE specialists with
+    # regime-aware weights to produce a dense ws by construction.
+    #
+    # E1 / side_tech       : forces tech-only SIDE alpha (no
+    #                        fundamental escape hatch → diversifies into
+    #                        4-8 short-horizon technical features).
+    # E2 / side_fund_brk   : explicitly admits trend/breakout/long-mom
+    #                        features (excluded from engine default
+    #                        SIDE pool) → BULL carry-over alignment.
+    {
+        "id": "side_tech",
+        "batch": 5,
+        "tag": "P5E_SIDE_TECH",
+        "train_start": datetime(2014, 1, 3),     # SIDE-rich window
+        "train_end":   datetime(2024, 5, 31),
+        "ga_seed": SEED_E_TECH,
+        "excel_prefix": "SP500_P5E_SIDE_TECH",
+        "overrides": _b5(
+            w_to_bsd=(0.05, 0.20, 0.20),
+            w_co_bsd=(0.03, 0.12, 0.12),
+            side_pool=B5_SIDE_POOL_TECH,
+        ),
+        "intent": "Tech-only SIDE pool (12 short-horizon technicals); "
+                  "moderate SIDE turnover (0.20) to avoid collapse path.",
+    },
+    {
+        "id": "side_fund_brk",
+        "batch": 5,
+        "tag": "P5E_SIDE_FUND_BREAKOUT",
+        "train_start": datetime(2012, 1, 3),     # full base window
+        "train_end":   datetime(2024, 5, 31),
+        "ga_seed": SEED_E_FUNDB,
+        "excel_prefix": "SP500_P5E_SIDE_FUND_BRK",
+        "overrides": _b5(
+            w_to_bsd=(0.05, 0.30, 0.20),
+            w_co_bsd=(0.03, 0.18, 0.12),
+            side_pool=B5_SIDE_POOL_FUND_BRK,
+            factor_corr_lambda=0.05,             # allow BULL/SIDE feature sharing
+        ),
+        "intent": "Fund + breakout/momentum SIDE pool; BULL carry-over "
+                  "alignment via lower factor_corr_penalty (0.10→0.05).",
+    },
+    # ──── Batch 6 — Post-backfill retrain (Phase B3, 2026-04-27) ────
+    # The legacy-ticker financials backfill expanded fundamental coverage
+    # from ~508 to ~1382 tickers.  Old training packs lack this data, so
+    # `force_rebuild_pack=True` is strongly recommended.
+    #
+    # 3 GA configs × 2 time windows = 6 presets.
+    #   Baseline (T1b recipe)   — the main frozen signal config
+    #   SIDE Tech (B5 E1)       — tech-only SIDE pool
+    #   SIDE Fund+Brk (B5 E2)  — fund+breakout SIDE pool
+    #
+    # Windows:
+    #   10Y: 2016-01-01 → 2026-03-31  (recent decade)
+    #   15Y: 2011-01-01 → 2026-03-31  (full backfill span)
+    {
+        "id": "b6_baseline_10y",
+        "batch": 6,
+        "tag": "P6_BASELINE_10Y",
+        "train_start": datetime(2016, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_F_BL_10,
+        "excel_prefix": "SP500_P6_BASELINE_10Y",
+        "overrides": {
+            "w_turnover": 0.3,
+            "w_cost":     0.2,
+        },
+        "intent": "Baseline T1b recipe on 10Y window with expanded financials.",
+    },
+    {
+        "id": "b6_baseline_15y",
+        "batch": 6,
+        "tag": "P6_BASELINE_15Y",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_F_BL_15,
+        "excel_prefix": "SP500_P6_BASELINE_15Y",
+        "overrides": {
+            "w_turnover": 0.3,
+            "w_cost":     0.2,
+        },
+        "intent": "Baseline T1b recipe on 15Y window with expanded financials.",
+    },
+    {
+        "id": "b6_side_tech_10y",
+        "batch": 6,
+        "tag": "P6_SIDE_TECH_10Y",
+        "train_start": datetime(2016, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_F_ST_10,
+        "excel_prefix": "SP500_P6_SIDE_TECH_10Y",
+        "overrides": _b5(
+            w_to_bsd=(0.05, 0.20, 0.20),
+            w_co_bsd=(0.03, 0.12, 0.12),
+            side_pool=B5_SIDE_POOL_TECH,
+        ),
+        "intent": "SIDE tech-only pool on 10Y window with expanded financials.",
+    },
+    {
+        "id": "b6_side_tech_15y",
+        "batch": 6,
+        "tag": "P6_SIDE_TECH_15Y",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_F_ST_15,
+        "excel_prefix": "SP500_P6_SIDE_TECH_15Y",
+        "overrides": _b5(
+            w_to_bsd=(0.05, 0.20, 0.20),
+            w_co_bsd=(0.03, 0.12, 0.12),
+            side_pool=B5_SIDE_POOL_TECH,
+        ),
+        "intent": "SIDE tech-only pool on 15Y window with expanded financials.",
+    },
+    {
+        "id": "b6_side_fund_10y",
+        "batch": 6,
+        "tag": "P6_SIDE_FUND_10Y",
+        "train_start": datetime(2016, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_F_SF_10,
+        "excel_prefix": "SP500_P6_SIDE_FUND_10Y",
+        "overrides": _b5(
+            w_to_bsd=(0.05, 0.30, 0.20),
+            w_co_bsd=(0.03, 0.18, 0.12),
+            side_pool=B5_SIDE_POOL_FUND_BRK,
+            factor_corr_lambda=0.05,
+        ),
+        "intent": "SIDE fund+breakout pool on 10Y window with expanded financials.",
+    },
+    {
+        "id": "b6_side_fund_15y",
+        "batch": 6,
+        "tag": "P6_SIDE_FUND_15Y",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_F_SF_15,
+        "excel_prefix": "SP500_P6_SIDE_FUND_15Y",
+        "overrides": _b5(
+            w_to_bsd=(0.05, 0.30, 0.20),
+            w_co_bsd=(0.03, 0.18, 0.12),
+            side_pool=B5_SIDE_POOL_FUND_BRK,
+            factor_corr_lambda=0.05,
+        ),
+        "intent": "SIDE fund+breakout pool on 15Y window with expanded financials.",
+    },
+    # ──── Batch 7 — V2-recipe reproduction on expanded 15Y data (2026-04-28) ────
+    # Reproduce P2_BATCH11 recipe (meta search ON, entropy 0.10, BULL spread
+    # tuning, generous budget) that originally produced Baseline_V2, now with
+    # 875 legacy tickers' financials backfilled.  4 variants explore the
+    # design space for Phase 3 L3 ensemble composition.
+    {
+        "id": "p7_v2_full",
+        "batch": 7,
+        "tag": "P7_V2_FULL",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_G_FULL,
+        "excel_prefix": "SP500_P7_V2_FULL",
+        "overrides": _p7(),
+        "intent": "Full V2 recipe (meta ON, entropy 0.10, BULL tuning) on expanded 15Y data.",
+    },
+    {
+        "id": "p7_v2_no_deploy",
+        "batch": 7,
+        "tag": "P7_V2_NO_DEPLOY",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_G_NODEP,
+        "excel_prefix": "SP500_P7_V2_NO_DEPLOY",
+        "overrides": _p7({"enable_deployment_penalty": False, "w_turnover": 0.0, "w_cost": 0.0}),
+        "intent": "V2 recipe with deployment penalty OFF (test if it costs CAGR).",
+    },
+    {
+        "id": "p7_v2_mega",
+        "batch": 7,
+        "tag": "P7_V2_MEGA",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_G_MEGA,
+        "excel_prefix": "SP500_P7_V2_MEGA",
+        "overrides": _p7({
+            "ga_population": 800,
+            "ga_generations": 30,
+            "stability_seed_runs": 12,
+            "stability_top_n_seeds": 8,
+            "stability_fast_population": 300,
+            "stability_fast_generations": 15,
+            "stability_refine_population": 800,
+            "stability_refine_generations": 20,
+        }),
+        "intent": "V2 recipe with 2x GA budget (pop 800, gen 30, 12 seeds).",
+    },
+    {
+        "id": "p7_v2_bull_agg",
+        "batch": 7,
+        "tag": "P7_V2_BULL_AGG",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_G_BULLAGG,
+        "excel_prefix": "SP500_P7_V2_BULL_AGG",
+        "overrides": _p7({
+            "bull_min_spread_mix": 0.008,
+            "bull_penalty_lambda_spread": 1.50,
+        }),
+        "intent": "V2 recipe with aggressive BULL tuning (spread_mix 0.008, lambda 1.50).",
+    },
+    # ──── Batch 8 — targeted specialist sweep for V2 breakthrough (2026-05-03) ────
+    # Diagnosis from Phase 3 walk-forward: F2 (SIDE 72%) is the single fold
+    # that drags all B7 signals below Baseline_V2.  B7 wb vectors are sparse
+    # (k=3-6) vs V2's k=15.  Three complementary recipes:
+    #
+    #   8a / b8_side_v3   : SIDE specialist with meta-search ON + expanded data.
+    #                       Goal: produce a ws that beats V2's ws on F2.
+    #   8b / b8_bull_dense: High-entropy BULL specialist targeting k=15+ dense wb.
+    #                       Goal: reproduce V2's multi-feature BULL robustness.
+    #   8c / b8_balanced  : Full-regime balanced with downside vol penalty.
+    #                       Goal: a single signal usable in all 3 slots.
+    {
+        "id": "b8_side_v3",
+        "batch": 8,
+        "tag": "P8_SIDE_V3",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_H_SIDE,
+        "excel_prefix": "SP500_P8_SIDE_V3",
+        "overrides": _p8_side(),
+        "intent": "SIDE specialist v3: meta ON + high entropy on expanded 15Y data.",
+    },
+    {
+        "id": "b8_bull_dense",
+        "batch": 8,
+        "tag": "P8_BULL_DENSE",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_H_BULL,
+        "excel_prefix": "SP500_P8_BULL_DENSE",
+        "overrides": _p8_bull(),
+        "intent": "High-entropy BULL specialist targeting dense wb (k=15+).",
+    },
+    {
+        "id": "b8_balanced",
+        "batch": 8,
+        "tag": "P8_BALANCED",
+        "train_start": datetime(2011, 1, 1),
+        "train_end":   datetime(2026, 3, 31),
+        "ga_seed": SEED_H_BAL,
+        "excel_prefix": "SP500_P8_BALANCED",
+        "overrides": _p8_balanced(),
+        "intent": "Balanced specialist: downside-vol penalty, NO deploy penalty, spread-heavy.",
+    },
 ]
 
 
@@ -330,9 +948,9 @@ def _fmt_overrides(ov: Dict[str, Any]) -> str:
 
 def _print_header(configs: List[Dict[str, Any]], dry_run: bool) -> None:
     print("=" * 78)
-    print("  Phase B — overnight batch orchestrator (Batches 1 / 2 / 3)")
+    print("  Phase B — overnight batch orchestrator (Batches 1-8)")
     print("=" * 78)
-    print(f"  mode         : {'DRY-RUN (per-run ~1-2 min)' if dry_run else 'FULL (per-run ~2.0-2.5 h)'}")
+    print(f"  mode         : {'DRY-RUN (per-run ~1-2 min)' if dry_run else 'FULL (B1-4 ~2.0-2.5 h, B5-6 ~3.0 h)'}")
     print(f"  runs queued  : {len(configs)}")
     for c in configs:
         print(
@@ -492,18 +1110,24 @@ def run_batch(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Phase B — overnight batch orchestrator (Batches 1 / 2 / 3)")
+    parser = argparse.ArgumentParser(description="Phase B — overnight batch orchestrator (Batches 1-8)")
     parser.add_argument(
-        "--batch", type=int, choices=(1, 2, 3),
-        help="Run only Batch 1 (scalar profile sweep), Batch 2 (scalar window "
-             "sweep), or Batch 3 (Phase B2 regime-conditional). Omit to run "
-             "all batches back-to-back.",
+        "--batch", type=int, choices=(1, 2, 3, 4, 5, 6, 7, 8),
+        help="Run only a specific batch. "
+             "Omit to run all batches back-to-back.",
     )
     parser.add_argument(
         "--runs", type=str,
         help="Comma-separated subset of run ids: "
              "consv,prop,aggr,win_base,win_fwd,win_back,"
-             "mild,balanced,deep,bull_free,def_heavy,side_heavy",
+             "mild,balanced,deep,bull_free,def_heavy,side_heavy,"
+             "side_pure,side_deep,side_win,"
+             "side_tech,side_fund_brk,"
+             "b6_baseline_10y,b6_baseline_15y,"
+             "b6_side_tech_10y,b6_side_tech_15y,"
+             "b6_side_fund_10y,b6_side_fund_15y,"
+             "p7_v2_full,p7_v2_no_deploy,p7_v2_mega,p7_v2_bull_agg,"
+             "b8_side_v3,b8_bull_dense,b8_balanced",
     )
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -515,7 +1139,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--list", action="store_true",
-        help="Print the 12 presets (3 batches × 3-6 runs) and exit.",
+        help="Print all presets (6 batches) and exit.",
     )
     args = parser.parse_args()
 

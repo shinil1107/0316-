@@ -440,6 +440,37 @@ def run_simulation(
     cfg_sim = dataclasses.replace(cfg)
     cfg_sim.enable_completeness_history_filter = False
 
+    # ── Phase ML — external-scores signal (XGBoost/LightGBM walk-forward).
+    #   When signal['signal_type'] == 'ml_external_scores', the predicted
+    #   per-(date, ticker, regime) scores are precomputed in scores_panel
+    #   and looked up directly at each rebalance day, bypassing the GA
+    #   linear scoring kernel (engine._score_vector_for_regime).
+    #
+    #   LIVE SAFETY: This branch is reachable ONLY when an ML signal npz is
+    #   explicitly passed in via the simulator API. ``daily_runner.py`` and
+    #   the production live path never load ML signals, so the live engine
+    #   continues to use the GA Linear path 100% unchanged.
+    _ml_mode = bool(signal.get("signal_type") == "ml_external_scores")
+    _ml_scores_panel = None
+    _ml_di_offset = 0
+    if _ml_mode:
+        _ml_scores_panel = np.asarray(signal["scores_panel"], dtype=np.float32)
+        _ml_dates = np.asarray(signal.get("dates", dates)).astype(str)
+        # Map ML panel di's onto pack di's by date string. We assume the
+        # ML signal was generated against the same pack.
+        _pack_dates_str = np.asarray(dates).astype(str)
+        if (len(_ml_dates) != len(_pack_dates_str)
+                or not np.array_equal(_ml_dates, _pack_dates_str)):
+            # Build a lookup so simulator stays robust if ml_dates is a
+            # subset/superset (rare; usually byte-identical).
+            _ml_date_to_idx = {str(d): i for i, d in enumerate(_ml_dates)}
+            _ml_di_remap = np.array(
+                [_ml_date_to_idx.get(d, -1) for d in _pack_dates_str],
+                dtype=np.int64,
+            )
+        else:
+            _ml_di_remap = None  # identity mapping
+
     # ── Path C: compose-aware precomputation ──
     _compose_mode = (signal.get("mode") == "compose")
     if _compose_mode:
@@ -465,6 +496,18 @@ def run_simulation(
         active_w_bull = regime_slots["SIDE"][1]  # unused in compose scoring path
         active_w_side = regime_slots["SIDE"][2]
         active_w_def = regime_slots["SIDE"][3]
+    elif _ml_mode:
+        # ML signal: GA-linear weight vectors are unused; set to harmless
+        # zero placeholders so downstream code that still references
+        # ``sel/active_w_*`` (e.g. exit-trigger history fallback) does not
+        # crash. The actual scoring is done via panel lookup in the
+        # rebalance block below.
+        F_dim = int(np.asarray(signal.get("mask", np.zeros(36))).size)
+        sel = np.zeros(F_dim, dtype=bool)
+        active_w_bull = np.zeros(F_dim, dtype=np.float64)
+        active_w_side = np.zeros(F_dim, dtype=np.float64)
+        active_w_def = np.zeros(F_dim, dtype=np.float64)
+        regime_slots = None
     else:
         sel = np.asarray(signal["mask"], dtype=bool)
         active_w_bull = engine.get_regime_active_weight_vector(
@@ -514,6 +557,69 @@ def run_simulation(
     _vix_hist = deque(maxlen=10)
     _regime_hist = deque(maxlen=10)
     _portfolio_peak = float(initial_capital)
+
+    # T-buy-grace — Idea 2: rolling history of regime-correct top-N
+    # ticker sets, one entry per rebalance day, used to filter NEW BUYS
+    # (not BUY_MORE) so a ticker must have been in top-N for the last
+    # ``buy_grace_days`` rebal days before we initiate a position.
+    # Read at runtime from the regime-resolved strategy dict; if the knob
+    # is absent or 0, this list is appended-to but never consulted, and
+    # behaviour is byte-identical to legacy.  Default maxlen = 32 covers
+    # any realistic grace window (typical sweep N ∈ {0,1,2,3,5}).
+    _top_n_history: deque = deque(maxlen=32)
+    _buy_grace_diag = {"filtered_buys_total": 0, "rebal_days_with_filter": 0}
+
+    # A1 — α_realized vol targeting (Idea 3, 2026-04-25).
+    # Maintain a rolling window of daily portfolio returns to compute the
+    # 30-day realized volatility (annualized).  At each rebalance day, if
+    # ``strat["vol_target"]`` is enabled, scale ``target_invest_pct`` by
+    # ``min(max_scale, max(min_scale, annual_target / realized_vol))`` so
+    # gross exposure auto-deleverages when the portfolio's realized vol
+    # exceeds the target.  Default lookback = 30 trading days; min_scale
+    # caps how aggressive the cut can get; max_scale ≤ 1.0 keeps the
+    # overlay one-sided (no leverage).
+    #
+    # vol_target absent / disabled  ⇒  history is appended but never
+    # consulted, behaviour is byte-identical to legacy.
+    _vol_target_max_lookback = 252  # generous upper bound for any reasonable lookback
+    _daily_returns_hist: deque = deque(maxlen=_vol_target_max_lookback + 1)
+    _vol_target_diag = {
+        "events": [],          # per-rebal-day samples
+        "rebal_days_total": 0,
+        "rebal_days_engaged": 0,  # days where scale < 1.0 was applied
+        "rebal_days_warmed": 0,   # days where lookback was satisfied
+    }
+
+    # R2 — restricted_universe + sector_cap diagnostics (Idea 4, 2026-04-25).
+    #
+    #   strat["restricted_universe"] = ["AAPL", ...]   # whitelist; tickers
+    #       not on the list (and not currently held) are dropped from
+    #       scores_df BEFORE the buy-grace top-N snapshot is taken so the
+    #       grace history reflects the restricted universe.  None / missing
+    #       ⇒ filter is skipped (byte-identical).
+    #
+    #   strat["sector_cap"] = {
+    #       "enabled":           bool,
+    #       "max_pct":           float (e.g. 0.30 for 30 %),
+    #       "sector_by_ticker":  {ticker → sector},
+    #       "exempt_unknown":    bool, default True (unknown sector bypasses),
+    #   }
+    #       Applied AFTER buy-grace and BEFORE vol-target / recos.  When any
+    #       sector's portfolio share ≥ max_pct, NEW buys (BUY_NEW) into that
+    #       sector are blocked by removing such tickers from scores_df;
+    #       already-held tickers stay so exit triggers can close them.
+    #       Disabled / absent ⇒ byte-identical.
+    _restricted_universe_diag = {
+        "filtered_buys_total":    0,
+        "rebal_days_with_filter": 0,
+    }
+    _sec_cap_diag = {
+        "filtered_buys_total":    0,
+        "rebal_days_with_filter": 0,
+        "max_breach_pct":         0.0,    # peak observed sector share
+        "breach_days":            0,      # rebal days where any sector > cap
+        "events":                 [],
+    }
 
     for day_idx, d in enumerate(sim_dates):
         di = date_to_di.get(d)
@@ -577,7 +683,21 @@ def run_simulation(
 
         if should_rebalance:
             try:
-                if _compose_mode:
+                if _ml_mode:
+                    # ML score panel lookup — direct (date, ticker, regime) → score.
+                    # No GA linear computation; bypass _score_vector_for_regime.
+                    rg_idx = {"BULL": 0, "SIDE": 1, "DEFENSIVE": 2}.get(
+                        score_regime, 1)
+                    if _ml_di_remap is not None:
+                        ml_di = int(_ml_di_remap[di])
+                    else:
+                        ml_di = di
+                    if ml_di < 0:
+                        scores = np.full(N, np.nan, dtype=np.float64)
+                    else:
+                        scores = np.asarray(
+                            _ml_scores_panel[ml_di, :, rg_idx], dtype=np.float64)
+                elif _compose_mode:
                     _slot = regime_slots.get(score_regime) or regime_slots["SIDE"]
                     _sel_rg, _wb_rg, _ws_rg, _wd_rg, _ = _slot
                     scores = engine._score_vector_for_regime(
@@ -641,6 +761,180 @@ def run_simulation(
 
                     strat = resolve_strategy(strat_base, regime)
 
+                    # R2 — restricted_universe filter (universe whitelist).
+                    # Applied BEFORE the buy-grace prefilter snapshot so that
+                    # the grace history is taken over the restricted universe
+                    # only.  Already-held tickers are kept so existing
+                    # positions can still be exit-driven by triggers.
+                    _ru_list = strat.get("restricted_universe")
+                    if _ru_list:
+                        _ru_set = set(_ru_list)
+                        _held_now = set(portfolio.holdings.keys())
+                        _before_ru = len(scores_df)
+                        scores_df = scores_df[
+                            scores_df["Ticker"].isin(_ru_set | _held_now)
+                        ].reset_index(drop=True)
+                        _filt_ru = _before_ru - len(scores_df)
+                        if _filt_ru > 0:
+                            _restricted_universe_diag["filtered_buys_total"] += _filt_ru
+                            _restricted_universe_diag["rebal_days_with_filter"] += 1
+
+                    # T-buy-grace — Idea 2 (strict variant a):
+                    # require a candidate ticker to have appeared in the
+                    # regime-correct top-N on each of the last
+                    # ``buy_grace_days`` rebal days BEFORE we open a NEW
+                    # position in it.  Already-held tickers are exempt
+                    # (BUY_MORE bypasses the filter — we don't want to
+                    # starve scaling-in of conviction names).
+                    #
+                    # Order of operations on each rebal day:
+                    #   1. Build pre-filter top-N set from sorted scores_df.
+                    #   2. If grace > 0 and history is warmed up: filter
+                    #      scores_df by intersection of the last K snapshots,
+                    #      keeping currently-held tickers regardless.
+                    #   3. Append the *pre-filter* snapshot to history so
+                    #      future days check against the natural ranking
+                    #      rather than the self-filtered universe.
+                    #
+                    # buy_grace_days = 0  ⇒  filter is skipped entirely;
+                    # snapshot is still appended but never consulted, so
+                    # output is byte-identical to legacy behaviour.
+                    _buy_grace = int(strat.get("buy_grace_days", 0) or 0)
+                    if regime == "BULL":
+                        _topn_today = int(getattr(cfg_sim, "regime_bull_top_n", 20))
+                    elif regime in ("DEFENSIVE", "CRASH"):
+                        _topn_today = int(getattr(cfg_sim, "regime_defensive_top_n", 10))
+                    else:
+                        _topn_today = int(getattr(cfg_sim, "regime_side_top_n", 15))
+                    _prefilter_topn = set(
+                        scores_df["Ticker"].head(_topn_today).tolist()
+                    )
+                    if _buy_grace > 0 and len(_top_n_history) >= _buy_grace:
+                        _persistent: set = set.intersection(
+                            *list(_top_n_history)[-_buy_grace:]
+                        )
+                        _held = set(portfolio.holdings.keys())
+                        _allow = _persistent | _held
+                        _before = len(scores_df)
+                        scores_df = scores_df[
+                            scores_df["Ticker"].isin(_allow)
+                        ].reset_index(drop=True)
+                        _filtered_now = _before - len(scores_df)
+                        if _filtered_now > 0:
+                            _buy_grace_diag["filtered_buys_total"] += _filtered_now
+                            _buy_grace_diag["rebal_days_with_filter"] += 1
+                    _top_n_history.append(_prefilter_topn)
+
+                    # R2 — sector_cap filter (concentration limit).
+                    # Always evaluates current sector exposure for diagnostic
+                    # purposes (max_breach_pct / breach_days) regardless of
+                    # whether enabled, so tracking matrix can quantify how
+                    # often the cap *would* bind in baseline runs.
+                    _sc_cfg = strat.get("sector_cap") or {}
+                    _sc_enabled = bool(_sc_cfg.get("enabled", False))
+                    _sec_map_local = _sc_cfg.get("sector_by_ticker", {}) or {}
+                    if _sc_cfg and total_capital > 0 and _sec_map_local:
+                        _max_pct = float(_sc_cfg.get("max_pct", 0.30))
+                        _exempt_unknown = bool(_sc_cfg.get("exempt_unknown", True))
+                        _sec_exposure: Dict[str, float] = {}
+                        for _tk, _h in portfolio.holdings.items():
+                            _sec = _sec_map_local.get(_tk)
+                            if _sec is None:
+                                if _exempt_unknown:
+                                    continue
+                                _sec = "_UNKNOWN"
+                            _v = _h["shares"] * price_map.get(_tk, 0.0)
+                            _sec_exposure[_sec] = _sec_exposure.get(_sec, 0.0) + _v
+                        _sec_pct = {s: v / total_capital for s, v in _sec_exposure.items()}
+                        if _sec_pct:
+                            _max_obs = max(_sec_pct.values())
+                            if _max_obs > _sec_cap_diag["max_breach_pct"]:
+                                _sec_cap_diag["max_breach_pct"] = _max_obs
+                            if any(p > _max_pct for p in _sec_pct.values()):
+                                _sec_cap_diag["breach_days"] += 1
+                        if _sc_enabled:
+                            _saturated = {s for s, p in _sec_pct.items() if p >= _max_pct}
+                            if _saturated:
+                                _held_sc = set(portfolio.holdings.keys())
+                                def _allow_row_sc(
+                                    t,
+                                    _held=_held_sc,
+                                    _smap=_sec_map_local,
+                                    _sat=_saturated,
+                                    _eu=_exempt_unknown,
+                                ):
+                                    if t in _held:
+                                        return True
+                                    sec = _smap.get(t)
+                                    if sec is None:
+                                        return _eu
+                                    return sec not in _sat
+                                _before_sc = len(scores_df)
+                                scores_df = scores_df[
+                                    scores_df["Ticker"].apply(_allow_row_sc)
+                                ].reset_index(drop=True)
+                                _filt_sc = _before_sc - len(scores_df)
+                                if _filt_sc > 0:
+                                    _sec_cap_diag["filtered_buys_total"] += _filt_sc
+                                    _sec_cap_diag["rebal_days_with_filter"] += 1
+                                    if len(_sec_cap_diag["events"]) < 2000:
+                                        _sec_cap_diag["events"].append({
+                                            "date": str(d),
+                                            "saturated": list(_saturated),
+                                            "exposure_pct": {
+                                                s: round(_sec_pct[s], 4)
+                                                for s in _saturated
+                                            },
+                                            "filtered_n": int(_filt_sc),
+                                        })
+
+                    # A1 — α_realized vol targeting hook.
+                    # Reads regime-resolved ``strat["vol_target"]`` so the
+                    # knob can be either flat (top-level dict) or per-regime
+                    # via regime_overrides.  Spec:
+                    #   strat["vol_target"] = {
+                    #       "enabled": True,
+                    #       "annual_target": 0.20,   # 20% annualized vol
+                    #       "lookback_days": 30,
+                    #       "min_scale": 0.30,       # never scale below 30%
+                    #       "max_scale": 1.00,       # never lever > 1
+                    #       "min_warmup_days": None, # default = lookback
+                    #   }
+                    _vt_cfg = strat.get("vol_target") or {}
+                    if _vt_cfg.get("enabled", False):
+                        _vt_target = float(_vt_cfg.get("annual_target", 0.20))
+                        _vt_lookback = int(_vt_cfg.get("lookback_days", 30))
+                        _vt_min_scale = float(_vt_cfg.get("min_scale", 0.30))
+                        _vt_max_scale = float(_vt_cfg.get("max_scale", 1.0))
+                        _vt_warmup = int(_vt_cfg.get("min_warmup_days") or _vt_lookback)
+                        _vol_target_diag["rebal_days_total"] += 1
+                        _hist_n = len(_daily_returns_hist)
+                        if _hist_n >= _vt_warmup and _vt_target > 0:
+                            _vol_target_diag["rebal_days_warmed"] += 1
+                            _rets = np.asarray(
+                                list(_daily_returns_hist)[-_vt_lookback:],
+                                dtype=float,
+                            )
+                            _rv = float(np.std(_rets, ddof=1)) * float(np.sqrt(252.0))
+                            if _rv > 1e-9:
+                                _scale = _vt_target / _rv
+                                _scale = max(_vt_min_scale, min(_vt_max_scale, _scale))
+                            else:
+                                _scale = _vt_max_scale
+                            _base_inv = float(strat.get("target_invest_pct", 0.97))
+                            _eff_inv = max(0.0, min(1.0, _base_inv * _scale))
+                            strat["target_invest_pct"] = _eff_inv
+                            if _scale < _vt_max_scale - 1e-9:
+                                _vol_target_diag["rebal_days_engaged"] += 1
+                            _vol_target_diag["events"].append({
+                                "date": d, "regime": regime, "vix": float(vix),
+                                "realized_vol": round(_rv, 6),
+                                "target_vol": _vt_target,
+                                "scale": round(_scale, 6),
+                                "base_invest_pct": round(_base_inv, 6),
+                                "eff_invest_pct": round(_eff_inv, 6),
+                            })
+
                     daily_limit = _compute_daily_limit(
                         cash, holdings_val, strat, daily_buy_limit)
 
@@ -649,30 +943,36 @@ def run_simulation(
                     # D1 triggers ignore it).  Same (sel, w_bull, w_side,
                     # w_def) slot as used for *today's* scoring above, so
                     # historical scores are computed under the same model.
-                    try:
-                        if _compose_mode:
-                            _slot = regime_slots.get(score_regime) or regime_slots["SIDE"]
-                            _hv_sel, _hv_wb, _hv_ws, _hv_wd, _ = _slot
-                        else:
-                            _hv_sel = sel
-                            _hv_wb = active_w_bull
-                            _hv_ws = active_w_side
-                            _hv_wd = active_w_def
-                        from exits import build_history_view
-                        history_view = build_history_view(
-                            pack=pack, engine=engine, di=di,
-                            tickers=tickers, cfg_sim=cfg_sim,
-                            sel=_hv_sel,
-                            active_w_bull=_hv_wb,
-                            active_w_side=_hv_ws,
-                            active_w_def=_hv_wd,
-                            score_regime=score_regime,
-                        )
-                    except Exception:
-                        # Defensive — never let history construction fail a
-                        # rebal day; legacy behaviour with history=None is
-                        # a full fallback for all D1 triggers.
+                    if _ml_mode:
+                        # ML signal has no per-day GA scoring kernel;
+                        # exit-trigger history falls back to legacy
+                        # (history_view=None ≡ D1 default behaviour).
                         history_view = None
+                    else:
+                        try:
+                            if _compose_mode:
+                                _slot = regime_slots.get(score_regime) or regime_slots["SIDE"]
+                                _hv_sel, _hv_wb, _hv_ws, _hv_wd, _ = _slot
+                            else:
+                                _hv_sel = sel
+                                _hv_wb = active_w_bull
+                                _hv_ws = active_w_side
+                                _hv_wd = active_w_def
+                            from exits import build_history_view
+                            history_view = build_history_view(
+                                pack=pack, engine=engine, di=di,
+                                tickers=tickers, cfg_sim=cfg_sim,
+                                sel=_hv_sel,
+                                active_w_bull=_hv_wb,
+                                active_w_side=_hv_ws,
+                                active_w_def=_hv_wd,
+                                score_regime=score_regime,
+                            )
+                        except Exception:
+                            # Defensive — never let history construction fail a
+                            # rebal day; legacy behaviour with history=None is
+                            # a full fallback for all D1 triggers.
+                            history_view = None
 
                     # Regime history needs today's regime included as the last
                     # entry so RiskOffAssessor can detect BULL→stress transitions
@@ -745,6 +1045,10 @@ def run_simulation(
             "Actions": actions_str,
         })
 
+        # A1 — append today's portfolio return for the vol-target rolling
+        # window (always; cheap O(1) append, only consumed when enabled).
+        _daily_returns_hist.append(float(daily_ret))
+
         prev_value = total_val
         prev_regime = regime
         _regime_hist.append(regime)
@@ -770,11 +1074,56 @@ def run_simulation(
         }
     metrics["regime_breakdown"] = rb
 
+    # T-buy-grace diag — only meaningful when buy_grace_days > 0
+    metrics["buy_grace_filtered_total"] = int(
+        _buy_grace_diag["filtered_buys_total"]
+    )
+    metrics["buy_grace_rebal_days_with_filter"] = int(
+        _buy_grace_diag["rebal_days_with_filter"]
+    )
+
+    # A1 — vol-target activation summary. The full event list lives on
+    # ``result["vol_target_events"]`` for downstream diagnostics; metrics
+    # carries scalar summaries only.
+    metrics["vol_target_rebal_days_total"] = int(_vol_target_diag["rebal_days_total"])
+    metrics["vol_target_rebal_days_warmed"] = int(_vol_target_diag["rebal_days_warmed"])
+    metrics["vol_target_rebal_days_engaged"] = int(_vol_target_diag["rebal_days_engaged"])
+    if _vol_target_diag["events"]:
+        _scales = [e["scale"] for e in _vol_target_diag["events"]]
+        _rvs = [e["realized_vol"] for e in _vol_target_diag["events"]]
+        metrics["vol_target_scale_mean"] = float(np.mean(_scales))
+        metrics["vol_target_scale_min"] = float(np.min(_scales))
+        metrics["vol_target_realized_vol_mean"] = float(np.mean(_rvs))
+        metrics["vol_target_realized_vol_p50"] = float(np.percentile(_rvs, 50))
+        metrics["vol_target_realized_vol_p95"] = float(np.percentile(_rvs, 95))
+    else:
+        metrics["vol_target_scale_mean"] = 1.0
+        metrics["vol_target_scale_min"] = 1.0
+        metrics["vol_target_realized_vol_mean"] = 0.0
+        metrics["vol_target_realized_vol_p50"] = 0.0
+        metrics["vol_target_realized_vol_p95"] = 0.0
+
+    # R2 — restricted_universe & sector_cap diagnostics.
+    metrics["restricted_universe_filtered_total"] = int(
+        _restricted_universe_diag["filtered_buys_total"]
+    )
+    metrics["restricted_universe_rebal_days_with_filter"] = int(
+        _restricted_universe_diag["rebal_days_with_filter"]
+    )
+    metrics["sector_cap_filtered_total"] = int(_sec_cap_diag["filtered_buys_total"])
+    metrics["sector_cap_rebal_days_with_filter"] = int(
+        _sec_cap_diag["rebal_days_with_filter"]
+    )
+    metrics["sector_cap_max_breach_pct"] = float(_sec_cap_diag["max_breach_pct"])
+    metrics["sector_cap_breach_days"] = int(_sec_cap_diag["breach_days"])
+
     result = {
         "daily_ts": daily_ts,
         "trades": trades,
         "metrics": metrics,
         "portfolio": portfolio,
+        "vol_target_events": list(_vol_target_diag["events"]),
+        "sector_cap_events": list(_sec_cap_diag["events"]),
     }
 
     if _compose_mode:

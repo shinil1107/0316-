@@ -1,0 +1,83 @@
+{
+  "batch_started_at": "2026-04-26T10:13:27",
+  "dry_run": false,
+  "n_queued": 2,
+  "queue": [
+    "side_tech",
+    "side_fund_brk"
+  ],
+  "current": null,
+  "completed": [
+    "side_tech",
+    "side_fund_brk"
+  ],
+  "failed": [],
+  "results": [
+    {
+      "id": "side_tech",
+      "tag": "P5E_SIDE_TECH",
+      "batch": 5,
+      "status": "ok",
+      "elapsed_sec": 8913.2,
+      "elapsed_min": 148.6,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5E_SIDE_TECH_20260426_124200.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260426_124200.json",
+      "signal_quality": {
+        "k_selected": 6,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.2,
+      "w_cost": 0.12,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.2,
+      "w_turnover_def": 0.2,
+      "w_cost_bull": 0.03,
+      "w_cost_side": 0.12,
+      "w_cost_def": 0.12,
+      "train_window": [
+        "2014-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260601
+    },
+    {
+      "id": "side_fund_brk",
+      "tag": "P5E_SIDE_FUND_BREAKOUT",
+      "batch": 5,
+      "status": "ok",
+      "elapsed_sec": 9484.4,
+      "elapsed_min": 158.1,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5E_SIDE_FUND_BREAKOUT_20260426_152005.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260426_152005.json",
+      "signal_quality": {
+        "k_selected": 7,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.18,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.3,
+      "w_turnover_def": 0.2,
+      "w_cost_bull": 0.03,
+      "w_cost_side": 0.18,
+      "w_cost_def": 0.12,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260602
+    }
+  ],
+  "updated_at": "2026-04-26T15:20:05",
+  "batch_finished_at": "2026-04-26T15:20:05",
+  "total_sec": 18397.7,
+  "total_min": 306.6
+}

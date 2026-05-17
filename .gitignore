@@ -36,6 +36,15 @@ phase3/tests/__pycache__/
 !phase3/exits/*.py
 phase3/exits/__pycache__/
 
+# track Phase 3 autotrade package (KIS broker adapter etc.).
+# IMPORTANT: .env stays IGNORED (default-deny via `*` at top); only .env.example is whitelisted.
+!phase3/autotrade/
+!phase3/autotrade/*.py
+!phase3/autotrade/*.md
+phase3/autotrade/__pycache__/
+phase3/autotrade/logs/
+!.env.example
+
 # track Phase 3 signal transition artifacts (xlsx kept for research history)
 !phase3/signal_transitions/
 !phase3/signal_transitions/*.xlsx

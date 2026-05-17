@@ -1,0 +1,2402 @@
+[
+  {
+    "arm": "Baseline_V2",
+    "signal_path": "frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 396,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.25,
+        "top_decile_drop_rate_pct": 8.07,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.72,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 52.0,
+            "median": 51.4,
+            "p25": 21.9,
+            "p75": 81.8,
+            "n": 396,
+            "pct_above_50": 51.3,
+            "pct_above_80": 25.8
+          },
+          "t-5": {
+            "mean": 54.3,
+            "median": 56.8,
+            "p25": 25.1,
+            "p75": 85.0,
+            "n": 396,
+            "pct_above_50": 54.8,
+            "pct_above_80": 29.0
+          },
+          "t-10": {
+            "mean": 52.8,
+            "median": 54.8,
+            "p25": 24.1,
+            "p75": 82.0,
+            "n": 395,
+            "pct_above_50": 54.9,
+            "pct_above_80": 26.8
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 91,
+            "surge_rate_pct": 0.17,
+            "drop_rate_pct": 7.86
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 70,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.91
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 60,
+            "surge_rate_pct": 0.11,
+            "drop_rate_pct": 6.54
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 70,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.42
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 105,
+            "surge_rate_pct": 0.19,
+            "drop_rate_pct": 7.32
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1331,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.83,
+        "top_decile_drop_rate_pct": 13.41,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.72,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 52.5,
+            "median": 52.4,
+            "p25": 23.7,
+            "p75": 82.6,
+            "n": 1331,
+            "pct_above_50": 51.9,
+            "pct_above_80": 26.8
+          },
+          "t-5": {
+            "mean": 52.4,
+            "median": 52.1,
+            "p25": 23.9,
+            "p75": 82.6,
+            "n": 1328,
+            "pct_above_50": 52.3,
+            "pct_above_80": 27.6
+          },
+          "t-10": {
+            "mean": 49.5,
+            "median": 48.1,
+            "p25": 20.4,
+            "p75": 79.6,
+            "n": 1324,
+            "pct_above_50": 48.5,
+            "pct_above_80": 24.7
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 282,
+            "surge_rate_pct": 0.51,
+            "drop_rate_pct": 13.51
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 239,
+            "surge_rate_pct": 0.44,
+            "drop_rate_pct": 12.28
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 211,
+            "surge_rate_pct": 0.39,
+            "drop_rate_pct": 11.6
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 235,
+            "surge_rate_pct": 0.43,
+            "drop_rate_pct": 11.85
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 364,
+            "surge_rate_pct": 0.65,
+            "drop_rate_pct": 12.52
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4945,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.8,
+        "top_decile_precision_pct": 2.73,
+        "top_decile_drop_rate_pct": 19.55,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.52,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 50.7,
+            "median": 50.4,
+            "p25": 22.6,
+            "p75": 79.2,
+            "n": 4945,
+            "pct_above_50": 50.3,
+            "pct_above_80": 24.4
+          },
+          "t-5": {
+            "mean": 49.9,
+            "median": 49.4,
+            "p25": 21.1,
+            "p75": 79.2,
+            "n": 4925,
+            "pct_above_50": 49.6,
+            "pct_above_80": 24.1
+          },
+          "t-10": {
+            "mean": 50.0,
+            "median": 48.9,
+            "p25": 21.1,
+            "p75": 79.0,
+            "n": 4904,
+            "pct_above_50": 49.3,
+            "pct_above_80": 24.2
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 1101,
+            "surge_rate_pct": 2.01,
+            "drop_rate_pct": 19.76
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 898,
+            "surge_rate_pct": 1.64,
+            "drop_rate_pct": 18.6
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 859,
+            "surge_rate_pct": 1.57,
+            "drop_rate_pct": 17.74
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 861,
+            "surge_rate_pct": 1.57,
+            "drop_rate_pct": 17.84
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 1226,
+            "surge_rate_pct": 2.18,
+            "drop_rate_pct": 18.59
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 22.9
+  },
+  {
+    "arm": "P7_V2_FULL",
+    "signal_path": "frozen_signal_P7_V2_FULL_20260429_190918.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 396,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.19,
+        "top_decile_drop_rate_pct": 8.35,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.32,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 42.9,
+            "median": 37.3,
+            "p25": 8.7,
+            "p75": 74.9,
+            "n": 396,
+            "pct_above_50": 41.4,
+            "pct_above_80": 22.7
+          },
+          "t-5": {
+            "mean": 43.3,
+            "median": 38.9,
+            "p25": 9.1,
+            "p75": 73.1,
+            "n": 396,
+            "pct_above_50": 42.2,
+            "pct_above_80": 20.5
+          },
+          "t-10": {
+            "mean": 43.2,
+            "median": 39.1,
+            "p25": 9.6,
+            "p75": 73.4,
+            "n": 395,
+            "pct_above_50": 42.0,
+            "pct_above_80": 21.0
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 144,
+            "surge_rate_pct": 0.26,
+            "drop_rate_pct": 8.7
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 60,
+            "surge_rate_pct": 0.11,
+            "drop_rate_pct": 6.58
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 57,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 5.97
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 45,
+            "surge_rate_pct": 0.08,
+            "drop_rate_pct": 6.23
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 90,
+            "surge_rate_pct": 0.16,
+            "drop_rate_pct": 7.55
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1331,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.7,
+        "top_decile_drop_rate_pct": 14.14,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.44,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 45.3,
+            "median": 42.4,
+            "p25": 10.8,
+            "p75": 79.5,
+            "n": 1331,
+            "pct_above_50": 45.1,
+            "pct_above_80": 24.3
+          },
+          "t-5": {
+            "mean": 44.8,
+            "median": 42.4,
+            "p25": 10.8,
+            "p75": 77.2,
+            "n": 1328,
+            "pct_above_50": 44.3,
+            "pct_above_80": 23.1
+          },
+          "t-10": {
+            "mean": 44.8,
+            "median": 41.8,
+            "p25": 10.1,
+            "p75": 77.3,
+            "n": 1324,
+            "pct_above_50": 44.5,
+            "pct_above_80": 23.4
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 452,
+            "surge_rate_pct": 0.83,
+            "drop_rate_pct": 14.49
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 193,
+            "surge_rate_pct": 0.35,
+            "drop_rate_pct": 11.89
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 190,
+            "surge_rate_pct": 0.35,
+            "drop_rate_pct": 11.08
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 167,
+            "surge_rate_pct": 0.3,
+            "drop_rate_pct": 11.29
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 329,
+            "surge_rate_pct": 0.59,
+            "drop_rate_pct": 13.0
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4945,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.8,
+        "top_decile_precision_pct": 2.51,
+        "top_decile_drop_rate_pct": 19.89,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.4,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 47.1,
+            "median": 44.5,
+            "p25": 16.0,
+            "p75": 78.8,
+            "n": 4945,
+            "pct_above_50": 46.1,
+            "pct_above_80": 23.9
+          },
+          "t-5": {
+            "mean": 46.9,
+            "median": 44.6,
+            "p25": 15.9,
+            "p75": 78.1,
+            "n": 4925,
+            "pct_above_50": 46.1,
+            "pct_above_80": 23.2
+          },
+          "t-10": {
+            "mean": 47.1,
+            "median": 44.8,
+            "p25": 15.5,
+            "p75": 78.1,
+            "n": 4904,
+            "pct_above_50": 46.4,
+            "pct_above_80": 23.5
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 1428,
+            "surge_rate_pct": 2.61,
+            "drop_rate_pct": 20.77
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 855,
+            "surge_rate_pct": 1.56,
+            "drop_rate_pct": 18.32
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 764,
+            "surge_rate_pct": 1.4,
+            "drop_rate_pct": 17.12
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 697,
+            "surge_rate_pct": 1.27,
+            "drop_rate_pct": 17.45
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 1201,
+            "surge_rate_pct": 2.14,
+            "drop_rate_pct": 18.86
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 23.0
+  },
+  {
+    "arm": "P7_V2_NO_DEPLOY",
+    "signal_path": "frozen_signal_P7_V2_NO_DEPLOY_20260501_014909.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 396,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.22,
+        "top_decile_drop_rate_pct": 7.93,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.55,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 53.0,
+            "median": 54.6,
+            "p25": 22.6,
+            "p75": 82.8,
+            "n": 396,
+            "pct_above_50": 53.8,
+            "pct_above_80": 28.0
+          },
+          "t-5": {
+            "mean": 55.5,
+            "median": 61.2,
+            "p25": 28.3,
+            "p75": 82.2,
+            "n": 396,
+            "pct_above_50": 59.8,
+            "pct_above_80": 27.8
+          },
+          "t-10": {
+            "mean": 52.9,
+            "median": 57.9,
+            "p25": 22.3,
+            "p75": 81.1,
+            "n": 395,
+            "pct_above_50": 55.7,
+            "pct_above_80": 26.3
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 89,
+            "surge_rate_pct": 0.16,
+            "drop_rate_pct": 8.0
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 57,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.76
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 69,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.27
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 68,
+            "surge_rate_pct": 0.12,
+            "drop_rate_pct": 6.53
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 113,
+            "surge_rate_pct": 0.2,
+            "drop_rate_pct": 7.49
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1331,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.67,
+        "top_decile_drop_rate_pct": 13.28,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.38,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 52.7,
+            "median": 54.6,
+            "p25": 23.9,
+            "p75": 81.7,
+            "n": 1331,
+            "pct_above_50": 54.0,
+            "pct_above_80": 26.7
+          },
+          "t-5": {
+            "mean": 52.3,
+            "median": 53.8,
+            "p25": 23.9,
+            "p75": 80.3,
+            "n": 1328,
+            "pct_above_50": 53.7,
+            "pct_above_80": 25.5
+          },
+          "t-10": {
+            "mean": 49.8,
+            "median": 49.1,
+            "p25": 22.2,
+            "p75": 78.2,
+            "n": 1324,
+            "pct_above_50": 49.5,
+            "pct_above_80": 23.3
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 276,
+            "surge_rate_pct": 0.5,
+            "drop_rate_pct": 13.73
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 221,
+            "surge_rate_pct": 0.4,
+            "drop_rate_pct": 12.24
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 228,
+            "surge_rate_pct": 0.42,
+            "drop_rate_pct": 11.63
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 246,
+            "surge_rate_pct": 0.45,
+            "drop_rate_pct": 11.66
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 360,
+            "surge_rate_pct": 0.64,
+            "drop_rate_pct": 12.51
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4945,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.8,
+        "top_decile_precision_pct": 2.47,
+        "top_decile_drop_rate_pct": 19.34,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.38,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 51.1,
+            "median": 52.6,
+            "p25": 22.0,
+            "p75": 79.7,
+            "n": 4945,
+            "pct_above_50": 52.1,
+            "pct_above_80": 24.8
+          },
+          "t-5": {
+            "mean": 50.2,
+            "median": 50.9,
+            "p25": 21.6,
+            "p75": 78.5,
+            "n": 4925,
+            "pct_above_50": 50.6,
+            "pct_above_80": 23.6
+          },
+          "t-10": {
+            "mean": 50.3,
+            "median": 50.7,
+            "p25": 21.1,
+            "p75": 79.0,
+            "n": 4904,
+            "pct_above_50": 50.5,
+            "pct_above_80": 23.9
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 1124,
+            "surge_rate_pct": 2.05,
+            "drop_rate_pct": 20.22
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 814,
+            "surge_rate_pct": 1.49,
+            "drop_rate_pct": 18.46
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 864,
+            "surge_rate_pct": 1.58,
+            "drop_rate_pct": 17.73
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 897,
+            "surge_rate_pct": 1.64,
+            "drop_rate_pct": 17.56
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 1246,
+            "surge_rate_pct": 2.22,
+            "drop_rate_pct": 18.57
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 21.5
+  },
+  {
+    "arm": "P7_V2_MEGA",
+    "signal_path": "frozen_signal_P7_V2_MEGA_20260502_165121.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 395,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.21,
+        "top_decile_drop_rate_pct": 8.14,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.43,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 45.3,
+            "median": 42.6,
+            "p25": 14.3,
+            "p75": 75.8,
+            "n": 395,
+            "pct_above_50": 43.0,
+            "pct_above_80": 22.8
+          },
+          "t-5": {
+            "mean": 47.1,
+            "median": 46.6,
+            "p25": 16.7,
+            "p75": 76.4,
+            "n": 395,
+            "pct_above_50": 47.3,
+            "pct_above_80": 21.8
+          },
+          "t-10": {
+            "mean": 45.8,
+            "median": 43.2,
+            "p25": 14.7,
+            "p75": 75.4,
+            "n": 394,
+            "pct_above_50": 44.7,
+            "pct_above_80": 22.3
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 117,
+            "surge_rate_pct": 0.21,
+            "drop_rate_pct": 8.41
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 71,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.58
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 70,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.28
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 46,
+            "surge_rate_pct": 0.08,
+            "drop_rate_pct": 6.23
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 91,
+            "surge_rate_pct": 0.16,
+            "drop_rate_pct": 7.54
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1327,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.74,
+        "top_decile_drop_rate_pct": 13.83,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.54,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 48.2,
+            "median": 47.4,
+            "p25": 16.4,
+            "p75": 79.5,
+            "n": 1327,
+            "pct_above_50": 48.2,
+            "pct_above_80": 24.3
+          },
+          "t-5": {
+            "mean": 47.8,
+            "median": 47.2,
+            "p25": 16.8,
+            "p75": 78.0,
+            "n": 1324,
+            "pct_above_50": 47.5,
+            "pct_above_80": 23.7
+          },
+          "t-10": {
+            "mean": 47.1,
+            "median": 45.4,
+            "p25": 15.4,
+            "p75": 78.6,
+            "n": 1320,
+            "pct_above_50": 46.0,
+            "pct_above_80": 24.1
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 374,
+            "surge_rate_pct": 0.68,
+            "drop_rate_pct": 14.13
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 205,
+            "surge_rate_pct": 0.37,
+            "drop_rate_pct": 11.9
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 224,
+            "surge_rate_pct": 0.41,
+            "drop_rate_pct": 11.57
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 190,
+            "surge_rate_pct": 0.35,
+            "drop_rate_pct": 11.18
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 334,
+            "surge_rate_pct": 0.59,
+            "drop_rate_pct": 12.97
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4931,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.79,
+        "top_decile_precision_pct": 2.69,
+        "top_decile_drop_rate_pct": 19.79,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.5,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 49.2,
+            "median": 48.0,
+            "p25": 20.0,
+            "p75": 79.7,
+            "n": 4931,
+            "pct_above_50": 48.3,
+            "pct_above_80": 24.8
+          },
+          "t-5": {
+            "mean": 48.8,
+            "median": 47.5,
+            "p25": 19.6,
+            "p75": 78.8,
+            "n": 4911,
+            "pct_above_50": 48.2,
+            "pct_above_80": 23.8
+          },
+          "t-10": {
+            "mean": 48.7,
+            "median": 47.7,
+            "p25": 19.6,
+            "p75": 78.9,
+            "n": 4889,
+            "pct_above_50": 48.2,
+            "pct_above_80": 23.9
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 1222,
+            "surge_rate_pct": 2.23,
+            "drop_rate_pct": 20.65
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 874,
+            "surge_rate_pct": 1.6,
+            "drop_rate_pct": 18.25
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 851,
+            "surge_rate_pct": 1.56,
+            "drop_rate_pct": 17.66
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 742,
+            "surge_rate_pct": 1.36,
+            "drop_rate_pct": 17.25
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 1242,
+            "surge_rate_pct": 2.21,
+            "drop_rate_pct": 18.75
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 21.4
+  },
+  {
+    "arm": "P7_STITCH_J",
+    "signal_path": "frozen_signal_P7_STITCH_J_20260503_164726.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 395,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.23,
+        "top_decile_drop_rate_pct": 8.21,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.63,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 50.1,
+            "median": 49.8,
+            "p25": 18.7,
+            "p75": 79.7,
+            "n": 395,
+            "pct_above_50": 49.6,
+            "pct_above_80": 24.8
+          },
+          "t-5": {
+            "mean": 52.4,
+            "median": 54.3,
+            "p25": 21.5,
+            "p75": 85.3,
+            "n": 395,
+            "pct_above_50": 53.2,
+            "pct_above_80": 28.1
+          },
+          "t-10": {
+            "mean": 49.8,
+            "median": 52.6,
+            "p25": 16.8,
+            "p75": 79.8,
+            "n": 394,
+            "pct_above_50": 52.0,
+            "pct_above_80": 24.6
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 104,
+            "surge_rate_pct": 0.19,
+            "drop_rate_pct": 8.18
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 63,
+            "surge_rate_pct": 0.12,
+            "drop_rate_pct": 6.71
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 54,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.37
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 74,
+            "surge_rate_pct": 0.14,
+            "drop_rate_pct": 6.27
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 100,
+            "surge_rate_pct": 0.18,
+            "drop_rate_pct": 7.52
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1327,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.81,
+        "top_decile_drop_rate_pct": 13.71,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.68,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 51.5,
+            "median": 51.7,
+            "p25": 21.9,
+            "p75": 83.0,
+            "n": 1327,
+            "pct_above_50": 51.5,
+            "pct_above_80": 26.8
+          },
+          "t-5": {
+            "mean": 51.1,
+            "median": 50.7,
+            "p25": 21.1,
+            "p75": 83.4,
+            "n": 1324,
+            "pct_above_50": 51.0,
+            "pct_above_80": 27.2
+          },
+          "t-10": {
+            "mean": 48.1,
+            "median": 45.9,
+            "p25": 17.8,
+            "p75": 79.3,
+            "n": 1320,
+            "pct_above_50": 46.5,
+            "pct_above_80": 24.2
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 307,
+            "surge_rate_pct": 0.56,
+            "drop_rate_pct": 13.98
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 228,
+            "surge_rate_pct": 0.42,
+            "drop_rate_pct": 12.09
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 198,
+            "surge_rate_pct": 0.36,
+            "drop_rate_pct": 11.48
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 230,
+            "surge_rate_pct": 0.42,
+            "drop_rate_pct": 11.37
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 364,
+            "surge_rate_pct": 0.65,
+            "drop_rate_pct": 12.85
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4931,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.79,
+        "top_decile_precision_pct": 2.74,
+        "top_decile_drop_rate_pct": 19.8,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.53,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 50.4,
+            "median": 50.0,
+            "p25": 21.9,
+            "p75": 79.6,
+            "n": 4931,
+            "pct_above_50": 50.2,
+            "pct_above_80": 24.7
+          },
+          "t-5": {
+            "mean": 49.5,
+            "median": 48.9,
+            "p25": 19.9,
+            "p75": 79.6,
+            "n": 4911,
+            "pct_above_50": 49.2,
+            "pct_above_80": 24.6
+          },
+          "t-10": {
+            "mean": 49.5,
+            "median": 48.6,
+            "p25": 20.3,
+            "p75": 79.6,
+            "n": 4889,
+            "pct_above_50": 49.0,
+            "pct_above_80": 24.6
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 1141,
+            "surge_rate_pct": 2.09,
+            "drop_rate_pct": 20.36
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 870,
+            "surge_rate_pct": 1.59,
+            "drop_rate_pct": 18.42
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 826,
+            "surge_rate_pct": 1.51,
+            "drop_rate_pct": 17.72
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 856,
+            "surge_rate_pct": 1.57,
+            "drop_rate_pct": 17.3
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 1238,
+            "surge_rate_pct": 2.2,
+            "drop_rate_pct": 18.76
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 21.7
+  },
+  {
+    "arm": "P7_STITCH_K",
+    "signal_path": "frozen_signal_P7_STITCH_K_20260503_164726.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 396,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.24,
+        "top_decile_drop_rate_pct": 7.94,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.67,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 50.9,
+            "median": 50.0,
+            "p25": 19.7,
+            "p75": 79.8,
+            "n": 396,
+            "pct_above_50": 50.3,
+            "pct_above_80": 25.0
+          },
+          "t-5": {
+            "mean": 53.4,
+            "median": 54.5,
+            "p25": 24.0,
+            "p75": 84.1,
+            "n": 396,
+            "pct_above_50": 53.5,
+            "pct_above_80": 28.3
+          },
+          "t-10": {
+            "mean": 51.1,
+            "median": 53.3,
+            "p25": 19.8,
+            "p75": 80.2,
+            "n": 395,
+            "pct_above_50": 53.2,
+            "pct_above_80": 25.3
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 101,
+            "surge_rate_pct": 0.18,
+            "drop_rate_pct": 8.09
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 66,
+            "surge_rate_pct": 0.12,
+            "drop_rate_pct": 6.87
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 57,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.33
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 70,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.45
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 102,
+            "surge_rate_pct": 0.18,
+            "drop_rate_pct": 7.31
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1331,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.79,
+        "top_decile_drop_rate_pct": 13.44,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.63,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 51.9,
+            "median": 51.7,
+            "p25": 22.6,
+            "p75": 81.9,
+            "n": 1331,
+            "pct_above_50": 51.3,
+            "pct_above_80": 26.4
+          },
+          "t-5": {
+            "mean": 51.7,
+            "median": 50.8,
+            "p25": 22.7,
+            "p75": 82.2,
+            "n": 1328,
+            "pct_above_50": 51.1,
+            "pct_above_80": 27.0
+          },
+          "t-10": {
+            "mean": 48.7,
+            "median": 46.5,
+            "p25": 20.5,
+            "p75": 79.1,
+            "n": 1324,
+            "pct_above_50": 47.4,
+            "pct_above_80": 23.6
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 288,
+            "surge_rate_pct": 0.53,
+            "drop_rate_pct": 13.78
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 249,
+            "surge_rate_pct": 0.45,
+            "drop_rate_pct": 12.42
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 201,
+            "surge_rate_pct": 0.37,
+            "drop_rate_pct": 11.39
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 234,
+            "surge_rate_pct": 0.43,
+            "drop_rate_pct": 11.62
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 359,
+            "surge_rate_pct": 0.64,
+            "drop_rate_pct": 12.55
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4945,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.8,
+        "top_decile_precision_pct": 2.65,
+        "top_decile_drop_rate_pct": 19.44,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.47,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 50.3,
+            "median": 49.8,
+            "p25": 21.8,
+            "p75": 79.1,
+            "n": 4945,
+            "pct_above_50": 49.8,
+            "pct_above_80": 24.2
+          },
+          "t-5": {
+            "mean": 49.5,
+            "median": 48.8,
+            "p25": 20.4,
+            "p75": 79.1,
+            "n": 4925,
+            "pct_above_50": 49.1,
+            "pct_above_80": 24.0
+          },
+          "t-10": {
+            "mean": 49.6,
+            "median": 48.4,
+            "p25": 20.5,
+            "p75": 78.9,
+            "n": 4904,
+            "pct_above_50": 48.8,
+            "pct_above_80": 24.0
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 1130,
+            "surge_rate_pct": 2.06,
+            "drop_rate_pct": 20.19
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 910,
+            "surge_rate_pct": 1.66,
+            "drop_rate_pct": 18.54
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 835,
+            "surge_rate_pct": 1.52,
+            "drop_rate_pct": 17.8
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 851,
+            "surge_rate_pct": 1.55,
+            "drop_rate_pct": 17.46
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 1219,
+            "surge_rate_pct": 2.17,
+            "drop_rate_pct": 18.55
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 21.7
+  },
+  {
+    "arm": "P7_BLEND_L",
+    "signal_path": "frozen_signal_P7_BLEND_L_20260503_164726.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 395,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.23,
+        "top_decile_drop_rate_pct": 8.09,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.63,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 50.6,
+            "median": 49.8,
+            "p25": 19.0,
+            "p75": 81.4,
+            "n": 395,
+            "pct_above_50": 49.6,
+            "pct_above_80": 25.8
+          },
+          "t-5": {
+            "mean": 52.9,
+            "median": 54.7,
+            "p25": 23.9,
+            "p75": 84.9,
+            "n": 395,
+            "pct_above_50": 52.9,
+            "pct_above_80": 28.9
+          },
+          "t-10": {
+            "mean": 50.5,
+            "median": 53.4,
+            "p25": 19.0,
+            "p75": 79.8,
+            "n": 394,
+            "pct_above_50": 52.3,
+            "pct_above_80": 24.6
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 102,
+            "surge_rate_pct": 0.19,
+            "drop_rate_pct": 8.18
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 65,
+            "surge_rate_pct": 0.12,
+            "drop_rate_pct": 6.76
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 55,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.37
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 69,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.25
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 104,
+            "surge_rate_pct": 0.19,
+            "drop_rate_pct": 7.48
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1327,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.8,
+        "top_decile_drop_rate_pct": 13.56,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.66,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 51.7,
+            "median": 51.6,
+            "p25": 22.3,
+            "p75": 83.1,
+            "n": 1327,
+            "pct_above_50": 51.2,
+            "pct_above_80": 27.1
+          },
+          "t-5": {
+            "mean": 51.5,
+            "median": 50.6,
+            "p25": 22.2,
+            "p75": 83.6,
+            "n": 1324,
+            "pct_above_50": 50.8,
+            "pct_above_80": 27.5
+          },
+          "t-10": {
+            "mean": 48.5,
+            "median": 46.2,
+            "p25": 19.2,
+            "p75": 79.5,
+            "n": 1320,
+            "pct_above_50": 46.7,
+            "pct_above_80": 24.4
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 296,
+            "surge_rate_pct": 0.54,
+            "drop_rate_pct": 13.9
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 236,
+            "surge_rate_pct": 0.43,
+            "drop_rate_pct": 12.24
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 200,
+            "surge_rate_pct": 0.37,
+            "drop_rate_pct": 11.43
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 228,
+            "surge_rate_pct": 0.42,
+            "drop_rate_pct": 11.39
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 367,
+            "surge_rate_pct": 0.65,
+            "drop_rate_pct": 12.8
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4931,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.79,
+        "top_decile_precision_pct": 2.75,
+        "top_decile_drop_rate_pct": 19.59,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.53,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 50.4,
+            "median": 49.8,
+            "p25": 21.9,
+            "p75": 79.3,
+            "n": 4931,
+            "pct_above_50": 49.9,
+            "pct_above_80": 24.4
+          },
+          "t-5": {
+            "mean": 49.5,
+            "median": 48.6,
+            "p25": 20.4,
+            "p75": 79.5,
+            "n": 4911,
+            "pct_above_50": 49.1,
+            "pct_above_80": 24.5
+          },
+          "t-10": {
+            "mean": 49.5,
+            "median": 48.3,
+            "p25": 20.5,
+            "p75": 79.2,
+            "n": 4889,
+            "pct_above_50": 48.8,
+            "pct_above_80": 24.3
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 1128,
+            "surge_rate_pct": 2.06,
+            "drop_rate_pct": 20.34
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 904,
+            "surge_rate_pct": 1.65,
+            "drop_rate_pct": 18.44
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 814,
+            "surge_rate_pct": 1.49,
+            "drop_rate_pct": 17.83
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 853,
+            "surge_rate_pct": 1.56,
+            "drop_rate_pct": 17.2
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 1232,
+            "surge_rate_pct": 2.19,
+            "drop_rate_pct": 18.75
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 22.4
+  },
+  {
+    "arm": "P7_STITCH_N",
+    "signal_path": "frozen_signal_P7_STITCH_N_20260503_164726.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 395,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.22,
+        "top_decile_drop_rate_pct": 8.42,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.5,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 47.6,
+            "median": 47.5,
+            "p25": 13.1,
+            "p75": 79.5,
+            "n": 395,
+            "pct_above_50": 47.3,
+            "pct_above_80": 24.8
+          },
+          "t-5": {
+            "mean": 49.1,
+            "median": 51.4,
+            "p25": 14.0,
+            "p75": 84.5,
+            "n": 395,
+            "pct_above_50": 50.6,
+            "pct_above_80": 28.1
+          },
+          "t-10": {
+            "mean": 46.5,
+            "median": 47.5,
+            "p25": 10.4,
+            "p75": 80.6,
+            "n": 394,
+            "pct_above_50": 47.0,
+            "pct_above_80": 25.9
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 125,
+            "surge_rate_pct": 0.23,
+            "drop_rate_pct": 8.63
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 52,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.61
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 49,
+            "surge_rate_pct": 0.09,
+            "drop_rate_pct": 6.1
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 70,
+            "surge_rate_pct": 0.13,
+            "drop_rate_pct": 6.16
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 99,
+            "surge_rate_pct": 0.18,
+            "drop_rate_pct": 7.54
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1327,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.75,
+        "top_decile_drop_rate_pct": 14.06,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.55,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 48.1,
+            "median": 47.8,
+            "p25": 14.9,
+            "p75": 82.2,
+            "n": 1327,
+            "pct_above_50": 48.2,
+            "pct_above_80": 26.1
+          },
+          "t-5": {
+            "mean": 47.6,
+            "median": 46.8,
+            "p25": 14.1,
+            "p75": 81.6,
+            "n": 1324,
+            "pct_above_50": 47.1,
+            "pct_above_80": 26.2
+          },
+          "t-10": {
+            "mean": 45.7,
+            "median": 42.6,
+            "p25": 12.8,
+            "p75": 78.6,
+            "n": 1320,
+            "pct_above_50": 44.2,
+            "pct_above_80": 23.5
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 392,
+            "surge_rate_pct": 0.72,
+            "drop_rate_pct": 14.4
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 187,
+            "surge_rate_pct": 0.34,
+            "drop_rate_pct": 12.04
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 199,
+            "surge_rate_pct": 0.36,
+            "drop_rate_pct": 11.22
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 197,
+            "surge_rate_pct": 0.36,
+            "drop_rate_pct": 11.03
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 352,
+            "surge_rate_pct": 0.63,
+            "drop_rate_pct": 13.06
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4931,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.79,
+        "top_decile_precision_pct": 2.63,
+        "top_decile_drop_rate_pct": 20.3,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.47,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 48.2,
+            "median": 47.4,
+            "p25": 17.2,
+            "p75": 79.1,
+            "n": 4931,
+            "pct_above_50": 47.9,
+            "pct_above_80": 24.2
+          },
+          "t-5": {
+            "mean": 47.4,
+            "median": 45.6,
+            "p25": 16.2,
+            "p75": 78.4,
+            "n": 4911,
+            "pct_above_50": 46.3,
+            "pct_above_80": 23.4
+          },
+          "t-10": {
+            "mean": 47.7,
+            "median": 46.6,
+            "p25": 16.2,
+            "p75": 78.7,
+            "n": 4889,
+            "pct_above_50": 47.1,
+            "pct_above_80": 23.7
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 1347,
+            "surge_rate_pct": 2.46,
+            "drop_rate_pct": 20.58
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 804,
+            "surge_rate_pct": 1.47,
+            "drop_rate_pct": 18.44
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 778,
+            "surge_rate_pct": 1.42,
+            "drop_rate_pct": 17.4
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 790,
+            "surge_rate_pct": 1.44,
+            "drop_rate_pct": 17.08
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 1212,
+            "surge_rate_pct": 2.16,
+            "drop_rate_pct": 19.05
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 20.8
+  },
+  {
+    "arm": "P7_L3_ENSEMBLE_H",
+    "signal_path": "frozen_signal_P7_L3_ENSEMBLE_H_20260503_163436.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 395,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.21,
+        "top_decile_drop_rate_pct": 8.2,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.48,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 45.8,
+            "median": 42.0,
+            "p25": 13.7,
+            "p75": 77.1,
+            "n": 395,
+            "pct_above_50": 45.3,
+            "pct_above_80": 23.5
+          },
+          "t-5": {
+            "mean": 47.2,
+            "median": 47.5,
+            "p25": 16.0,
+            "p75": 77.0,
+            "n": 395,
+            "pct_above_50": 48.1,
+            "pct_above_80": 21.8
+          },
+          "t-10": {
+            "mean": 46.1,
+            "median": 43.6,
+            "p25": 14.5,
+            "p75": 76.3,
+            "n": 394,
+            "pct_above_50": 45.7,
+            "pct_above_80": 22.3
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 123,
+            "surge_rate_pct": 0.22,
+            "drop_rate_pct": 8.47
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 68,
+            "surge_rate_pct": 0.12,
+            "drop_rate_pct": 6.55
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 54,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.24
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 56,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.11
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 94,
+            "surge_rate_pct": 0.17,
+            "drop_rate_pct": 7.67
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1327,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.75,
+        "top_decile_drop_rate_pct": 13.75,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.54,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 47.8,
+            "median": 46.3,
+            "p25": 15.2,
+            "p75": 80.0,
+            "n": 1327,
+            "pct_above_50": 47.4,
+            "pct_above_80": 24.9
+          },
+          "t-5": {
+            "mean": 47.3,
+            "median": 45.6,
+            "p25": 16.0,
+            "p75": 78.5,
+            "n": 1324,
+            "pct_above_50": 46.9,
+            "pct_above_80": 23.9
+          },
+          "t-10": {
+            "mean": 46.4,
+            "median": 43.4,
+            "p25": 14.7,
+            "p75": 78.1,
+            "n": 1320,
+            "pct_above_50": 45.2,
+            "pct_above_80": 23.2
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 384,
+            "surge_rate_pct": 0.7,
+            "drop_rate_pct": 14.2
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 210,
+            "surge_rate_pct": 0.38,
+            "drop_rate_pct": 11.95
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 205,
+            "surge_rate_pct": 0.37,
+            "drop_rate_pct": 11.47
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 191,
+            "surge_rate_pct": 0.35,
+            "drop_rate_pct": 11.16
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 337,
+            "surge_rate_pct": 0.6,
+            "drop_rate_pct": 12.98
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4931,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.79,
+        "top_decile_precision_pct": 2.66,
+        "top_decile_drop_rate_pct": 19.58,
+        "top_decile_observations": 27783,
+        "lift_vs_random": 1.48,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 48.7,
+            "median": 47.2,
+            "p25": 18.9,
+            "p75": 79.7,
+            "n": 4931,
+            "pct_above_50": 47.9,
+            "pct_above_80": 24.8
+          },
+          "t-5": {
+            "mean": 48.2,
+            "median": 46.6,
+            "p25": 18.7,
+            "p75": 78.5,
+            "n": 4911,
+            "pct_above_50": 47.0,
+            "pct_above_80": 23.7
+          },
+          "t-10": {
+            "mean": 48.2,
+            "median": 46.4,
+            "p25": 18.4,
+            "p75": 78.9,
+            "n": 4889,
+            "pct_above_50": 47.0,
+            "pct_above_80": 24.0
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54688,
+            "surges": 1264,
+            "surge_rate_pct": 2.31,
+            "drop_rate_pct": 20.7
+          },
+          {
+            "quintile": "Q2",
+            "count": 54688,
+            "surges": 886,
+            "surge_rate_pct": 1.62,
+            "drop_rate_pct": 18.16
+          },
+          {
+            "quintile": "Q3",
+            "count": 54688,
+            "surges": 793,
+            "surge_rate_pct": 1.45,
+            "drop_rate_pct": 17.77
+          },
+          {
+            "quintile": "Q4",
+            "count": 54688,
+            "surges": 750,
+            "surge_rate_pct": 1.37,
+            "drop_rate_pct": 17.03
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56154,
+            "surges": 1238,
+            "surge_rate_pct": 2.2,
+            "drop_rate_pct": 18.91
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 22.9
+  },
+  {
+    "arm": "P8_SIDE_V3",
+    "signal_path": "frozen_signal_P8_SIDE_V3_20260504_174158.npz",
+    "analysis_window": "2012-01-01 \u2192 2026-02-27",
+    "sample_step": 5,
+    "horizons": {
+      "5": {
+        "horizon_days": 5,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 396,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.14,
+        "top_decile_precision_pct": 0.24,
+        "top_decile_drop_rate_pct": 8.15,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.7,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 47.3,
+            "median": 44.1,
+            "p25": 11.6,
+            "p75": 82.0,
+            "n": 396,
+            "pct_above_50": 47.0,
+            "pct_above_80": 26.5
+          },
+          "t-5": {
+            "mean": 48.4,
+            "median": 48.1,
+            "p25": 13.3,
+            "p75": 82.5,
+            "n": 396,
+            "pct_above_50": 48.2,
+            "pct_above_80": 28.0
+          },
+          "t-10": {
+            "mean": 46.8,
+            "median": 44.2,
+            "p25": 13.2,
+            "p75": 80.7,
+            "n": 395,
+            "pct_above_50": 46.3,
+            "pct_above_80": 25.8
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 131,
+            "surge_rate_pct": 0.24,
+            "drop_rate_pct": 8.64
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 57,
+            "surge_rate_pct": 0.1,
+            "drop_rate_pct": 6.76
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 42,
+            "surge_rate_pct": 0.08,
+            "drop_rate_pct": 6.05
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 60,
+            "surge_rate_pct": 0.11,
+            "drop_rate_pct": 6.26
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 106,
+            "surge_rate_pct": 0.19,
+            "drop_rate_pct": 7.34
+          }
+        ]
+      },
+      "10": {
+        "horizon_days": 10,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 1331,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 0.48,
+        "top_decile_precision_pct": 0.69,
+        "top_decile_drop_rate_pct": 13.78,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.43,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 47.1,
+            "median": 45.5,
+            "p25": 13.2,
+            "p75": 80.0,
+            "n": 1331,
+            "pct_above_50": 46.0,
+            "pct_above_80": 25.1
+          },
+          "t-5": {
+            "mean": 47.4,
+            "median": 44.2,
+            "p25": 15.0,
+            "p75": 80.5,
+            "n": 1328,
+            "pct_above_50": 45.6,
+            "pct_above_80": 25.8
+          },
+          "t-10": {
+            "mean": 46.5,
+            "median": 43.3,
+            "p25": 14.5,
+            "p75": 79.0,
+            "n": 1324,
+            "pct_above_50": 44.5,
+            "pct_above_80": 23.9
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 404,
+            "surge_rate_pct": 0.74,
+            "drop_rate_pct": 14.31
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 199,
+            "surge_rate_pct": 0.36,
+            "drop_rate_pct": 12.31
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 194,
+            "surge_rate_pct": 0.35,
+            "drop_rate_pct": 11.07
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 192,
+            "surge_rate_pct": 0.35,
+            "drop_rate_pct": 11.29
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 342,
+            "surge_rate_pct": 0.61,
+            "drop_rate_pct": 12.77
+          }
+        ]
+      },
+      "21": {
+        "horizon_days": 21,
+        "surge_threshold_pct": 20.0,
+        "total_surge_events": 4945,
+        "scored_dates": 712,
+        "overall_surge_rate_pct": 1.8,
+        "top_decile_precision_pct": 2.51,
+        "top_decile_drop_rate_pct": 19.89,
+        "top_decile_observations": 27843,
+        "lift_vs_random": 1.4,
+        "pre_event_score_percentile": {
+          "t-0": {
+            "mean": 47.7,
+            "median": 45.6,
+            "p25": 17.2,
+            "p75": 78.7,
+            "n": 4945,
+            "pct_above_50": 46.6,
+            "pct_above_80": 23.8
+          },
+          "t-5": {
+            "mean": 47.1,
+            "median": 44.6,
+            "p25": 16.9,
+            "p75": 77.9,
+            "n": 4925,
+            "pct_above_50": 45.5,
+            "pct_above_80": 23.0
+          },
+          "t-10": {
+            "mean": 47.6,
+            "median": 45.5,
+            "p25": 17.3,
+            "p75": 77.8,
+            "n": 4904,
+            "pct_above_50": 46.3,
+            "pct_above_80": 23.1
+          }
+        },
+        "quintile_breakdown": [
+          {
+            "quintile": "Q1 (bottom)",
+            "count": 54767,
+            "surges": 1360,
+            "surge_rate_pct": 2.48,
+            "drop_rate_pct": 20.47
+          },
+          {
+            "quintile": "Q2",
+            "count": 54767,
+            "surges": 874,
+            "surge_rate_pct": 1.6,
+            "drop_rate_pct": 18.55
+          },
+          {
+            "quintile": "Q3",
+            "count": 54767,
+            "surges": 775,
+            "surge_rate_pct": 1.42,
+            "drop_rate_pct": 17.52
+          },
+          {
+            "quintile": "Q4",
+            "count": 54767,
+            "surges": 735,
+            "surge_rate_pct": 1.34,
+            "drop_rate_pct": 17.13
+          },
+          {
+            "quintile": "Q5 (top)",
+            "count": 56213,
+            "surges": 1201,
+            "surge_rate_pct": 2.14,
+            "drop_rate_pct": 18.87
+          }
+        ]
+      }
+    },
+    "elapsed_sec": 21.9
+  }
+]

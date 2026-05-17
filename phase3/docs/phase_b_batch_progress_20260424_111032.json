@@ -1,0 +1,215 @@
+{
+  "batch_started_at": "2026-04-24T11:10:32",
+  "dry_run": false,
+  "n_queued": 6,
+  "queue": [
+    "mild",
+    "balanced",
+    "deep",
+    "bull_free",
+    "def_heavy",
+    "side_heavy"
+  ],
+  "current": null,
+  "completed": [
+    "mild",
+    "balanced",
+    "deep",
+    "bull_free",
+    "def_heavy",
+    "side_heavy"
+  ],
+  "failed": [],
+  "results": [
+    {
+      "id": "mild",
+      "tag": "P5C_MILD",
+      "batch": 3,
+      "status": "ok",
+      "elapsed_sec": 7831.6,
+      "elapsed_min": 130.5,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_MILD_20260424_132104.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_132104.json",
+      "signal_quality": {
+        "k_selected": 13,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": 0.1,
+      "w_turnover_side": 0.3,
+      "w_turnover_def": 0.4,
+      "w_cost_bull": 0.05,
+      "w_cost_side": 0.2,
+      "w_cost_def": 0.25,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260501
+    },
+    {
+      "id": "balanced",
+      "tag": "P5C_BALANCED",
+      "batch": 3,
+      "status": "ok",
+      "elapsed_sec": 6848.0,
+      "elapsed_min": 114.1,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_BALANCED_20260424_151512.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_151512.json",
+      "signal_quality": {
+        "k_selected": 6,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.25,
+      "w_cost": 0.15,
+      "w_turnover_bull": 0.15,
+      "w_turnover_side": 0.25,
+      "w_turnover_def": 0.35,
+      "w_cost_bull": 0.1,
+      "w_cost_side": 0.15,
+      "w_cost_def": 0.2,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260501
+    },
+    {
+      "id": "deep",
+      "tag": "P5C_DEEP",
+      "batch": 3,
+      "status": "ok",
+      "elapsed_sec": 7585.6,
+      "elapsed_min": 126.4,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_DEEP_20260424_172137.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_172137.json",
+      "signal_quality": {
+        "k_selected": 8,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.4,
+      "w_cost": 0.25,
+      "w_turnover_bull": 0.0,
+      "w_turnover_side": 0.4,
+      "w_turnover_def": 0.5,
+      "w_cost_bull": 0.0,
+      "w_cost_side": 0.25,
+      "w_cost_def": 0.3,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260501
+    },
+    {
+      "id": "bull_free",
+      "tag": "P5C_BULL_FREE",
+      "batch": 3,
+      "status": "ok",
+      "elapsed_sec": 7172.2,
+      "elapsed_min": 119.5,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_BULL_FREE_20260424_192109.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_192109.json",
+      "signal_quality": {
+        "k_selected": 8,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": 0.0,
+      "w_turnover_side": 0.3,
+      "w_turnover_def": 0.4,
+      "w_cost_bull": 0.0,
+      "w_cost_side": 0.2,
+      "w_cost_def": 0.25,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260501
+    },
+    {
+      "id": "def_heavy",
+      "tag": "P5C_DEF_HEAVY",
+      "batch": 3,
+      "status": "ok",
+      "elapsed_sec": 7506.2,
+      "elapsed_min": 125.1,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_DEF_HEAVY_20260424_212616.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_212616.json",
+      "signal_quality": {
+        "k_selected": 10,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.15,
+      "w_cost": 0.1,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.15,
+      "w_turnover_def": 0.6,
+      "w_cost_bull": 0.02,
+      "w_cost_side": 0.1,
+      "w_cost_def": 0.35,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260501
+    },
+    {
+      "id": "side_heavy",
+      "tag": "P5C_SIDE_HEAVY",
+      "batch": 3,
+      "status": "ok",
+      "elapsed_sec": 7257.0,
+      "elapsed_min": 120.9,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_SIDE_HEAVY_20260424_232713.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260424_232713.json",
+      "signal_quality": {
+        "k_selected": 5,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.5,
+      "w_cost": 0.3,
+      "w_turnover_bull": 0.05,
+      "w_turnover_side": 0.5,
+      "w_turnover_def": 0.3,
+      "w_cost_bull": 0.02,
+      "w_cost_side": 0.3,
+      "w_cost_def": 0.15,
+      "train_window": [
+        "2012-01-03",
+        "2024-05-31"
+      ],
+      "ga_seed": 20260501
+    }
+  ],
+  "updated_at": "2026-04-24T23:27:13",
+  "batch_finished_at": "2026-04-24T23:27:13",
+  "total_sec": 44200.6,
+  "total_min": 736.7
+}

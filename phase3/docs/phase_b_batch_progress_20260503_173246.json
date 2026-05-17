@@ -1,0 +1,50 @@
+{
+  "batch_started_at": "2026-05-03T17:32:46",
+  "dry_run": false,
+  "n_queued": 3,
+  "queue": [
+    "b8_side_v3",
+    "b8_bull_dense",
+    "b8_balanced"
+  ],
+  "current": null,
+  "completed": [],
+  "failed": [
+    "b8_side_v3",
+    "b8_bull_dense",
+    "b8_balanced"
+  ],
+  "results": [
+    {
+      "id": "b8_side_v3",
+      "tag": "P8_SIDE_V3",
+      "batch": 8,
+      "status": "failed",
+      "elapsed_sec": 85.2,
+      "error": "template TPL_SPREAD: conc penalty not in candidate space",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_batch_b.py\", line 1018, in run_batch\n    res = run_phase5_retrain(\n        dry_run=dry_run,\n    ...<6 lines>...\n        excel_prefix=cfg.get(\"excel_prefix\"),\n    )\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_retrain.py\", line 340, in run_phase5_retrain\n    bundle = engine.run_search_from_pack(pack, regime_by_date, cfg)\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 9996, in run_search_from_pack\n    \"    best_meta_row: Optional[Dict[str, Any]] = None\\n\",\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 8708, in run_meta_search_outer_loop\n    \"    )\\n\",\n             ^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 8242, in build_meta_trial_configs\n    \"        out[\\\"side_soft_profile\\\"] = _sample_one_from_candidates(rng, tuple(cfg.meta_side_soft_profile_candidates))\\n\",\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 963, in validate_meta_templates_against_candidate_space\n    \"        if t[\\\"bull_soft_profile\\\"] not in bull_keys:\\n\",\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: template TPL_SPREAD: conc penalty not in candidate space\n"
+    },
+    {
+      "id": "b8_bull_dense",
+      "tag": "P8_BULL_DENSE",
+      "batch": 8,
+      "status": "failed",
+      "elapsed_sec": 79.1,
+      "error": "template TPL_BALANCED: entropy bonus not in candidate space",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_batch_b.py\", line 1018, in run_batch\n    res = run_phase5_retrain(\n        dry_run=dry_run,\n    ...<6 lines>...\n        excel_prefix=cfg.get(\"excel_prefix\"),\n    )\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_retrain.py\", line 340, in run_phase5_retrain\n    bundle = engine.run_search_from_pack(pack, regime_by_date, cfg)\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 9996, in run_search_from_pack\n    \"    best_meta_row: Optional[Dict[str, Any]] = None\\n\",\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 8708, in run_meta_search_outer_loop\n    \"    )\\n\",\n             ^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 8242, in build_meta_trial_configs\n    \"        out[\\\"side_soft_profile\\\"] = _sample_one_from_candidates(rng, tuple(cfg.meta_side_soft_profile_candidates))\\n\",\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 961, in validate_meta_templates_against_candidate_space\n    \"        if t[\\\"side_soft_profile\\\"] not in side_keys:\\n\",\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: template TPL_BALANCED: entropy bonus not in candidate space\n"
+    },
+    {
+      "id": "b8_balanced",
+      "tag": "P8_BALANCED",
+      "batch": 8,
+      "status": "failed",
+      "elapsed_sec": 77.2,
+      "error": "template TPL_SIDE: entropy bonus not in candidate space",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_batch_b.py\", line 1018, in run_batch\n    res = run_phase5_retrain(\n        dry_run=dry_run,\n    ...<6 lines>...\n        excel_prefix=cfg.get(\"excel_prefix\"),\n    )\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_retrain.py\", line 340, in run_phase5_retrain\n    bundle = engine.run_search_from_pack(pack, regime_by_date, cfg)\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 9996, in run_search_from_pack\n    \"    best_meta_row: Optional[Dict[str, Any]] = None\\n\",\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 8708, in run_meta_search_outer_loop\n    \"    )\\n\",\n             ^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 8242, in build_meta_trial_configs\n    \"        out[\\\"side_soft_profile\\\"] = _sample_one_from_candidates(rng, tuple(cfg.meta_side_soft_profile_candidates))\\n\",\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/0315 windows\uc774\uc0ac.ipynb\", line 961, in validate_meta_templates_against_candidate_space\n    \"        if t[\\\"side_soft_profile\\\"] not in side_keys:\\n\",\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: template TPL_SIDE: entropy bonus not in candidate space\n"
+    }
+  ],
+  "updated_at": "2026-05-03T17:36:48",
+  "batch_finished_at": "2026-05-03T17:36:48",
+  "total_sec": 241.5,
+  "total_min": 4.0
+}

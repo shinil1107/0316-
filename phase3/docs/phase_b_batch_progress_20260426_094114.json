@@ -1,0 +1,39 @@
+{
+  "batch_started_at": "2026-04-26T09:41:14",
+  "dry_run": true,
+  "n_queued": 2,
+  "queue": [
+    "side_tech",
+    "side_fund_brk"
+  ],
+  "current": null,
+  "completed": [],
+  "failed": [
+    "side_tech",
+    "side_fund_brk"
+  ],
+  "results": [
+    {
+      "id": "side_tech",
+      "tag": "P5E_SIDE_TECH",
+      "batch": 5,
+      "status": "failed",
+      "elapsed_sec": 142.8,
+      "error": "[Errno 1] Operation not permitted: '/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5E_SIDE_TECH_DRYRUN_20260426_094337.npz'",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_batch_b.py\", line 626, in run_batch\n    res = run_phase5_retrain(\n        dry_run=dry_run,\n    ...<6 lines>...\n        excel_prefix=cfg.get(\"excel_prefix\"),\n    )\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_retrain.py\", line 364, in run_phase5_retrain\n    np.savez(\n    ~~~~~~~~^\n        fs_path,\n        ^^^^^^^^\n    ...<5 lines>...\n        ),\n        ^^\n    )\n    ^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py\", line 673, in savez\n    _savez(file, args, kwds, False, allow_pickle=allow_pickle)\n    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py\", line 779, in _savez\n    zipf = zipfile_factory(file, mode=\"w\", compression=compression)\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py\", line 112, in zipfile_factory\n    return zipfile.ZipFile(file, *args, **kwargs)\n           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/zipfile/__init__.py\", line 1367, in __init__\n    self.fp = io.open(file, filemode)\n              ~~~~~~~^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted: '/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5E_SIDE_TECH_DRYRUN_20260426_094337.npz'\n"
+    },
+    {
+      "id": "side_fund_brk",
+      "tag": "P5E_SIDE_FUND_BREAKOUT",
+      "batch": 5,
+      "status": "failed",
+      "elapsed_sec": 160.0,
+      "error": "[Errno 1] Operation not permitted: '/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5E_SIDE_FUND_BREAKOUT_DRYRUN_20260426_094617.npz'",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_batch_b.py\", line 626, in run_batch\n    res = run_phase5_retrain(\n        dry_run=dry_run,\n    ...<6 lines>...\n        excel_prefix=cfg.get(\"excel_prefix\"),\n    )\n  File \"/Users/shin-il/PyCharmMiscProject/0316-/phase3/run_phase5_retrain.py\", line 364, in run_phase5_retrain\n    np.savez(\n    ~~~~~~~~^\n        fs_path,\n        ^^^^^^^^\n    ...<5 lines>...\n        ),\n        ^^\n    )\n    ^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py\", line 673, in savez\n    _savez(file, args, kwds, False, allow_pickle=allow_pickle)\n    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py\", line 779, in _savez\n    zipf = zipfile_factory(file, mode=\"w\", compression=compression)\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py\", line 112, in zipfile_factory\n    return zipfile.ZipFile(file, *args, **kwargs)\n           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/zipfile/__init__.py\", line 1367, in __init__\n    self.fp = io.open(file, filemode)\n              ~~~~~~~^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted: '/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5E_SIDE_FUND_BREAKOUT_DRYRUN_20260426_094617.npz'\n"
+    }
+  ],
+  "updated_at": "2026-04-26T09:46:17",
+  "batch_finished_at": "2026-04-26T09:46:17",
+  "total_sec": 302.8,
+  "total_min": 5.0
+}

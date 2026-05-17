@@ -1,0 +1,2397 @@
+{
+  "meta": {
+    "generated_at": "2026-04-25T00:14:47",
+    "pack_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+    "pack_basename": "precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+    "pack_start": "2011-01-03",
+    "pack_end": "2026-02-27",
+    "total_elapsed_sec": 186.7,
+    "signals": [
+      {
+        "id": "baseline",
+        "arm": "Baseline_V2",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz"
+      },
+      {
+        "id": "t1b_inj",
+        "arm": "T1b_BULL_INJECTED",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5_RETRAIN_T1b_BULL_INJECTED_20260423_225842.npz"
+      },
+      {
+        "id": "p5c_mild",
+        "arm": "P5C_MILD",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_MILD_20260424_132104.npz"
+      },
+      {
+        "id": "p5c_balanced",
+        "arm": "P5C_BALANCED",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_BALANCED_20260424_151512.npz"
+      },
+      {
+        "id": "p5c_deep",
+        "arm": "P5C_DEEP",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_DEEP_20260424_172137.npz"
+      },
+      {
+        "id": "p5c_bull_free",
+        "arm": "P5C_BULL_FREE",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_BULL_FREE_20260424_192109.npz"
+      },
+      {
+        "id": "p5c_def_heavy",
+        "arm": "P5C_DEF_HEAVY",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_DEF_HEAVY_20260424_212616.npz"
+      },
+      {
+        "id": "p5c_side_heavy",
+        "arm": "P5C_SIDE_HEAVY",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_SIDE_HEAVY_20260424_232713.npz"
+      }
+    ],
+    "folds": [
+      {
+        "id": "F0a",
+        "start": "2012-01-01",
+        "end": "2014-12-31",
+        "group": "pre_oos"
+      },
+      {
+        "id": "F0b",
+        "start": "2015-01-01",
+        "end": "2016-12-31",
+        "group": "pre_oos"
+      },
+      {
+        "id": "F1",
+        "start": "2019-01-01",
+        "end": "2020-12-31",
+        "group": "in_sample"
+      },
+      {
+        "id": "F2",
+        "start": "2021-01-01",
+        "end": "2022-12-31",
+        "group": "in_sample"
+      },
+      {
+        "id": "F3",
+        "start": "2023-01-01",
+        "end": "2024-05-31",
+        "group": "in_sample"
+      },
+      {
+        "id": "F4",
+        "start": "2024-06-01",
+        "end": "2026-02-27",
+        "group": "post_oos"
+      }
+    ],
+    "protocol": {
+      "initial_capital": 100000.0,
+      "daily_buy_limit": 1000.0,
+      "commission_bps": 10.0,
+      "slippage_bps": 5.0,
+      "rebalance_mode": "daily",
+      "strategy_stack": "SIDE_DEF_p12",
+      "regime_blend": false
+    }
+  },
+  "per_signal": [
+    {
+      "signal_id": "baseline",
+      "arm": "Baseline_V2",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.28891,
+            "Max_Drawdown": 0.142528,
+            "Net_Sharpe": 1.6383,
+            "Calmar_Ratio": 2.027,
+            "Total_Return": 1.1369,
+            "Daily_Win_Rate": 0.5623,
+            "Monthly_Win_Rate": 0.7429,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2249.08,
+            "Commission_Pct_of_Capital": 2.25,
+            "Final_Value": 213694.54,
+            "turnover_annualized_proxy": 3.1974
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.01045850768387904,
+            "oos_mean_ic_3m": -0.007338327005941206,
+            "oos_mean_spread_1m": -0.0007797579942285844,
+            "oos_mean_spread_3m": -0.0018127788432651872,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.9
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.104474,
+            "Max_Drawdown": 0.243447,
+            "Net_Sharpe": 0.6661,
+            "Calmar_Ratio": 0.4291,
+            "Total_Return": 0.2199,
+            "Daily_Win_Rate": 0.5675,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1148.93,
+            "Commission_Pct_of_Capital": 1.15,
+            "Final_Value": 121986.27,
+            "turnover_annualized_proxy": 3.4511
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.02181027265947161,
+            "oos_mean_ic_3m": 0.01971541954215154,
+            "oos_mean_spread_1m": 0.005868123399594861,
+            "oos_mean_spread_3m": 0.011970382892963542,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 4.1
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.393138,
+            "Max_Drawdown": 0.351522,
+            "Net_Sharpe": 1.2831,
+            "Calmar_Ratio": 1.1184,
+            "Total_Return": 0.9434,
+            "Daily_Win_Rate": 0.604,
+            "Monthly_Win_Rate": 0.7391,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1214.59,
+            "Commission_Pct_of_Capital": 1.21,
+            "Final_Value": 194338.87,
+            "turnover_annualized_proxy": 2.7515
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0072252195037964505,
+            "oos_mean_ic_3m": -0.004422374539584535,
+            "oos_mean_spread_1m": 0.0003021848693936713,
+            "oos_mean_spread_3m": 0.002333116319938987,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.7
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.043005,
+            "Max_Drawdown": 0.237343,
+            "Net_Sharpe": 0.299,
+            "Calmar_Ratio": 0.1812,
+            "Total_Return": 0.0877,
+            "Daily_Win_Rate": 0.5288,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 936.44,
+            "Commission_Pct_of_Capital": 0.94,
+            "Final_Value": 108767.73,
+            "turnover_annualized_proxy": 2.9911
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.002177058136289464,
+            "oos_mean_ic_3m": -0.00907474647857426,
+            "oos_mean_spread_1m": 0.000578827985158032,
+            "oos_mean_spread_3m": -0.00208532729201864,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 5.4
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.497518,
+            "Max_Drawdown": 0.133326,
+            "Net_Sharpe": 2.0824,
+            "Calmar_Ratio": 3.7316,
+            "Total_Return": 0.7662,
+            "Daily_Win_Rate": 0.5718,
+            "Monthly_Win_Rate": 0.6875,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 924.41,
+            "Commission_Pct_of_Capital": 0.92,
+            "Final_Value": 176624.85,
+            "turnover_annualized_proxy": 3.1607
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.013963056044542278,
+            "oos_mean_ic_3m": 0.02108503824644347,
+            "oos_mean_spread_1m": 0.002170662475502574,
+            "oos_mean_spread_3m": 0.004993567861439082,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.7
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.509111,
+            "Max_Drawdown": 0.302855,
+            "Net_Sharpe": 1.5168,
+            "Calmar_Ratio": 1.681,
+            "Total_Return": 1.0381,
+            "Daily_Win_Rate": 0.5803,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 948.63,
+            "Commission_Pct_of_Capital": 0.95,
+            "Final_Value": 203805.49,
+            "turnover_annualized_proxy": 2.4071
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0053103338009618355,
+            "oos_mean_ic_3m": 0.02142178936839956,
+            "oos_mean_spread_1m": 0.003249437434798452,
+            "oos_mean_spread_3m": 0.021337132930978147,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.2
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.30602599999999996,
+          "std": 0.18055350842801882,
+          "cv": 0.589994014979181,
+          "min": 0.043005,
+          "max": 0.509111,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.196692,
+          "std": 0.09221800000000001,
+          "cv": 0.46884469119232103,
+          "min": 0.104474,
+          "max": 0.28891,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.3112203333333334,
+          "std": 0.19438517583453277,
+          "cv": 0.6245902179737595,
+          "min": 0.043005,
+          "max": 0.497518,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.509111,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.509111,
+          "max": 0.509111,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.589994014979181,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.589994014979181,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.043005,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "t1b_inj",
+      "arm": "T1b_BULL_INJECTED",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5_RETRAIN_T1b_BULL_INJECTED_20260423_225842.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.273016,
+            "Max_Drawdown": 0.142074,
+            "Net_Sharpe": 1.5431,
+            "Calmar_Ratio": 1.9216,
+            "Total_Return": 1.0591,
+            "Daily_Win_Rate": 0.5557,
+            "Monthly_Win_Rate": 0.7429,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2231.63,
+            "Commission_Pct_of_Capital": 2.23,
+            "Final_Value": 205906.26,
+            "turnover_annualized_proxy": 3.2534
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.011870954801788191,
+            "oos_mean_ic_3m": -0.00665049798622699,
+            "oos_mean_spread_1m": -0.001049042060386088,
+            "oos_mean_spread_3m": -0.0016136340257379947,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.9
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.105693,
+            "Max_Drawdown": 0.231442,
+            "Net_Sharpe": 0.686,
+            "Calmar_Ratio": 0.4567,
+            "Total_Return": 0.2226,
+            "Daily_Win_Rate": 0.5714,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1201.79,
+            "Commission_Pct_of_Capital": 1.2,
+            "Final_Value": 122255.69,
+            "turnover_annualized_proxy": 3.6055
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.01488665544759855,
+            "oos_mean_ic_3m": 0.015526312967279658,
+            "oos_mean_spread_1m": 0.003959947881813744,
+            "oos_mean_spread_3m": 0.009490470150245312,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 4.1
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.37557,
+            "Max_Drawdown": 0.366223,
+            "Net_Sharpe": 1.233,
+            "Calmar_Ratio": 1.0255,
+            "Total_Return": 0.8946,
+            "Daily_Win_Rate": 0.5921,
+            "Monthly_Win_Rate": 0.7391,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1208.45,
+            "Commission_Pct_of_Capital": 1.21,
+            "Final_Value": 189458.89,
+            "turnover_annualized_proxy": 2.7838
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0014131502382651484,
+            "oos_mean_ic_3m": -0.017794068289744922,
+            "oos_mean_spread_1m": -0.0026149100578383238,
+            "oos_mean_spread_3m": -0.005688125491640123,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 3.9
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.073928,
+            "Max_Drawdown": 0.238037,
+            "Net_Sharpe": 0.4317,
+            "Calmar_Ratio": 0.3106,
+            "Total_Return": 0.153,
+            "Daily_Win_Rate": 0.5288,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 1028.8,
+            "Commission_Pct_of_Capital": 1.03,
+            "Final_Value": 115299.44,
+            "turnover_annualized_proxy": 3.1863
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.009590682102994014,
+            "oos_mean_ic_3m": -0.0012161389145112459,
+            "oos_mean_spread_1m": 0.002765197073113935,
+            "oos_mean_spread_3m": 0.0018890559190334298,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 4.7
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.449607,
+            "Max_Drawdown": 0.146459,
+            "Net_Sharpe": 1.9503,
+            "Calmar_Ratio": 3.0699,
+            "Total_Return": 0.6872,
+            "Daily_Win_Rate": 0.5549,
+            "Monthly_Win_Rate": 0.625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 929.27,
+            "Commission_Pct_of_Capital": 0.93,
+            "Final_Value": 168716.71,
+            "turnover_annualized_proxy": 3.2709
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.01249327878579828,
+            "oos_mean_ic_3m": 0.021907299760654354,
+            "oos_mean_spread_1m": 0.001246903285937913,
+            "oos_mean_spread_3m": 0.004851619900057306,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.6
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.47178,
+            "Max_Drawdown": 0.312807,
+            "Net_Sharpe": 1.4309,
+            "Calmar_Ratio": 1.5082,
+            "Total_Return": 0.9516,
+            "Daily_Win_Rate": 0.5803,
+            "Monthly_Win_Rate": 0.7,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 967.19,
+            "Commission_Pct_of_Capital": 0.97,
+            "Final_Value": 195161.84,
+            "turnover_annualized_proxy": 2.5261
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.003441249160065688,
+            "oos_mean_ic_3m": 0.020897255411679458,
+            "oos_mean_spread_1m": 0.003430918544402418,
+            "oos_mean_spread_3m": 0.020146118770535112,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.1
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.29159899999999994,
+          "std": 0.15640219661287796,
+          "cv": 0.5363605383176142,
+          "min": 0.073928,
+          "max": 0.47178,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.18935449999999998,
+          "std": 0.0836615,
+          "cv": 0.441824725580855,
+          "min": 0.105693,
+          "max": 0.273016,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.2997016666666667,
+          "std": 0.16248216468756058,
+          "cv": 0.542146350051086,
+          "min": 0.073928,
+          "max": 0.449607,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.47178,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.47178,
+          "max": 0.47178,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.5363605383176142,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.5363605383176142,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.073928,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p5c_mild",
+      "arm": "P5C_MILD",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_MILD_20260424_132104.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.22123,
+            "Max_Drawdown": 0.161473,
+            "Net_Sharpe": 1.3848,
+            "Calmar_Ratio": 1.3701,
+            "Total_Return": 0.8185,
+            "Daily_Win_Rate": 0.5491,
+            "Monthly_Win_Rate": 0.7143,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2128.75,
+            "Commission_Pct_of_Capital": 2.13,
+            "Final_Value": 181845.84,
+            "turnover_annualized_proxy": 3.3684
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.018724132903228316,
+            "oos_mean_ic_3m": -0.019919084088714685,
+            "oos_mean_spread_1m": -0.0010980522064419468,
+            "oos_mean_spread_3m": -0.0004505439845893481,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 4.9
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.073188,
+            "Max_Drawdown": 0.173218,
+            "Net_Sharpe": 0.5404,
+            "Calmar_Ratio": 0.4225,
+            "Total_Return": 0.1517,
+            "Daily_Win_Rate": 0.5456,
+            "Monthly_Win_Rate": 0.5217,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1372.75,
+            "Commission_Pct_of_Capital": 1.37,
+            "Final_Value": 115173.15,
+            "turnover_annualized_proxy": 4.2538
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.005272146433965537,
+            "oos_mean_ic_3m": -0.015243362750441908,
+            "oos_mean_spread_1m": 0.0032453250299369443,
+            "oos_mean_spread_3m": 1.8897847055421477e-05,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 3.3
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.26709,
+            "Max_Drawdown": 0.35105,
+            "Net_Sharpe": 0.9848,
+            "Calmar_Ratio": 0.7608,
+            "Total_Return": 0.607,
+            "Daily_Win_Rate": 0.5624,
+            "Monthly_Win_Rate": 0.7391,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1402.38,
+            "Commission_Pct_of_Capital": 1.4,
+            "Final_Value": 160702.72,
+            "turnover_annualized_proxy": 3.5867
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.0092369189751034,
+            "oos_mean_ic_3m": -0.0015894625770641506,
+            "oos_mean_spread_1m": -0.001705681336992912,
+            "oos_mean_spread_3m": 0.009027694649075145,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 3.1
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.125865,
+            "Max_Drawdown": 0.20482,
+            "Net_Sharpe": 0.6465,
+            "Calmar_Ratio": 0.6145,
+            "Total_Return": 0.267,
+            "Daily_Win_Rate": 0.5368,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 908.99,
+            "Commission_Pct_of_Capital": 0.91,
+            "Final_Value": 126697.69,
+            "turnover_annualized_proxy": 2.6738
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.030493906686753874,
+            "oos_mean_ic_3m": 0.020621066338217482,
+            "oos_mean_spread_1m": 0.007070497820739435,
+            "oos_mean_spread_3m": 0.008482532217949217,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 2.9
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.210856,
+            "Max_Drawdown": 0.1324,
+            "Net_Sharpe": 1.2252,
+            "Calmar_Ratio": 1.5926,
+            "Total_Return": 0.3093,
+            "Daily_Win_Rate": 0.5408,
+            "Monthly_Win_Rate": 0.5,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 966.06,
+            "Commission_Pct_of_Capital": 0.97,
+            "Final_Value": 130934.75,
+            "turnover_annualized_proxy": 3.9566
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.038124155276458085,
+            "oos_mean_ic_3m": -0.07153483909685403,
+            "oos_mean_spread_1m": -0.011453285316413361,
+            "oos_mean_spread_3m": -0.03116725823165519,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.1
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.39662,
+            "Max_Drawdown": 0.271946,
+            "Net_Sharpe": 1.4426,
+            "Calmar_Ratio": 1.4585,
+            "Total_Return": 0.7824,
+            "Daily_Win_Rate": 0.5642,
+            "Monthly_Win_Rate": 0.7,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1243.48,
+            "Commission_Pct_of_Capital": 1.24,
+            "Final_Value": 178241.33,
+            "turnover_annualized_proxy": 3.4449
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.007359005716147735,
+            "oos_mean_ic_3m": 0.01917046195802277,
+            "oos_mean_spread_1m": -0.0033631170762657104,
+            "oos_mean_spread_3m": 0.011172499550815297,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 2.8
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.21580816666666666,
+          "std": 0.10312367243980511,
+          "cv": 0.47784879521768997,
+          "min": 0.073188,
+          "max": 0.39662,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.147209,
+          "std": 0.074021,
+          "cv": 0.502829310707905,
+          "min": 0.073188,
+          "max": 0.22123,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.20127033333333333,
+          "std": 0.058051924517816135,
+          "cv": 0.28842762644842246,
+          "min": 0.125865,
+          "max": 0.26709,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.39662,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.39662,
+          "max": 0.39662,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.47784879521768997,
+          "threshold": 0.5,
+          "pass": true
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.47784879521768997,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.073188,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p5c_balanced",
+      "arm": "P5C_BALANCED",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_BALANCED_20260424_151512.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.238326,
+            "Max_Drawdown": 0.140699,
+            "Net_Sharpe": 1.513,
+            "Calmar_Ratio": 1.6939,
+            "Total_Return": 0.8957,
+            "Daily_Win_Rate": 0.5491,
+            "Monthly_Win_Rate": 0.7429,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 1698.83,
+            "Commission_Pct_of_Capital": 1.7,
+            "Final_Value": 189569.49,
+            "turnover_annualized_proxy": 2.6165
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.00920814361180908,
+            "oos_mean_ic_3m": 0.012634215979580497,
+            "oos_mean_spread_1m": 0.001003764025248955,
+            "oos_mean_spread_3m": 0.0011686363765985852,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 4.2
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.052264,
+            "Max_Drawdown": 0.181806,
+            "Net_Sharpe": 0.4114,
+            "Calmar_Ratio": 0.2875,
+            "Total_Return": 0.1073,
+            "Daily_Win_Rate": 0.5556,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1047.43,
+            "Commission_Pct_of_Capital": 1.05,
+            "Final_Value": 110725.99,
+            "turnover_annualized_proxy": 3.3144
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.007802349648953972,
+            "oos_mean_ic_3m": -0.017433595978120487,
+            "oos_mean_spread_1m": 9.88284267337124e-05,
+            "oos_mean_spread_3m": -0.004303668915572827,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 2.9
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.188962,
+            "Max_Drawdown": 0.364588,
+            "Net_Sharpe": 0.7376,
+            "Calmar_Ratio": 0.5183,
+            "Total_Return": 0.4146,
+            "Daily_Win_Rate": 0.5723,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1210.05,
+            "Commission_Pct_of_Capital": 1.21,
+            "Final_Value": 141460.17,
+            "turnover_annualized_proxy": 3.3415
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.007473009611329556,
+            "oos_mean_ic_3m": 0.05447971441984178,
+            "oos_mean_spread_1m": 0.006883656760558431,
+            "oos_mean_spread_3m": 0.03590278576000212,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 2.8
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.078778,
+            "Max_Drawdown": 0.264848,
+            "Net_Sharpe": 0.4448,
+            "Calmar_Ratio": 0.2974,
+            "Total_Return": 0.1634,
+            "Daily_Win_Rate": 0.5328,
+            "Monthly_Win_Rate": 0.5217,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 969.78,
+            "Commission_Pct_of_Capital": 0.97,
+            "Final_Value": 116341.26,
+            "turnover_annualized_proxy": 2.9891
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.021835751103548885,
+            "oos_mean_ic_3m": 0.0052194739419197484,
+            "oos_mean_spread_1m": 0.00679112400042322,
+            "oos_mean_spread_3m": 0.0028371554527069423,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 2.8
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.438561,
+            "Max_Drawdown": 0.14543,
+            "Net_Sharpe": 1.9625,
+            "Calmar_Ratio": 3.0156,
+            "Total_Return": 0.6691,
+            "Daily_Win_Rate": 0.5831,
+            "Monthly_Win_Rate": 0.625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 759.12,
+            "Commission_Pct_of_Capital": 0.76,
+            "Final_Value": 166908.44,
+            "turnover_annualized_proxy": 2.6902
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0020555309820445085,
+            "oos_mean_ic_3m": -0.00913514014786148,
+            "oos_mean_spread_1m": -0.003096767310222257,
+            "oos_mean_spread_3m": -0.00776180902753455,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 1.8
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.368304,
+            "Max_Drawdown": 0.273751,
+            "Net_Sharpe": 1.3205,
+            "Calmar_Ratio": 1.3454,
+            "Total_Return": 0.7204,
+            "Daily_Win_Rate": 0.5665,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 961.8,
+            "Commission_Pct_of_Capital": 0.96,
+            "Final_Value": 172035.27,
+            "turnover_annualized_proxy": 2.7255
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.00047287733152710467,
+            "oos_mean_ic_3m": 0.007820256298003004,
+            "oos_mean_spread_1m": -0.0024592392581017104,
+            "oos_mean_spread_3m": 0.016559776323672993,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 2.5
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.2275325,
+          "std": 0.14071293147131148,
+          "cv": 0.6184300329461131,
+          "min": 0.052264,
+          "max": 0.438561,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.145295,
+          "std": 0.093031,
+          "cv": 0.6402904435803022,
+          "min": 0.052264,
+          "max": 0.238326,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.23543366666666665,
+          "std": 0.15051171299787786,
+          "cv": 0.6392956246609216,
+          "min": 0.078778,
+          "max": 0.438561,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.368304,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.368304,
+          "max": 0.368304,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.6184300329461131,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.6184300329461131,
+          "cv_base": 0.589994014979181,
+          "pass": false
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.052264,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p5c_deep",
+      "arm": "P5C_DEEP",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_DEEP_20260424_172137.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.268352,
+            "Max_Drawdown": 0.149632,
+            "Net_Sharpe": 1.4926,
+            "Calmar_Ratio": 1.7934,
+            "Total_Return": 1.0366,
+            "Daily_Win_Rate": 0.569,
+            "Monthly_Win_Rate": 0.7429,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 1813.34,
+            "Commission_Pct_of_Capital": 1.81,
+            "Final_Value": 203657.55,
+            "turnover_annualized_proxy": 2.6633
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.007384632926678168,
+            "oos_mean_ic_3m": -0.01436415204378618,
+            "oos_mean_spread_1m": -0.0003519473606790426,
+            "oos_mean_spread_3m": -0.0037385780862743286,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.4
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.081024,
+            "Max_Drawdown": 0.228773,
+            "Net_Sharpe": 0.5565,
+            "Calmar_Ratio": 0.3542,
+            "Total_Return": 0.1686,
+            "Daily_Win_Rate": 0.5694,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1191.65,
+            "Commission_Pct_of_Capital": 1.19,
+            "Final_Value": 116861.23,
+            "turnover_annualized_proxy": 3.6639
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.027611222578541195,
+            "oos_mean_ic_3m": 0.00060444433982815,
+            "oos_mean_spread_1m": 0.008710939670507541,
+            "oos_mean_spread_3m": 0.011067013943338661,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 3.7
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.295332,
+            "Max_Drawdown": 0.369467,
+            "Net_Sharpe": 1.0396,
+            "Calmar_Ratio": 0.7993,
+            "Total_Return": 0.6796,
+            "Daily_Win_Rate": 0.5743,
+            "Monthly_Win_Rate": 0.6957,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1302.74,
+            "Commission_Pct_of_Capital": 1.3,
+            "Final_Value": 167960.87,
+            "turnover_annualized_proxy": 3.2417
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.003418850535951622,
+            "oos_mean_ic_3m": 0.034822319300576256,
+            "oos_mean_spread_1m": 0.003939113412578181,
+            "oos_mean_spread_3m": 0.030062223791912434,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 3.8
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.133343,
+            "Max_Drawdown": 0.198479,
+            "Net_Sharpe": 0.6634,
+            "Calmar_Ratio": 0.6718,
+            "Total_Return": 0.2838,
+            "Daily_Win_Rate": 0.5507,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 676.33,
+            "Commission_Pct_of_Capital": 0.68,
+            "Final_Value": 128382.8,
+            "turnover_annualized_proxy": 1.9749
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.027512977394962734,
+            "oos_mean_ic_3m": 0.024365568025283474,
+            "oos_mean_spread_1m": 0.009445133770945625,
+            "oos_mean_spread_3m": 0.016812459701236775,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 3.8
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.342632,
+            "Max_Drawdown": 0.14524,
+            "Net_Sharpe": 1.5932,
+            "Calmar_Ratio": 2.3591,
+            "Total_Return": 0.5145,
+            "Daily_Win_Rate": 0.5521,
+            "Monthly_Win_Rate": 0.5,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 800.13,
+            "Commission_Pct_of_Capital": 0.8,
+            "Final_Value": 151445.68,
+            "turnover_annualized_proxy": 3.0099
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.009548469967682327,
+            "oos_mean_ic_3m": -0.022887612954047773,
+            "oos_mean_spread_1m": -0.003511835359444075,
+            "oos_mean_spread_3m": -0.006822096320121236,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.4
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.444044,
+            "Max_Drawdown": 0.294386,
+            "Net_Sharpe": 1.4391,
+            "Calmar_Ratio": 1.5084,
+            "Total_Return": 0.8884,
+            "Daily_Win_Rate": 0.5734,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1057.64,
+            "Commission_Pct_of_Capital": 1.06,
+            "Final_Value": 188842.48,
+            "turnover_annualized_proxy": 2.8226
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.006693523489402888,
+            "oos_mean_ic_3m": 0.011766668074744862,
+            "oos_mean_spread_1m": -0.000654576864134251,
+            "oos_mean_spread_3m": 0.010357243843944658,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.1
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.26078783333333333,
+          "std": 0.1225350477923448,
+          "cv": 0.46986489448579133,
+          "min": 0.081024,
+          "max": 0.444044,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.17468799999999998,
+          "std": 0.09366399999999998,
+          "cv": 0.5361787873236856,
+          "min": 0.081024,
+          "max": 0.268352,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.2571023333333333,
+          "std": 0.08961622598738592,
+          "cv": 0.3485624763708326,
+          "min": 0.133343,
+          "max": 0.342632,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.444044,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.444044,
+          "max": 0.444044,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.46986489448579133,
+          "threshold": 0.5,
+          "pass": true
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.46986489448579133,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.081024,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p5c_bull_free",
+      "arm": "P5C_BULL_FREE",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_BULL_FREE_20260424_192109.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.248591,
+            "Max_Drawdown": 0.138126,
+            "Net_Sharpe": 1.4894,
+            "Calmar_Ratio": 1.7997,
+            "Total_Return": 0.9431,
+            "Daily_Win_Rate": 0.5464,
+            "Monthly_Win_Rate": 0.7429,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 1954.15,
+            "Commission_Pct_of_Capital": 1.95,
+            "Final_Value": 194309.98,
+            "turnover_annualized_proxy": 2.9612
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.013166458087210784,
+            "oos_mean_ic_3m": -0.022502936288170166,
+            "oos_mean_spread_1m": -0.0008294587797586533,
+            "oos_mean_spread_3m": -0.003873632613908705,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 6.3
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.088704,
+            "Max_Drawdown": 0.201827,
+            "Net_Sharpe": 0.6091,
+            "Calmar_Ratio": 0.4395,
+            "Total_Return": 0.1853,
+            "Daily_Win_Rate": 0.5595,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1155.43,
+            "Commission_Pct_of_Capital": 1.16,
+            "Final_Value": 118527.68,
+            "turnover_annualized_proxy": 3.5256
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.022577613224313935,
+            "oos_mean_ic_3m": -0.0023521910944597794,
+            "oos_mean_spread_1m": 0.008737928105454776,
+            "oos_mean_spread_3m": 0.010486504240905376,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 4.2
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.261203,
+            "Max_Drawdown": 0.367103,
+            "Net_Sharpe": 0.9708,
+            "Calmar_Ratio": 0.7115,
+            "Total_Return": 0.5921,
+            "Daily_Win_Rate": 0.5723,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1205.14,
+            "Commission_Pct_of_Capital": 1.21,
+            "Final_Value": 159209.84,
+            "turnover_annualized_proxy": 3.1001
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.004884727988172964,
+            "oos_mean_ic_3m": 0.01805280768115624,
+            "oos_mean_spread_1m": 0.0033684431940057824,
+            "oos_mean_spread_3m": 0.02344773826230291,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.0
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.171192,
+            "Max_Drawdown": 0.212016,
+            "Net_Sharpe": 0.7813,
+            "Calmar_Ratio": 0.8074,
+            "Total_Return": 0.3708,
+            "Daily_Win_Rate": 0.5567,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 680.32,
+            "Commission_Pct_of_Capital": 0.68,
+            "Final_Value": 137082.99,
+            "turnover_annualized_proxy": 1.9137
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.030706848906922265,
+            "oos_mean_ic_3m": 0.029770603614523612,
+            "oos_mean_spread_1m": 0.009751042201985435,
+            "oos_mean_spread_3m": 0.017979707693312787,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 3.5
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.340209,
+            "Max_Drawdown": 0.14308,
+            "Net_Sharpe": 1.5806,
+            "Calmar_Ratio": 2.3777,
+            "Total_Return": 0.5106,
+            "Daily_Win_Rate": 0.5408,
+            "Monthly_Win_Rate": 0.5,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 736.16,
+            "Commission_Pct_of_Capital": 0.74,
+            "Final_Value": 151060.72,
+            "turnover_annualized_proxy": 2.7735
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.017603300760057596,
+            "oos_mean_ic_3m": -0.042562179263996046,
+            "oos_mean_spread_1m": -0.005421015657995383,
+            "oos_mean_spread_3m": -0.014447740334352407,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.6
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.442552,
+            "Max_Drawdown": 0.285941,
+            "Net_Sharpe": 1.5125,
+            "Calmar_Ratio": 1.5477,
+            "Total_Return": 0.885,
+            "Daily_Win_Rate": 0.5757,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1004.51,
+            "Commission_Pct_of_Capital": 1.0,
+            "Final_Value": 188504.89,
+            "turnover_annualized_proxy": 2.684
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.00257014067238451,
+            "oos_mean_ic_3m": 0.009887324014817008,
+            "oos_mean_spread_1m": -0.0009002826108866491,
+            "oos_mean_spread_3m": 0.010539156692995804,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.5
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.25874183333333334,
+          "std": 0.11336520002101859,
+          "cv": 0.4381402054725795,
+          "min": 0.088704,
+          "max": 0.442552,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.1686475,
+          "std": 0.0799435,
+          "cv": 0.474027186883885,
+          "min": 0.088704,
+          "max": 0.248591,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.2575346666666667,
+          "std": 0.0690496395082713,
+          "cv": 0.2681178437140034,
+          "min": 0.171192,
+          "max": 0.340209,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.442552,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.442552,
+          "max": 0.442552,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.4381402054725795,
+          "threshold": 0.5,
+          "pass": true
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.4381402054725795,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.088704,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p5c_def_heavy",
+      "arm": "P5C_DEF_HEAVY",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_DEF_HEAVY_20260424_212616.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.257448,
+            "Max_Drawdown": 0.147094,
+            "Net_Sharpe": 1.5429,
+            "Calmar_Ratio": 1.7502,
+            "Total_Return": 0.9846,
+            "Daily_Win_Rate": 0.5464,
+            "Monthly_Win_Rate": 0.7429,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2060.69,
+            "Commission_Pct_of_Capital": 2.06,
+            "Final_Value": 198463.35,
+            "turnover_annualized_proxy": 3.0791
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.011070509978307217,
+            "oos_mean_ic_3m": -0.005051033275623363,
+            "oos_mean_spread_1m": -0.0005483678406206113,
+            "oos_mean_spread_3m": -0.000804364044895612,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.0
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.105753,
+            "Max_Drawdown": 0.211244,
+            "Net_Sharpe": 0.694,
+            "Calmar_Ratio": 0.5006,
+            "Total_Return": 0.2227,
+            "Daily_Win_Rate": 0.5754,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1249.58,
+            "Commission_Pct_of_Capital": 1.25,
+            "Final_Value": 122268.91,
+            "turnover_annualized_proxy": 3.7486
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0005004768960893537,
+            "oos_mean_ic_3m": -0.021341104240724135,
+            "oos_mean_spread_1m": 0.0008219222838853941,
+            "oos_mean_spread_3m": -0.0012784771170525537,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 3.4
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.245921,
+            "Max_Drawdown": 0.373575,
+            "Net_Sharpe": 0.911,
+            "Calmar_Ratio": 0.6583,
+            "Total_Return": 0.5537,
+            "Daily_Win_Rate": 0.5802,
+            "Monthly_Win_Rate": 0.7391,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1287.06,
+            "Commission_Pct_of_Capital": 1.29,
+            "Final_Value": 155367.42,
+            "turnover_annualized_proxy": 3.3606
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.03051171226043912,
+            "oos_mean_ic_3m": -0.038157768119932184,
+            "oos_mean_spread_1m": -0.010716390801880044,
+            "oos_mean_spread_3m": -0.01939504244405638,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 3.2
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.092895,
+            "Max_Drawdown": 0.219133,
+            "Net_Sharpe": 0.5332,
+            "Calmar_Ratio": 0.4239,
+            "Total_Return": 0.194,
+            "Daily_Win_Rate": 0.5109,
+            "Monthly_Win_Rate": 0.5652,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 982.79,
+            "Commission_Pct_of_Capital": 0.98,
+            "Final_Value": 119399.8,
+            "turnover_annualized_proxy": 2.987
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.00156254319783723,
+            "oos_mean_ic_3m": -0.017502728957418917,
+            "oos_mean_spread_1m": -0.0008212121807044643,
+            "oos_mean_spread_3m": -0.006637196251846247,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 3.2
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.363482,
+            "Max_Drawdown": 0.148535,
+            "Net_Sharpe": 1.7092,
+            "Calmar_Ratio": 2.4471,
+            "Total_Return": 0.5477,
+            "Daily_Win_Rate": 0.5718,
+            "Monthly_Win_Rate": 0.5625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 828.95,
+            "Commission_Pct_of_Capital": 0.83,
+            "Final_Value": 154769.26,
+            "turnover_annualized_proxy": 3.0776
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.013377996207320133,
+            "oos_mean_ic_3m": -0.027414787803206882,
+            "oos_mean_spread_1m": -0.006821420018187947,
+            "oos_mean_spread_3m": -0.01555292209920007,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.1
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.447283,
+            "Max_Drawdown": 0.303985,
+            "Net_Sharpe": 1.4227,
+            "Calmar_Ratio": 1.4714,
+            "Total_Return": 0.8958,
+            "Daily_Win_Rate": 0.5894,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1188.42,
+            "Commission_Pct_of_Capital": 1.19,
+            "Final_Value": 189575.87,
+            "turnover_annualized_proxy": 3.1635
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.010551247246761979,
+            "oos_mean_ic_3m": 0.0016741375274544228,
+            "oos_mean_spread_1m": -0.006047367285659861,
+            "oos_mean_spread_3m": -0.0017090383812718034,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 2.9
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.25213033333333335,
+          "std": 0.1273661424603188,
+          "cv": 0.5051599336599145,
+          "min": 0.092895,
+          "max": 0.447283,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.1816005,
+          "std": 0.07584750000000001,
+          "cv": 0.41766129498542137,
+          "min": 0.105753,
+          "max": 0.257448,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.23409933333333335,
+          "std": 0.11078250461853423,
+          "cv": 0.4732286206932138,
+          "min": 0.092895,
+          "max": 0.363482,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.447283,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.447283,
+          "max": 0.447283,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.5051599336599145,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.5051599336599145,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.092895,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p5c_side_heavy",
+      "arm": "P5C_SIDE_HEAVY",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_SIDE_HEAVY_20260424_232713.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.232194,
+            "Max_Drawdown": 0.144411,
+            "Net_Sharpe": 1.5325,
+            "Calmar_Ratio": 1.6079,
+            "Total_Return": 0.8677,
+            "Daily_Win_Rate": 0.5584,
+            "Monthly_Win_Rate": 0.6857,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2271.46,
+            "Commission_Pct_of_Capital": 2.27,
+            "Final_Value": 186774.28,
+            "turnover_annualized_proxy": 3.5324
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.018682789656779525,
+            "oos_mean_ic_3m": -0.025086673132165786,
+            "oos_mean_spread_1m": -0.0017212585675708044,
+            "oos_mean_spread_3m": -0.006096267032851893,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 4.7
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.116198,
+            "Max_Drawdown": 0.174303,
+            "Net_Sharpe": 0.8063,
+            "Calmar_Ratio": 0.6666,
+            "Total_Return": 0.2459,
+            "Daily_Win_Rate": 0.5516,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1316.73,
+            "Commission_Pct_of_Capital": 1.32,
+            "Final_Value": 124589.86,
+            "turnover_annualized_proxy": 3.9092
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.02273002447767542,
+            "oos_mean_ic_3m": -0.01650536169301401,
+            "oos_mean_spread_1m": -0.002630942874181407,
+            "oos_mean_spread_3m": -0.0026462481479591483,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 3.2
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.285497,
+            "Max_Drawdown": 0.340326,
+            "Net_Sharpe": 1.0638,
+            "Calmar_Ratio": 0.8389,
+            "Total_Return": 0.6542,
+            "Daily_Win_Rate": 0.5644,
+            "Monthly_Win_Rate": 0.7391,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1275.24,
+            "Commission_Pct_of_Capital": 1.28,
+            "Final_Value": 165415.0,
+            "turnover_annualized_proxy": 3.2037
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.0011308735472408383,
+            "oos_mean_ic_3m": 0.012828952166037745,
+            "oos_mean_spread_1m": 0.004770315526816577,
+            "oos_mean_spread_3m": 0.02087422158083883,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 2.9
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.053112,
+            "Max_Drawdown": 0.236141,
+            "Net_Sharpe": 0.3522,
+            "Calmar_Ratio": 0.2249,
+            "Total_Return": 0.1088,
+            "Daily_Win_Rate": 0.5229,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 947.09,
+            "Commission_Pct_of_Capital": 0.95,
+            "Final_Value": 110881.7,
+            "turnover_annualized_proxy": 2.9948
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.03127218681472041,
+            "oos_mean_ic_3m": 0.011806117796413966,
+            "oos_mean_spread_1m": 0.008248319446087471,
+            "oos_mean_spread_3m": 0.004700036414411963,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 2.7
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.219052,
+            "Max_Drawdown": 0.114609,
+            "Net_Sharpe": 1.298,
+            "Calmar_Ratio": 1.9113,
+            "Total_Return": 0.3218,
+            "Daily_Win_Rate": 0.5634,
+            "Monthly_Win_Rate": 0.5625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 962.2,
+            "Commission_Pct_of_Capital": 0.96,
+            "Final_Value": 132184.95,
+            "turnover_annualized_proxy": 3.9196
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.018792033611736952,
+            "oos_mean_ic_3m": -0.06319080330321043,
+            "oos_mean_spread_1m": -0.005432284951025872,
+            "oos_mean_spread_3m": -0.024253330060588798,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.0
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.332734,
+            "Max_Drawdown": 0.263104,
+            "Net_Sharpe": 1.3737,
+            "Calmar_Ratio": 1.2646,
+            "Total_Return": 0.6437,
+            "Daily_Win_Rate": 0.5596,
+            "Monthly_Win_Rate": 0.7,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1150.31,
+            "Commission_Pct_of_Capital": 1.15,
+            "Final_Value": 164371.29,
+            "turnover_annualized_proxy": 3.3541
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.0038766584608412934,
+            "oos_mean_ic_3m": -0.005837461716804333,
+            "oos_mean_spread_1m": -0.002498291205360883,
+            "oos_mean_spread_3m": 0.01586803399447742,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 2.7
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.20646450000000002,
+          "std": 0.09545994386085016,
+          "cv": 0.4623552419948715,
+          "min": 0.053112,
+          "max": 0.332734,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.17419600000000002,
+          "std": 0.05799800000000001,
+          "cv": 0.332946795563618,
+          "min": 0.116198,
+          "max": 0.232194,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.185887,
+          "std": 0.09772626728094483,
+          "cv": 0.5257294339084757,
+          "min": 0.053112,
+          "max": 0.285497,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.332734,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.332734,
+          "max": 0.332734,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.4623552419948715,
+          "threshold": 0.5,
+          "pass": true
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.4623552419948715,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.053112,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    }
+  ]
+}

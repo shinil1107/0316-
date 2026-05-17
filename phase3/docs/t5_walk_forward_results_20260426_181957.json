@@ -1,0 +1,2651 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T18:19:57",
+    "pack_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+    "pack_basename": "precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+    "pack_start": "2011-01-03",
+    "pack_end": "2026-02-27",
+    "total_elapsed_sec": 183.1,
+    "signals": [
+      {
+        "id": "baseline",
+        "arm": "Baseline_V2",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz"
+      },
+      {
+        "id": "p6_ens_d",
+        "arm": "P6_ENSEMBLE_D",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_ENSEMBLE_D_20260426_084731.npz"
+      },
+      {
+        "id": "p6_ens_e",
+        "arm": "P6_ENSEMBLE_E",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_ENSEMBLE_E_20260426_160211.npz"
+      },
+      {
+        "id": "f_top5",
+        "arm": "F_TOP5_EQUAL",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_TOP5_EQUAL_20260426_180503.npz"
+      },
+      {
+        "id": "f_abl_eq",
+        "arm": "F_ABOVE_BL_EQUAL",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_ABOVE_BL_EQUAL_20260426_180503.npz"
+      },
+      {
+        "id": "f_abl_f2",
+        "arm": "F_ABOVE_BL_F2WT",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_ABOVE_BL_F2WT_20260426_180503.npz"
+      },
+      {
+        "id": "f_all19_f2",
+        "arm": "F_ALL19_F2WT",
+        "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_ALL19_F2WT_20260426_180503.npz"
+      }
+    ],
+    "folds": [
+      {
+        "id": "F0a",
+        "start": "2012-01-01",
+        "end": "2014-12-31",
+        "group": "pre_oos"
+      },
+      {
+        "id": "F0b",
+        "start": "2015-01-01",
+        "end": "2016-12-31",
+        "group": "pre_oos"
+      },
+      {
+        "id": "F1",
+        "start": "2019-01-01",
+        "end": "2020-12-31",
+        "group": "in_sample"
+      },
+      {
+        "id": "F2",
+        "start": "2021-01-01",
+        "end": "2022-12-31",
+        "group": "in_sample"
+      },
+      {
+        "id": "F3",
+        "start": "2023-01-01",
+        "end": "2024-05-31",
+        "group": "in_sample"
+      },
+      {
+        "id": "F4",
+        "start": "2024-06-01",
+        "end": "2026-02-27",
+        "group": "post_oos"
+      }
+    ],
+    "protocol": {
+      "initial_capital": 100000.0,
+      "daily_buy_limit": 1000.0,
+      "commission_bps": 10.0,
+      "slippage_bps": 5.0,
+      "rebalance_mode": "daily",
+      "strategy_stack": "SIDE_DEF_p12",
+      "regime_blend": false
+    }
+  },
+  "per_signal": [
+    {
+      "signal_id": "baseline",
+      "arm": "Baseline_V2",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.28891,
+            "Max_Drawdown": 0.142528,
+            "Net_Sharpe": 1.6383,
+            "Calmar_Ratio": 2.027,
+            "Total_Return": 1.1369,
+            "Daily_Win_Rate": 0.5623,
+            "Monthly_Win_Rate": 0.7429,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2249.08,
+            "Commission_Pct_of_Capital": 2.25,
+            "Final_Value": 213694.54,
+            "turnover_annualized_proxy": 3.1974,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.01045850768387904,
+            "oos_mean_ic_3m": -0.007338327005941206,
+            "oos_mean_spread_1m": -0.0007797579942285844,
+            "oos_mean_spread_3m": -0.0018127788432651872,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.8
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.104474,
+            "Max_Drawdown": 0.243447,
+            "Net_Sharpe": 0.6661,
+            "Calmar_Ratio": 0.4291,
+            "Total_Return": 0.2199,
+            "Daily_Win_Rate": 0.5675,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1148.93,
+            "Commission_Pct_of_Capital": 1.15,
+            "Final_Value": 121986.27,
+            "turnover_annualized_proxy": 3.4511,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.02181027265947161,
+            "oos_mean_ic_3m": 0.01971541954215154,
+            "oos_mean_spread_1m": 0.005868123399594861,
+            "oos_mean_spread_3m": 0.011970382892963542,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 4.1
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.393138,
+            "Max_Drawdown": 0.351522,
+            "Net_Sharpe": 1.2831,
+            "Calmar_Ratio": 1.1184,
+            "Total_Return": 0.9434,
+            "Daily_Win_Rate": 0.604,
+            "Monthly_Win_Rate": 0.7391,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1214.59,
+            "Commission_Pct_of_Capital": 1.21,
+            "Final_Value": 194338.87,
+            "turnover_annualized_proxy": 2.7515,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0072252195037964505,
+            "oos_mean_ic_3m": -0.004422374539584535,
+            "oos_mean_spread_1m": 0.0003021848693936713,
+            "oos_mean_spread_3m": 0.002333116319938987,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.7
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.043005,
+            "Max_Drawdown": 0.237343,
+            "Net_Sharpe": 0.299,
+            "Calmar_Ratio": 0.1812,
+            "Total_Return": 0.0877,
+            "Daily_Win_Rate": 0.5288,
+            "Monthly_Win_Rate": 0.6522,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 936.44,
+            "Commission_Pct_of_Capital": 0.94,
+            "Final_Value": 108767.73,
+            "turnover_annualized_proxy": 2.9911,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.002177058136289464,
+            "oos_mean_ic_3m": -0.00907474647857426,
+            "oos_mean_spread_1m": 0.000578827985158032,
+            "oos_mean_spread_3m": -0.00208532729201864,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 5.2
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.497518,
+            "Max_Drawdown": 0.133326,
+            "Net_Sharpe": 2.0824,
+            "Calmar_Ratio": 3.7316,
+            "Total_Return": 0.7662,
+            "Daily_Win_Rate": 0.5718,
+            "Monthly_Win_Rate": 0.6875,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 924.41,
+            "Commission_Pct_of_Capital": 0.92,
+            "Final_Value": 176624.85,
+            "turnover_annualized_proxy": 3.1607,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.013963056044542278,
+            "oos_mean_ic_3m": 0.02108503824644347,
+            "oos_mean_spread_1m": 0.002170662475502574,
+            "oos_mean_spread_3m": 0.004993567861439082,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.7
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.509111,
+            "Max_Drawdown": 0.302855,
+            "Net_Sharpe": 1.5168,
+            "Calmar_Ratio": 1.681,
+            "Total_Return": 1.0381,
+            "Daily_Win_Rate": 0.5803,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 948.63,
+            "Commission_Pct_of_Capital": 0.95,
+            "Final_Value": 203805.49,
+            "turnover_annualized_proxy": 2.4071,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0053103338009618355,
+            "oos_mean_ic_3m": 0.02142178936839956,
+            "oos_mean_spread_1m": 0.003249437434798452,
+            "oos_mean_spread_3m": 0.021337132930978147,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.2
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.30602599999999996,
+          "std": 0.18055350842801882,
+          "cv": 0.589994014979181,
+          "min": 0.043005,
+          "max": 0.509111,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.196692,
+          "std": 0.09221800000000001,
+          "cv": 0.46884469119232103,
+          "min": 0.104474,
+          "max": 0.28891,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.3112203333333334,
+          "std": 0.19438517583453277,
+          "cv": 0.6245902179737595,
+          "min": 0.043005,
+          "max": 0.497518,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.509111,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.509111,
+          "max": 0.509111,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.589994014979181,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.589994014979181,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.043005,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p6_ens_d",
+      "arm": "P6_ENSEMBLE_D",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_ENSEMBLE_D_20260426_084731.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.281567,
+            "Max_Drawdown": 0.19811,
+            "Net_Sharpe": 1.4961,
+            "Calmar_Ratio": 1.4213,
+            "Total_Return": 1.1007,
+            "Daily_Win_Rate": 0.569,
+            "Monthly_Win_Rate": 0.7143,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2167.7,
+            "Commission_Pct_of_Capital": 2.17,
+            "Final_Value": 210072.36,
+            "turnover_annualized_proxy": 3.1177,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.008206896218841705,
+            "oos_mean_ic_3m": -0.018316956370611443,
+            "oos_mean_spread_1m": -0.0004413228780892899,
+            "oos_mean_spread_3m": -0.003996473484267775,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.1
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.115419,
+            "Max_Drawdown": 0.195121,
+            "Net_Sharpe": 0.7564,
+            "Calmar_Ratio": 0.5915,
+            "Total_Return": 0.2442,
+            "Daily_Win_Rate": 0.5556,
+            "Monthly_Win_Rate": 0.5652,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1377.71,
+            "Commission_Pct_of_Capital": 1.38,
+            "Final_Value": 124415.95,
+            "turnover_annualized_proxy": 4.0934,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.017446623397848804,
+            "oos_mean_ic_3m": 0.0025976748838366878,
+            "oos_mean_spread_1m": 0.007009393948682873,
+            "oos_mean_spread_3m": 0.010880624312232043,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 3.6
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.377369,
+            "Max_Drawdown": 0.355347,
+            "Net_Sharpe": 1.2325,
+            "Calmar_Ratio": 1.062,
+            "Total_Return": 0.8996,
+            "Daily_Win_Rate": 0.5703,
+            "Monthly_Win_Rate": 0.7826,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1576.54,
+            "Commission_Pct_of_Capital": 1.58,
+            "Final_Value": 189955.86,
+            "turnover_annualized_proxy": 3.6253,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.008343251268475266,
+            "oos_mean_ic_3m": 0.009947280650988023,
+            "oos_mean_spread_1m": 0.00013739895307202395,
+            "oos_mean_spread_3m": 0.015705746542452288,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.0
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.143133,
+            "Max_Drawdown": 0.209984,
+            "Net_Sharpe": 0.697,
+            "Calmar_Ratio": 0.6816,
+            "Total_Return": 0.3061,
+            "Daily_Win_Rate": 0.5308,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 706.56,
+            "Commission_Pct_of_Capital": 0.71,
+            "Final_Value": 130606.05,
+            "turnover_annualized_proxy": 2.0433,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.02999483031570013,
+            "oos_mean_ic_3m": 0.016236888752726074,
+            "oos_mean_spread_1m": 0.009088560450098091,
+            "oos_mean_spread_3m": 0.010430400471371842,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 3.3
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.318049,
+            "Max_Drawdown": 0.147538,
+            "Net_Sharpe": 1.5144,
+            "Calmar_Ratio": 2.1557,
+            "Total_Return": 0.4755,
+            "Daily_Win_Rate": 0.5437,
+            "Monthly_Win_Rate": 0.5,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 926.2,
+            "Commission_Pct_of_Capital": 0.93,
+            "Final_Value": 147554.0,
+            "turnover_annualized_proxy": 3.5388,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.022565867435201566,
+            "oos_mean_ic_3m": -0.05392885111081352,
+            "oos_mean_spread_1m": -0.006185483508416654,
+            "oos_mean_spread_3m": -0.01924557800971076,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.3
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.485058,
+            "Max_Drawdown": 0.313287,
+            "Net_Sharpe": 1.4942,
+            "Calmar_Ratio": 1.5483,
+            "Total_Return": 0.9822,
+            "Daily_Win_Rate": 0.578,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1169.04,
+            "Commission_Pct_of_Capital": 1.17,
+            "Final_Value": 198218.09,
+            "turnover_annualized_proxy": 3.0218,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 4.0863454306953126e-05,
+            "oos_mean_ic_3m": 0.010373335007127218,
+            "oos_mean_spread_1m": -0.002867100888812902,
+            "oos_mean_spread_3m": 0.016611490628700036,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.1
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.28676583333333333,
+          "std": 0.1281434805604206,
+          "cv": 0.4468575599502054,
+          "min": 0.115419,
+          "max": 0.485058,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.198493,
+          "std": 0.08307400000000001,
+          "cv": 0.4185235751386699,
+          "min": 0.115419,
+          "max": 0.281567,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.279517,
+          "std": 0.09943226234309802,
+          "cv": 0.3557288549286734,
+          "min": 0.143133,
+          "max": 0.377369,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.485058,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.485058,
+          "max": 0.485058,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.4468575599502054,
+          "threshold": 0.5,
+          "pass": true
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.4468575599502054,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.115419,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "p6_ens_e",
+      "arm": "P6_ENSEMBLE_E",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_ENSEMBLE_E_20260426_160211.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.258674,
+            "Max_Drawdown": 0.145431,
+            "Net_Sharpe": 1.5179,
+            "Calmar_Ratio": 1.7787,
+            "Total_Return": 0.9904,
+            "Daily_Win_Rate": 0.5491,
+            "Monthly_Win_Rate": 0.6571,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2240.35,
+            "Commission_Pct_of_Capital": 2.24,
+            "Final_Value": 199042.94,
+            "turnover_annualized_proxy": 3.3411,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.010172987872991628,
+            "oos_mean_ic_3m": -0.01643311292641472,
+            "oos_mean_spread_1m": -0.0006425943438172064,
+            "oos_mean_spread_3m": -0.003092254144789904,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.2
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.090142,
+            "Max_Drawdown": 0.197121,
+            "Net_Sharpe": 0.6102,
+            "Calmar_Ratio": 0.4573,
+            "Total_Return": 0.1884,
+            "Daily_Win_Rate": 0.5476,
+            "Monthly_Win_Rate": 0.5652,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1307.0,
+            "Commission_Pct_of_Capital": 1.31,
+            "Final_Value": 118840.97,
+            "turnover_annualized_proxy": 3.9823,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0075520710763537086,
+            "oos_mean_ic_3m": -0.006315812732839104,
+            "oos_mean_spread_1m": 0.003913403353423055,
+            "oos_mean_spread_3m": 0.0050327576014058874,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 3.5
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.308589,
+            "Max_Drawdown": 0.358843,
+            "Net_Sharpe": 1.0848,
+            "Calmar_Ratio": 0.86,
+            "Total_Return": 0.7142,
+            "Daily_Win_Rate": 0.5723,
+            "Monthly_Win_Rate": 0.7826,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1457.14,
+            "Commission_Pct_of_Capital": 1.46,
+            "Final_Value": 171423.31,
+            "turnover_annualized_proxy": 3.5795,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.01707977628892846,
+            "oos_mean_ic_3m": -0.011595239382734622,
+            "oos_mean_spread_1m": -0.00393210136370274,
+            "oos_mean_spread_3m": 0.00420429843477496,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.0
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.199784,
+            "Max_Drawdown": 0.190548,
+            "Net_Sharpe": 0.8716,
+            "Calmar_Ratio": 1.0485,
+            "Total_Return": 0.4384,
+            "Daily_Win_Rate": 0.5408,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 961.43,
+            "Commission_Pct_of_Capital": 0.96,
+            "Final_Value": 143844.05,
+            "turnover_annualized_proxy": 2.6291,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.028497963988886738,
+            "oos_mean_ic_3m": 0.008354154752697856,
+            "oos_mean_spread_1m": 0.008248353316861228,
+            "oos_mean_spread_3m": 0.006845747185263708,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 3.6
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.323198,
+            "Max_Drawdown": 0.1388,
+            "Net_Sharpe": 1.5801,
+            "Calmar_Ratio": 2.3285,
+            "Total_Return": 0.4837,
+            "Daily_Win_Rate": 0.5662,
+            "Monthly_Win_Rate": 0.5,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 927.42,
+            "Commission_Pct_of_Capital": 0.93,
+            "Final_Value": 148366.7,
+            "turnover_annualized_proxy": 3.5318,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.02313070499582984,
+            "oos_mean_ic_3m": -0.048566739360892335,
+            "oos_mean_spread_1m": -0.007180470204976371,
+            "oos_mean_spread_3m": -0.01766024345029208,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.2
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.479348,
+            "Max_Drawdown": 0.309891,
+            "Net_Sharpe": 1.4883,
+            "Calmar_Ratio": 1.5468,
+            "Total_Return": 0.969,
+            "Daily_Win_Rate": 0.5711,
+            "Monthly_Win_Rate": 0.7,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1198.54,
+            "Commission_Pct_of_Capital": 1.2,
+            "Final_Value": 196901.45,
+            "turnover_annualized_proxy": 3.1118,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.001015097626553052,
+            "oos_mean_ic_3m": 0.013946295062649773,
+            "oos_mean_spread_1m": -0.0024981470559055433,
+            "oos_mean_spread_3m": 0.013394052706611016,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.0
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.2766225,
+          "std": 0.11922670512340486,
+          "cv": 0.43100870364270755,
+          "min": 0.090142,
+          "max": 0.479348,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.174408,
+          "std": 0.08426600000000001,
+          "cv": 0.4831544424567681,
+          "min": 0.090142,
+          "max": 0.258674,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.2771903333333333,
+          "std": 0.05505852068683123,
+          "cv": 0.19863073875891982,
+          "min": 0.199784,
+          "max": 0.323198,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.479348,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.479348,
+          "max": 0.479348,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.43100870364270755,
+          "threshold": 0.5,
+          "pass": true
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.43100870364270755,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.090142,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "f_top5",
+      "arm": "F_TOP5_EQUAL",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_TOP5_EQUAL_20260426_180503.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.260917,
+            "Max_Drawdown": 0.14307,
+            "Net_Sharpe": 1.544,
+            "Calmar_Ratio": 1.8237,
+            "Total_Return": 1.0011,
+            "Daily_Win_Rate": 0.5504,
+            "Monthly_Win_Rate": 0.6857,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2193.1,
+            "Commission_Pct_of_Capital": 2.19,
+            "Final_Value": 200105.94,
+            "turnover_annualized_proxy": 3.259,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.013108913175158901,
+            "oos_mean_ic_3m": -0.009088867663624116,
+            "oos_mean_spread_1m": -0.0017126254489279347,
+            "oos_mean_spread_3m": -0.002384781042951073,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.8
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.119087,
+            "Max_Drawdown": 0.192002,
+            "Net_Sharpe": 0.7796,
+            "Calmar_Ratio": 0.6202,
+            "Total_Return": 0.2524,
+            "Daily_Win_Rate": 0.5734,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1273.87,
+            "Commission_Pct_of_Capital": 1.27,
+            "Final_Value": 125235.58,
+            "turnover_annualized_proxy": 3.7711,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.009369054176756078,
+            "oos_mean_ic_3m": 0.0018866123129278036,
+            "oos_mean_spread_1m": 0.0031921531044430064,
+            "oos_mean_spread_3m": 0.005745020491953599,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 4.0
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.312332,
+            "Max_Drawdown": 0.357316,
+            "Net_Sharpe": 1.1,
+            "Calmar_Ratio": 0.8741,
+            "Total_Return": 0.7241,
+            "Daily_Win_Rate": 0.5743,
+            "Monthly_Win_Rate": 0.7391,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1427.16,
+            "Commission_Pct_of_Capital": 1.43,
+            "Final_Value": 172407.33,
+            "turnover_annualized_proxy": 3.4932,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.007388077009414482,
+            "oos_mean_ic_3m": -0.03155586783239068,
+            "oos_mean_spread_1m": -0.006607756992363052,
+            "oos_mean_spread_3m": -0.012892124717714573,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.4
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.093604,
+            "Max_Drawdown": 0.210921,
+            "Net_Sharpe": 0.5232,
+            "Calmar_Ratio": 0.4438,
+            "Total_Return": 0.1955,
+            "Daily_Win_Rate": 0.5209,
+            "Monthly_Win_Rate": 0.5652,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 1081.58,
+            "Commission_Pct_of_Capital": 1.08,
+            "Final_Value": 119554.52,
+            "turnover_annualized_proxy": 3.2848,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.01813474808223425,
+            "oos_mean_ic_3m": 0.0011416182615748643,
+            "oos_mean_spread_1m": 0.00548517015834056,
+            "oos_mean_spread_3m": 0.004740128158560768,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 4.7
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.418291,
+            "Max_Drawdown": 0.146315,
+            "Net_Sharpe": 1.8738,
+            "Calmar_Ratio": 2.8588,
+            "Total_Return": 0.636,
+            "Daily_Win_Rate": 0.5521,
+            "Monthly_Win_Rate": 0.625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 910.72,
+            "Commission_Pct_of_Capital": 0.91,
+            "Final_Value": 163604.94,
+            "turnover_annualized_proxy": 3.2677,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.006790188268750894,
+            "oos_mean_ic_3m": -0.01035790488037214,
+            "oos_mean_spread_1m": -0.004370215053628435,
+            "oos_mean_spread_3m": -0.009875339535757362,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.6
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.47344,
+            "Max_Drawdown": 0.301109,
+            "Net_Sharpe": 1.4833,
+            "Calmar_Ratio": 1.5723,
+            "Total_Return": 0.9554,
+            "Daily_Win_Rate": 0.5757,
+            "Monthly_Win_Rate": 0.7,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1130.61,
+            "Commission_Pct_of_Capital": 1.13,
+            "Final_Value": 195542.71,
+            "turnover_annualized_proxy": 2.9489,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0021569882722877933,
+            "oos_mean_ic_3m": 0.018097570990050417,
+            "oos_mean_spread_1m": -0.001519129591319375,
+            "oos_mean_spread_3m": 0.01743304305497158,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.3
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.27961183333333334,
+          "std": 0.14058716853423084,
+          "cv": 0.5027940586714469,
+          "min": 0.093604,
+          "max": 0.47344,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.190002,
+          "std": 0.070915,
+          "cv": 0.3732329133377544,
+          "min": 0.119087,
+          "max": 0.260917,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.27474233333333337,
+          "std": 0.13519159064659145,
+          "cv": 0.49206683588353,
+          "min": 0.093604,
+          "max": 0.418291,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.47344,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.47344,
+          "max": 0.47344,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.5027940586714469,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.5027940586714469,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.093604,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "f_abl_eq",
+      "arm": "F_ABOVE_BL_EQUAL",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_ABOVE_BL_EQUAL_20260426_180503.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.259043,
+            "Max_Drawdown": 0.143082,
+            "Net_Sharpe": 1.5378,
+            "Calmar_Ratio": 1.8104,
+            "Total_Return": 0.9922,
+            "Daily_Win_Rate": 0.5491,
+            "Monthly_Win_Rate": 0.6857,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2168.31,
+            "Commission_Pct_of_Capital": 2.17,
+            "Final_Value": 199217.64,
+            "turnover_annualized_proxy": 3.2318,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.012675909564111415,
+            "oos_mean_ic_3m": -0.008526129164540123,
+            "oos_mean_spread_1m": -0.0017062928516967382,
+            "oos_mean_spread_3m": -0.0023550639023451774,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.8
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.104454,
+            "Max_Drawdown": 0.214109,
+            "Net_Sharpe": 0.6913,
+            "Calmar_Ratio": 0.4879,
+            "Total_Return": 0.2198,
+            "Daily_Win_Rate": 0.5635,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1252.5,
+            "Commission_Pct_of_Capital": 1.25,
+            "Final_Value": 121981.84,
+            "turnover_annualized_proxy": 3.7622,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.011734846314966277,
+            "oos_mean_ic_3m": 0.005204648916285928,
+            "oos_mean_spread_1m": 0.0035319592989556396,
+            "oos_mean_spread_3m": 0.006740900626074076,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 4.0
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.321547,
+            "Max_Drawdown": 0.359151,
+            "Net_Sharpe": 1.1189,
+            "Calmar_Ratio": 0.8953,
+            "Total_Return": 0.7484,
+            "Daily_Win_Rate": 0.5683,
+            "Monthly_Win_Rate": 0.6957,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1381.82,
+            "Commission_Pct_of_Capital": 1.38,
+            "Final_Value": 174841.93,
+            "turnover_annualized_proxy": 3.3523,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.004342768612174549,
+            "oos_mean_ic_3m": -0.02697344804084813,
+            "oos_mean_spread_1m": -0.005091059227871439,
+            "oos_mean_spread_3m": -0.010140095641017591,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.5
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.087455,
+            "Max_Drawdown": 0.217718,
+            "Net_Sharpe": 0.4957,
+            "Calmar_Ratio": 0.4017,
+            "Total_Return": 0.1822,
+            "Daily_Win_Rate": 0.5288,
+            "Monthly_Win_Rate": 0.5652,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 1067.21,
+            "Commission_Pct_of_Capital": 1.07,
+            "Final_Value": 118216.56,
+            "turnover_annualized_proxy": 3.2611,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.01586532758364351,
+            "oos_mean_ic_3m": -0.0004953908266472374,
+            "oos_mean_spread_1m": 0.005333628321587173,
+            "oos_mean_spread_3m": 0.004751572065697513,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 4.9
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.433728,
+            "Max_Drawdown": 0.142366,
+            "Net_Sharpe": 1.9187,
+            "Calmar_Ratio": 3.0466,
+            "Total_Return": 0.6612,
+            "Daily_Win_Rate": 0.5577,
+            "Monthly_Win_Rate": 0.625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 915.36,
+            "Commission_Pct_of_Capital": 0.92,
+            "Final_Value": 166119.01,
+            "turnover_annualized_proxy": 3.2533,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.0035863461919337127,
+            "oos_mean_ic_3m": -0.004863786802791676,
+            "oos_mean_spread_1m": -0.0033785751487823822,
+            "oos_mean_spread_3m": -0.007496740789670367,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.6
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.462137,
+            "Max_Drawdown": 0.301457,
+            "Net_Sharpe": 1.4539,
+            "Calmar_Ratio": 1.533,
+            "Total_Return": 0.9295,
+            "Daily_Win_Rate": 0.5757,
+            "Monthly_Win_Rate": 0.7,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1118.62,
+            "Commission_Pct_of_Capital": 1.12,
+            "Final_Value": 192954.83,
+            "turnover_annualized_proxy": 2.9435,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.002688957411672991,
+            "oos_mean_ic_3m": 0.01873214631574422,
+            "oos_mean_spread_1m": -0.0009731314858227474,
+            "oos_mean_spread_3m": 0.018822779354398723,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.3
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.2780606666666667,
+          "std": 0.14539540505654075,
+          "cv": 0.522890946064075,
+          "min": 0.087455,
+          "max": 0.462137,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.1817485,
+          "std": 0.0772945,
+          "cv": 0.4252827396099555,
+          "min": 0.104454,
+          "max": 0.259043,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.28091,
+          "std": 0.14425618868064782,
+          "cv": 0.5135316958479507,
+          "min": 0.087455,
+          "max": 0.433728,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.462137,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.462137,
+          "max": 0.462137,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.522890946064075,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.522890946064075,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.087455,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "f_abl_f2",
+      "arm": "F_ABOVE_BL_F2WT",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_ABOVE_BL_F2WT_20260426_180503.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.264056,
+            "Max_Drawdown": 0.14282,
+            "Net_Sharpe": 1.5693,
+            "Calmar_Ratio": 1.8489,
+            "Total_Return": 1.016,
+            "Daily_Win_Rate": 0.5544,
+            "Monthly_Win_Rate": 0.6857,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2185.49,
+            "Commission_Pct_of_Capital": 2.19,
+            "Final_Value": 201600.53,
+            "turnover_annualized_proxy": 3.2316,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.013174980037217973,
+            "oos_mean_ic_3m": -0.01000405181097886,
+            "oos_mean_spread_1m": -0.0017157146075094441,
+            "oos_mean_spread_3m": -0.002404893769973955,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.7
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.113349,
+            "Max_Drawdown": 0.196646,
+            "Net_Sharpe": 0.744,
+            "Calmar_Ratio": 0.5764,
+            "Total_Return": 0.2395,
+            "Daily_Win_Rate": 0.5734,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1288.44,
+            "Commission_Pct_of_Capital": 1.29,
+            "Final_Value": 123954.57,
+            "turnover_annualized_proxy": 3.836,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.009290317721063725,
+            "oos_mean_ic_3m": 0.00024308750080525427,
+            "oos_mean_spread_1m": 0.0035242051122451883,
+            "oos_mean_spread_3m": 0.006180681433150359,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 3.9
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.313184,
+            "Max_Drawdown": 0.359211,
+            "Net_Sharpe": 1.1003,
+            "Calmar_Ratio": 0.8719,
+            "Total_Return": 0.7263,
+            "Daily_Win_Rate": 0.5782,
+            "Monthly_Win_Rate": 0.6957,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1444.38,
+            "Commission_Pct_of_Capital": 1.44,
+            "Final_Value": 172631.71,
+            "turnover_annualized_proxy": 3.5325,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.007365532252578955,
+            "oos_mean_ic_3m": -0.028860400195234198,
+            "oos_mean_spread_1m": -0.006128926067823767,
+            "oos_mean_spread_3m": -0.010599600636786869,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.4
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.104852,
+            "Max_Drawdown": 0.207761,
+            "Net_Sharpe": 0.5715,
+            "Calmar_Ratio": 0.5047,
+            "Total_Return": 0.2202,
+            "Daily_Win_Rate": 0.5268,
+            "Monthly_Win_Rate": 0.5652,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 1061.14,
+            "Commission_Pct_of_Capital": 1.06,
+            "Final_Value": 122021.49,
+            "turnover_annualized_proxy": 3.187,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.02040317612433095,
+            "oos_mean_ic_3m": 0.0040587711364322805,
+            "oos_mean_spread_1m": 0.005650020912345041,
+            "oos_mean_spread_3m": 0.005034061168890241,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 4.6
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.404212,
+            "Max_Drawdown": 0.144446,
+            "Net_Sharpe": 1.8211,
+            "Calmar_Ratio": 2.7984,
+            "Total_Return": 0.6132,
+            "Daily_Win_Rate": 0.5634,
+            "Monthly_Win_Rate": 0.625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 907.42,
+            "Commission_Pct_of_Capital": 0.91,
+            "Final_Value": 161321.69,
+            "turnover_annualized_proxy": 3.2844,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.010701892257902074,
+            "oos_mean_ic_3m": -0.017211318540461228,
+            "oos_mean_spread_1m": -0.005106971004301047,
+            "oos_mean_spread_3m": -0.011981879099685106,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.5
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.472474,
+            "Max_Drawdown": 0.304411,
+            "Net_Sharpe": 1.4797,
+            "Calmar_Ratio": 1.5521,
+            "Total_Return": 0.9532,
+            "Daily_Win_Rate": 0.5757,
+            "Monthly_Win_Rate": 0.7,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1162.69,
+            "Commission_Pct_of_Capital": 1.16,
+            "Final_Value": 195321.17,
+            "turnover_annualized_proxy": 3.0349,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.00228601188217895,
+            "oos_mean_ic_3m": 0.018590565581994078,
+            "oos_mean_spread_1m": -0.0016584707927833396,
+            "oos_mean_spread_3m": 0.017179936249611623,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.3
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.27868783333333336,
+          "std": 0.13679016633079133,
+          "cv": 0.49083652018342383,
+          "min": 0.104852,
+          "max": 0.472474,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.1887025,
+          "std": 0.0753535,
+          "cv": 0.39932433327592376,
+          "min": 0.113349,
+          "max": 0.264056,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.2740826666666667,
+          "std": 0.125301737421669,
+          "cv": 0.4571676820922726,
+          "min": 0.104852,
+          "max": 0.404212,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.472474,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.472474,
+          "max": 0.472474,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.49083652018342383,
+          "threshold": 0.5,
+          "pass": true
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.49083652018342383,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.104852,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    },
+    {
+      "signal_id": "f_all19_f2",
+      "arm": "F_ALL19_F2WT",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_F_ALL19_F2WT_20260426_180503.npz",
+      "folds": [
+        {
+          "fold": "F0a",
+          "group": "pre_oos",
+          "window_start": "2012-01-01",
+          "window_end": "2014-12-31",
+          "regime_dist": {
+            "BULL": 624,
+            "SIDE": 130,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.26291,
+            "Max_Drawdown": 0.142756,
+            "Net_Sharpe": 1.5507,
+            "Calmar_Ratio": 1.8417,
+            "Total_Return": 1.0105,
+            "Daily_Win_Rate": 0.5504,
+            "Monthly_Win_Rate": 0.6857,
+            "Years": 2.99,
+            "Trading_Days": 754,
+            "Rebalance_Days": 754,
+            "Total_Commission": 2182.57,
+            "Commission_Pct_of_Capital": 2.18,
+            "Final_Value": 201053.94,
+            "turnover_annualized_proxy": 3.2332,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.012914643712750916,
+            "oos_mean_ic_3m": -0.008386925674133832,
+            "oos_mean_spread_1m": -0.0015716665550735344,
+            "oos_mean_spread_3m": -0.002371737276012198,
+            "oos_days_1m": 754,
+            "oos_days_3m": 754
+          },
+          "elapsed_sec": 5.9
+        },
+        {
+          "fold": "F0b",
+          "group": "pre_oos",
+          "window_start": "2015-01-01",
+          "window_end": "2016-12-31",
+          "regime_dist": {
+            "BULL": 376,
+            "SIDE": 127,
+            "DEF": 0,
+            "CRASH": 1
+          },
+          "metrics": {
+            "CAGR": 0.103462,
+            "Max_Drawdown": 0.213295,
+            "Net_Sharpe": 0.6848,
+            "Calmar_Ratio": 0.4851,
+            "Total_Return": 0.2176,
+            "Daily_Win_Rate": 0.5675,
+            "Monthly_Win_Rate": 0.6087,
+            "Years": 2.0,
+            "Trading_Days": 504,
+            "Rebalance_Days": 504,
+            "Total_Commission": 1231.9,
+            "Commission_Pct_of_Capital": 1.23,
+            "Final_Value": 121762.93,
+            "turnover_annualized_proxy": 3.704,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.013293072476661396,
+            "oos_mean_ic_3m": 0.0068650641941003804,
+            "oos_mean_spread_1m": 0.0037146675618339006,
+            "oos_mean_spread_3m": 0.006770690488001245,
+            "oos_days_1m": 504,
+            "oos_days_3m": 504
+          },
+          "elapsed_sec": 4.0
+        },
+        {
+          "fold": "F1",
+          "group": "in_sample",
+          "window_start": "2019-01-01",
+          "window_end": "2020-12-31",
+          "regime_dist": {
+            "BULL": 238,
+            "SIDE": 186,
+            "DEF": 0,
+            "CRASH": 81
+          },
+          "metrics": {
+            "CAGR": 0.328305,
+            "Max_Drawdown": 0.360891,
+            "Net_Sharpe": 1.1251,
+            "Calmar_Ratio": 0.9097,
+            "Total_Return": 0.7664,
+            "Daily_Win_Rate": 0.5723,
+            "Monthly_Win_Rate": 0.6957,
+            "Years": 2.0,
+            "Trading_Days": 505,
+            "Rebalance_Days": 505,
+            "Total_Commission": 1325.88,
+            "Commission_Pct_of_Capital": 1.33,
+            "Final_Value": 176638.38,
+            "turnover_annualized_proxy": 3.1957,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.0013455304273602238,
+            "oos_mean_ic_3m": -0.02305916599178,
+            "oos_mean_spread_1m": -0.004235241255786498,
+            "oos_mean_spread_3m": -0.007650027503717366,
+            "oos_days_1m": 505,
+            "oos_days_3m": 505
+          },
+          "elapsed_sec": 4.5
+        },
+        {
+          "fold": "F2",
+          "group": "in_sample",
+          "window_start": "2021-01-01",
+          "window_end": "2022-12-31",
+          "regime_dist": {
+            "BULL": 102,
+            "SIDE": 362,
+            "DEF": 0,
+            "CRASH": 43
+          },
+          "metrics": {
+            "CAGR": 0.090905,
+            "Max_Drawdown": 0.21871,
+            "Net_Sharpe": 0.5073,
+            "Calmar_Ratio": 0.4156,
+            "Total_Return": 0.1897,
+            "Daily_Win_Rate": 0.5348,
+            "Monthly_Win_Rate": 0.5652,
+            "Years": 2.0,
+            "Trading_Days": 503,
+            "Rebalance_Days": 503,
+            "Total_Commission": 1048.96,
+            "Commission_Pct_of_Capital": 1.05,
+            "Final_Value": 118966.19,
+            "turnover_annualized_proxy": 3.1944,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.01427135334880437,
+            "oos_mean_ic_3m": -0.0017471820023051848,
+            "oos_mean_spread_1m": 0.004453899661632949,
+            "oos_mean_spread_3m": 0.003985296278955768,
+            "oos_days_1m": 503,
+            "oos_days_3m": 503
+          },
+          "elapsed_sec": 4.8
+        },
+        {
+          "fold": "F3",
+          "group": "in_sample",
+          "window_start": "2023-01-01",
+          "window_end": "2024-05-31",
+          "regime_dist": {
+            "BULL": 271,
+            "SIDE": 94,
+            "DEF": 0
+          },
+          "metrics": {
+            "CAGR": 0.422309,
+            "Max_Drawdown": 0.14717,
+            "Net_Sharpe": 1.8848,
+            "Calmar_Ratio": 2.8695,
+            "Total_Return": 0.6426,
+            "Daily_Win_Rate": 0.5549,
+            "Monthly_Win_Rate": 0.625,
+            "Years": 1.41,
+            "Trading_Days": 355,
+            "Rebalance_Days": 355,
+            "Total_Commission": 920.2,
+            "Commission_Pct_of_Capital": 0.92,
+            "Final_Value": 164258.3,
+            "turnover_annualized_proxy": 3.2936,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": -0.0011943531008750579,
+            "oos_mean_ic_3m": -0.0016360741374621534,
+            "oos_mean_spread_1m": -0.002297080217872059,
+            "oos_mean_spread_3m": -0.005775141103250232,
+            "oos_days_1m": 355,
+            "oos_days_3m": 355
+          },
+          "elapsed_sec": 2.6
+        },
+        {
+          "fold": "F4",
+          "group": "post_oos",
+          "window_start": "2024-06-01",
+          "window_end": "2026-02-27",
+          "regime_dist": {
+            "BULL": 275,
+            "SIDE": 157,
+            "DEF": 0,
+            "CRASH": 13
+          },
+          "metrics": {
+            "CAGR": 0.470861,
+            "Max_Drawdown": 0.302967,
+            "Net_Sharpe": 1.4782,
+            "Calmar_Ratio": 1.5542,
+            "Total_Return": 0.9495,
+            "Daily_Win_Rate": 0.578,
+            "Monthly_Win_Rate": 0.75,
+            "Years": 1.73,
+            "Trading_Days": 436,
+            "Rebalance_Days": 436,
+            "Total_Commission": 1081.73,
+            "Commission_Pct_of_Capital": 1.08,
+            "Final_Value": 194950.93,
+            "turnover_annualized_proxy": 2.8271,
+            "vol_target_rebal_days_total": 0,
+            "vol_target_rebal_days_warmed": 0,
+            "vol_target_rebal_days_engaged": 0,
+            "vol_target_scale_mean": 1.0,
+            "vol_target_scale_min": 1.0,
+            "vol_target_realized_vol_p50": 0.0,
+            "vol_target_realized_vol_p95": 0.0,
+            "restricted_universe_filtered_total": 0,
+            "restricted_universe_rebal_days_with_filter": 0,
+            "sector_cap_filtered_total": 0,
+            "sector_cap_rebal_days_with_filter": 0,
+            "sector_cap_max_breach_pct": 0.0,
+            "sector_cap_breach_days": 0
+          },
+          "oos_ic": {
+            "oos_mean_ic_1m": 0.0033958574048893186,
+            "oos_mean_ic_3m": 0.020850680632157566,
+            "oos_mean_spread_1m": 0.0003525567568177096,
+            "oos_mean_spread_3m": 0.019965693709480304,
+            "oos_days_1m": 416,
+            "oos_days_3m": 376
+          },
+          "elapsed_sec": 3.4
+        }
+      ],
+      "aggregate": {
+        "all": {
+          "n": 6,
+          "mean": 0.279792,
+          "std": 0.1450445556900821,
+          "cv": 0.5184013684811649,
+          "min": 0.090905,
+          "max": 0.470861,
+          "pos_count": 6
+        },
+        "pre_oos": {
+          "n": 2,
+          "mean": 0.183186,
+          "std": 0.07972399999999999,
+          "cv": 0.43520793073706504,
+          "min": 0.103462,
+          "max": 0.26291,
+          "pos_count": 2
+        },
+        "in_sample": {
+          "n": 3,
+          "mean": 0.28050633333333336,
+          "std": 0.13945294835017133,
+          "cv": 0.49714723618897966,
+          "min": 0.090905,
+          "max": 0.422309,
+          "pos_count": 3
+        },
+        "post_oos": {
+          "n": 1,
+          "mean": 0.470861,
+          "std": 0.0,
+          "cv": 0.0,
+          "min": 0.470861,
+          "max": 0.470861,
+          "pos_count": 1
+        }
+      },
+      "gates": {
+        "G6_A_absolute_cv_le_0p5": {
+          "cv": 0.5184013684811649,
+          "threshold": 0.5,
+          "pass": false
+        },
+        "G6_B_relative_cv_le_base": {
+          "cv_cand": 0.5184013684811649,
+          "cv_base": 0.589994014979181,
+          "pass": true
+        },
+        "G6_C_worst_ge_base": {
+          "worst_cand": 0.090905,
+          "worst_base": 0.043005,
+          "pass": true
+        },
+        "G6_D_all_positive": {
+          "pos_count": 6,
+          "n": 6,
+          "pass": true
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-04-25T20:22:38",
+  "pack": "precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+  "window": "post_oos",
+  "window_start": "2024-06-01",
+  "window_end": "2026-02-27",
+  "buy_grace_days": 3,
+  "signal": {
+    "id": "v2",
+    "label": "V2_GOLDEN",
+    "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz"
+  },
+  "r2_universe_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/universe/r2_sector_universe.json",
+  "r2_n_tickers": 334,
+  "r2_n_in_pack": 334,
+  "spy_cagr_window": 0.15850549929589874,
+  "arms": [
+    {
+      "id": "baseline_full",
+      "label": "Full SP&500 (no cap)",
+      "universe": "full",
+      "max_pct": null
+    },
+    {
+      "id": "r2_only",
+      "label": "R2 only (no cap)",
+      "universe": "r2",
+      "max_pct": null
+    },
+    {
+      "id": "r2_cap_30",
+      "label": "R2 + cap 30%",
+      "universe": "r2",
+      "max_pct": 0.3
+    }
+  ],
+  "cells": [
+    {
+      "arm_id": "baseline_full",
+      "arm_label": "Full SP&500 (no cap)",
+      "universe": "full",
+      "max_pct": null,
+      "elapsed_sec": 3.2,
+      "CAGR": 0.544427,
+      "Sharpe": 1.5866,
+      "MDD": 0.300276,
+      "Calmar": 1.8131,
+      "Comm_pct": 0.83,
+      "turnover_proxy": 2.0503,
+      "rebal_days": 436,
+      "ru_filtered_total": 0,
+      "ru_rebal_days_with_filter": 0,
+      "sec_cap_filtered_total": 0,
+      "sec_cap_rebal_days_with_filter": 0,
+      "sec_cap_max_breach_pct": 0.27766421037249445,
+      "sec_cap_breach_days": 0
+    },
+    {
+      "arm_id": "r2_only",
+      "arm_label": "R2 only (no cap)",
+      "universe": "r2",
+      "max_pct": null,
+      "elapsed_sec": 3.3,
+      "CAGR": 0.248304,
+      "Sharpe": 1.1698,
+      "MDD": 0.207262,
+      "Calmar": 1.198,
+      "Comm_pct": 0.71,
+      "turnover_proxy": 2.2282,
+      "rebal_days": 436,
+      "ru_filtered_total": 74718,
+      "ru_rebal_days_with_filter": 436,
+      "sec_cap_filtered_total": 0,
+      "sec_cap_rebal_days_with_filter": 0,
+      "sec_cap_max_breach_pct": 0.42138480722966926,
+      "sec_cap_breach_days": 0
+    },
+    {
+      "arm_id": "r2_cap_30",
+      "arm_label": "R2 + cap 30%",
+      "universe": "r2",
+      "max_pct": 0.3,
+      "elapsed_sec": 3.3,
+      "CAGR": 0.251604,
+      "Sharpe": 1.1733,
+      "MDD": 0.209109,
+      "Calmar": 1.2032,
+      "Comm_pct": 0.69,
+      "turnover_proxy": 2.1461,
+      "rebal_days": 436,
+      "ru_filtered_total": 74718,
+      "ru_rebal_days_with_filter": 436,
+      "sec_cap_filtered_total": 159,
+      "sec_cap_rebal_days_with_filter": 91,
+      "sec_cap_max_breach_pct": 0.3801297671939722,
+      "sec_cap_breach_days": 130
+    }
+  ],
+  "total_elapsed_sec": 9.8
+}

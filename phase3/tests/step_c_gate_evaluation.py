@@ -264,6 +264,11 @@ def _run_sim(
     trigger_conf,
     oos_start: str,
     oos_end: str,
+    buy_grace_days: int = 0,
+    vol_target_per_regime: Optional[Dict[str, Dict[str, Any]]] = None,
+    strategy_patch: Optional[Dict[str, Any]] = None,
+    regime_overrides_patch: Optional[Dict[str, Dict[str, Any]]] = None,
+    blend_conf: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     print(f"\n{'='*72}")
     print(f"  SIM  {arm_name}")
@@ -273,6 +278,36 @@ def _run_sim(
 
     signal = load_frozen_signal(signal_path)
     strat = _make_strategy()
+    # T-buy-grace — Idea 2: optional execution-layer knob.  Default 0
+    # (legacy byte-identical).  See phase3/tests/p3_buy_grace_sweep.py
+    # for the sweep that motivated baseline = 3 adoption.
+    if buy_grace_days and int(buy_grace_days) > 0:
+        strat["buy_grace_days"] = int(buy_grace_days)
+    # A1 — optional per-regime vol_target overlay.  Same regime_overrides
+    # mechanism as buy_grace; absent ⇒ byte-identical to legacy.
+    if vol_target_per_regime:
+        import copy as _copy
+        rovr = _copy.deepcopy(strat.get("regime_overrides", {}))
+        for rg, vt in vol_target_per_regime.items():
+            rovr.setdefault(rg, {})
+            rovr[rg]["vol_target"] = _copy.deepcopy(vt)
+        strat["regime_overrides"] = rovr
+    # R1 — generic execution-policy hooks for the sensitivity matrix
+    # (``p6_execution_sensitivity_matrix.py``).  ``strategy_patch`` shallow-
+    # merges into the top-level strategy dict; ``regime_overrides_patch``
+    # deep-merges per-regime overrides on top of the current map.  Both
+    # default to None (legacy byte-identical).
+    if regime_overrides_patch:
+        import copy as _copy
+        rovr = _copy.deepcopy(strat.get("regime_overrides", {}))
+        for rg, ovr in regime_overrides_patch.items():
+            rovr.setdefault(rg, {})
+            for k, v in ovr.items():
+                rovr[rg][k] = _copy.deepcopy(v)
+        strat["regime_overrides"] = rovr
+    if strategy_patch:
+        for k, v in strategy_patch.items():
+            strat[k] = v
 
     t0 = time.time()
     res = simulator.run_simulation(
@@ -287,7 +322,7 @@ def _run_sim(
         commission_bps=10.0, slippage_bps=5.0,
         start_date=oos_start, end_date=oos_end,
         progress_fn=lambda c, t, m: None,
-        blend_conf={"regime_blend_enabled": False},
+        blend_conf=blend_conf if blend_conf is not None else {"regime_blend_enabled": False},
         vix_smooth_by_date=vix_smooth_map,
     )
     elapsed = time.time() - t0
@@ -334,6 +369,19 @@ def _run_sim(
             "Commission_Pct_of_Capital": float(m.get("Commission_Pct", 0.0)),
             "Final_Value": float(m.get("Final_Value", 0.0)),
             "turnover_annualized_proxy": round(turnover_proxy, 4),
+            "vol_target_rebal_days_total":   int(m.get("vol_target_rebal_days_total", 0)),
+            "vol_target_rebal_days_warmed":  int(m.get("vol_target_rebal_days_warmed", 0)),
+            "vol_target_rebal_days_engaged": int(m.get("vol_target_rebal_days_engaged", 0)),
+            "vol_target_scale_mean":         float(m.get("vol_target_scale_mean", 1.0)),
+            "vol_target_scale_min":          float(m.get("vol_target_scale_min", 1.0)),
+            "vol_target_realized_vol_p50":   float(m.get("vol_target_realized_vol_p50", 0.0)),
+            "vol_target_realized_vol_p95":   float(m.get("vol_target_realized_vol_p95", 0.0)),
+            "restricted_universe_filtered_total":           int(m.get("restricted_universe_filtered_total", 0)),
+            "restricted_universe_rebal_days_with_filter":   int(m.get("restricted_universe_rebal_days_with_filter", 0)),
+            "sector_cap_filtered_total":                    int(m.get("sector_cap_filtered_total", 0)),
+            "sector_cap_rebal_days_with_filter":            int(m.get("sector_cap_rebal_days_with_filter", 0)),
+            "sector_cap_max_breach_pct":                    float(m.get("sector_cap_max_breach_pct", 0.0)),
+            "sector_cap_breach_days":                       int(m.get("sector_cap_breach_days", 0)),
         },
         "oos_ic": ic,
         "elapsed_sec": round(elapsed, 1),

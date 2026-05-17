@@ -1,0 +1,116 @@
+{
+  "batch_started_at": "2026-05-03T17:39:52",
+  "dry_run": false,
+  "n_queued": 3,
+  "queue": [
+    "b8_side_v3",
+    "b8_bull_dense",
+    "b8_balanced"
+  ],
+  "current": null,
+  "completed": [
+    "b8_side_v3",
+    "b8_bull_dense",
+    "b8_balanced"
+  ],
+  "failed": [],
+  "results": [
+    {
+      "id": "b8_side_v3",
+      "tag": "P8_SIDE_V3",
+      "batch": 8,
+      "status": "ok",
+      "elapsed_sec": 86526.1,
+      "elapsed_min": 1442.1,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P8_SIDE_V3_20260504_174158.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260504_174158.json",
+      "signal_quality": {
+        "k_selected": 7,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.05,
+      "w_cost": 0.05,
+      "w_turnover_bull": 0.0,
+      "w_turnover_side": 0.05,
+      "w_turnover_def": 0.0,
+      "w_cost_bull": 0.0,
+      "w_cost_side": 0.05,
+      "w_cost_def": 0.0,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260901
+    },
+    {
+      "id": "b8_bull_dense",
+      "tag": "P8_BULL_DENSE",
+      "batch": 8,
+      "status": "ok",
+      "elapsed_sec": 116795.0,
+      "elapsed_min": 1946.6,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P8_BULL_DENSE_20260506_020833.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260506_020833.json",
+      "signal_quality": {
+        "k_selected": 13,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.3,
+      "w_cost": 0.2,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260902
+    },
+    {
+      "id": "b8_balanced",
+      "tag": "P8_BALANCED",
+      "batch": 8,
+      "status": "ok",
+      "elapsed_sec": 87151.5,
+      "elapsed_min": 1452.5,
+      "frozen_signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P8_BALANCED_20260507_022105.npz",
+      "run_log_path": "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/phase5_retrain_log_20260507_022105.json",
+      "signal_quality": {
+        "k_selected": 8,
+        "MeanIC": NaN,
+        "Spread": NaN,
+        "PosICRatio": NaN,
+        "MeanIC_1M": NaN,
+        "MeanIC_3M": NaN
+      },
+      "w_turnover": 0.0,
+      "w_cost": 0.0,
+      "w_turnover_bull": null,
+      "w_turnover_side": null,
+      "w_turnover_def": null,
+      "w_cost_bull": null,
+      "w_cost_side": null,
+      "w_cost_def": null,
+      "train_window": [
+        "2011-01-01",
+        "2026-03-31"
+      ],
+      "ga_seed": 20260903
+    }
+  ],
+  "updated_at": "2026-05-07T02:21:05",
+  "batch_finished_at": "2026-05-07T02:21:05",
+  "total_sec": 290472.6,
+  "total_min": 4841.2
+}

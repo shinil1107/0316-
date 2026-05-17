@@ -1,0 +1,199 @@
+{
+  "generated_at": "2026-04-25T17:50:46",
+  "pack": "precompute_qresearch_v4_12_2011-01-03_2026-02-27.npz",
+  "window": "post_oos",
+  "window_start": "2024-06-01",
+  "window_end": "2026-02-27",
+  "spy_cagr_window": 0.15850549929589874,
+  "signals": [
+    {
+      "id": "v2",
+      "label": "V2_GOLDEN",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_V2_GOLDEN_ENS_L3_v1_20260419.npz"
+    },
+    {
+      "id": "p5c_bull_free",
+      "label": "P5C_BULL_FREE",
+      "path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P5C_BULL_FREE_20260424_192109.npz"
+    }
+  ],
+  "policies": [
+    {
+      "id": "default",
+      "label": "Default",
+      "buy_grace_days": 0,
+      "vol_target_per_regime": null,
+      "strategy_patch": null,
+      "regime_overrides_patch": null,
+      "intent": "LEGACY V2 strategy verbatim \u2014 control."
+    },
+    {
+      "id": "buy_grace_3",
+      "label": "+buy_grace=3",
+      "buy_grace_days": 3,
+      "vol_target_per_regime": null,
+      "strategy_patch": null,
+      "regime_overrides_patch": null,
+      "intent": "Signal-domain noise filter (current production)."
+    },
+    {
+      "id": "vt_S_18",
+      "label": "+vt_S_18",
+      "buy_grace_days": 3,
+      "vol_target_per_regime": {
+        "SIDE": {
+          "enabled": true,
+          "annual_target": 0.18,
+          "lookback_days": 30,
+          "min_scale": 0.3,
+          "max_scale": 1.0
+        }
+      },
+      "strategy_patch": null,
+      "regime_overrides_patch": null,
+      "intent": "Portfolio-domain SIDE-only deleveraging (target 18% ann vol)."
+    }
+  ],
+  "cells": [
+    {
+      "signal_id": "v2",
+      "signal_label": "V2_GOLDEN",
+      "policy_id": "default",
+      "policy_label": "Default",
+      "elapsed_sec": 3.5,
+      "CAGR": 0.509111,
+      "Sharpe": 1.5168,
+      "MDD": 0.302855,
+      "Calmar": 1.681,
+      "Comm_pct": 0.95,
+      "vt_engaged": 0,
+      "vt_warmed": 0,
+      "vt_total": 0
+    },
+    {
+      "signal_id": "v2",
+      "signal_label": "V2_GOLDEN",
+      "policy_id": "buy_grace_3",
+      "policy_label": "+buy_grace=3",
+      "elapsed_sec": 2.8,
+      "CAGR": 0.544427,
+      "Sharpe": 1.5866,
+      "MDD": 0.300276,
+      "Calmar": 1.8131,
+      "Comm_pct": 0.83,
+      "vt_engaged": 0,
+      "vt_warmed": 0,
+      "vt_total": 0
+    },
+    {
+      "signal_id": "v2",
+      "signal_label": "V2_GOLDEN",
+      "policy_id": "vt_S_18",
+      "policy_label": "+vt_S_18",
+      "elapsed_sec": 2.8,
+      "CAGR": 0.542267,
+      "Sharpe": 1.5835,
+      "MDD": 0.299853,
+      "Calmar": 1.8084,
+      "Comm_pct": 0.82,
+      "vt_engaged": 137,
+      "vt_warmed": 155,
+      "vt_total": 155
+    },
+    {
+      "signal_id": "p5c_bull_free",
+      "signal_label": "P5C_BULL_FREE",
+      "policy_id": "default",
+      "policy_label": "Default",
+      "elapsed_sec": 3.7,
+      "CAGR": 0.441968,
+      "Sharpe": 1.5091,
+      "MDD": 0.286278,
+      "Calmar": 1.5438,
+      "Comm_pct": 1.0,
+      "vt_engaged": 0,
+      "vt_warmed": 0,
+      "vt_total": 0
+    },
+    {
+      "signal_id": "p5c_bull_free",
+      "signal_label": "P5C_BULL_FREE",
+      "policy_id": "buy_grace_3",
+      "policy_label": "+buy_grace=3",
+      "elapsed_sec": 2.6,
+      "CAGR": 0.43481,
+      "Sharpe": 1.3935,
+      "MDD": 0.304506,
+      "Calmar": 1.4279,
+      "Comm_pct": 0.75,
+      "vt_engaged": 0,
+      "vt_warmed": 0,
+      "vt_total": 0
+    },
+    {
+      "signal_id": "p5c_bull_free",
+      "signal_label": "P5C_BULL_FREE",
+      "policy_id": "vt_S_18",
+      "policy_label": "+vt_S_18",
+      "elapsed_sec": 2.7,
+      "CAGR": 0.436621,
+      "Sharpe": 1.4006,
+      "MDD": 0.303624,
+      "Calmar": 1.438,
+      "Comm_pct": 0.77,
+      "vt_engaged": 137,
+      "vt_warmed": 155,
+      "vt_total": 155
+    }
+  ],
+  "signal_stats": {
+    "v2": {
+      "n": 3,
+      "mean": 0.531935,
+      "std": 0.016163077924702358,
+      "min": 0.509111,
+      "max": 0.544427,
+      "range_pp": 3.5316000000000014,
+      "cv": 0.03038543792888672
+    },
+    "p5c_bull_free": {
+      "n": 3,
+      "mean": 0.43779966666666664,
+      "std": 0.003038769743754156,
+      "min": 0.43481,
+      "max": 0.441968,
+      "range_pp": 0.7158000000000053,
+      "cv": 0.006941005156287212
+    }
+  },
+  "policy_stats": {
+    "default": {
+      "n": 2,
+      "mean": 0.4755395,
+      "std": 0.033571499999999976,
+      "min": 0.441968,
+      "max": 0.509111,
+      "range_pp": 6.714299999999995,
+      "cv": 0.07059665916290861
+    },
+    "buy_grace_3": {
+      "n": 2,
+      "mean": 0.48961849999999996,
+      "std": 0.05480850000000001,
+      "min": 0.43481,
+      "max": 0.544427,
+      "range_pp": 10.961700000000002,
+      "cv": 0.1119412358805887
+    },
+    "vt_S_18": {
+      "n": 2,
+      "mean": 0.489444,
+      "std": 0.05282300000000004,
+      "min": 0.436621,
+      "max": 0.542267,
+      "range_pp": 10.564600000000008,
+      "cv": 0.1079245020880837
+    }
+  },
+  "total_elapsed_sec": 18.1
+}

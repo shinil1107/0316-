@@ -1,0 +1,146 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T08:47:59",
+    "oos_window": {
+      "start": "2024-06-01",
+      "end": "2026-04-17"
+    },
+    "pack": "precompute_qresearch_v4_12_2017-01-03_2026-04-17.npz",
+    "initial_capital": 100000.0,
+    "commission_bps": 10.0,
+    "slippage_bps": 5.0,
+    "baseline_arm": "V2_ENS_L3_v1_SIDE_DEF_p12"
+  },
+  "candidate": {
+    "arm": "P6_ENSEMBLE_D",
+    "signal_path": "/Users/shin-il/Documents/my stock/cache_fmp_c2_1/output/frozen_signal_P6_ENSEMBLE_D_20260426_084731.npz",
+    "window_start": "2024-06-01",
+    "window_end": "2026-04-17",
+    "metrics": {
+      "CAGR": 0.515044,
+      "Max_Drawdown": 0.314899,
+      "Net_Sharpe": 1.5599,
+      "Calmar_Ratio": 1.6356,
+      "Total_Return": 1.1702,
+      "Daily_Win_Rate": 0.5936,
+      "Monthly_Win_Rate": 0.7273,
+      "Years": 1.87,
+      "Trading_Days": 470,
+      "Rebalance_Days": 470,
+      "Total_Commission": 1221.96,
+      "Commission_Pct_of_Capital": 1.22,
+      "Final_Value": 217023.81,
+      "turnover_annualized_proxy": 2.7488,
+      "vol_target_rebal_days_total": 0,
+      "vol_target_rebal_days_warmed": 0,
+      "vol_target_rebal_days_engaged": 0,
+      "vol_target_scale_mean": 1.0,
+      "vol_target_scale_min": 1.0,
+      "vol_target_realized_vol_p50": 0.0,
+      "vol_target_realized_vol_p95": 0.0,
+      "restricted_universe_filtered_total": 0,
+      "restricted_universe_rebal_days_with_filter": 0,
+      "sector_cap_filtered_total": 0,
+      "sector_cap_rebal_days_with_filter": 0,
+      "sector_cap_max_breach_pct": 0.0,
+      "sector_cap_breach_days": 0
+    },
+    "oos_ic": {
+      "oos_mean_ic_1m": 0.002569545316489727,
+      "oos_mean_ic_3m": 0.01580605107179648,
+      "oos_mean_spread_1m": -0.004221533741022518,
+      "oos_mean_spread_3m": 0.019184969198948895,
+      "oos_days_1m": 450,
+      "oos_days_3m": 410
+    },
+    "elapsed_sec": 3.0
+  },
+  "baseline_metrics": {
+    "CAGR": 0.563348,
+    "Max_Drawdown": 0.314582,
+    "Net_Sharpe": 1.5883,
+    "Calmar_Ratio": 1.7908,
+    "Total_Return": 1.3011,
+    "Daily_Win_Rate": 0.5851,
+    "Monthly_Win_Rate": 0.6818,
+    "Years": 1.87,
+    "Trading_Days": 470,
+    "Rebalance_Days": 470,
+    "Total_Commission": 1120.13,
+    "Commission_Pct_of_Capital": 1.12,
+    "Final_Value": 230106.78,
+    "turnover_annualized_proxy": 2.4199
+  },
+  "baseline_ic": {
+    "oos_mean_ic_1m": 0.006408716110741527,
+    "oos_mean_ic_3m": 0.02696888969330367,
+    "oos_mean_spread_1m": 0.00032662872187386703,
+    "oos_mean_spread_3m": 0.024585451422638335,
+    "oos_days_1m": 450,
+    "oos_days_3m": 410
+  },
+  "gate": {
+    "criteria": [
+      {
+        "#": 1,
+        "criterion": "OOS CAGR",
+        "cand": 0.515044,
+        "gate": ">= +0.5633",
+        "pass": false,
+        "mandatory": false
+      },
+      {
+        "#": 2,
+        "criterion": "OOS MDD",
+        "cand": 0.314899,
+        "gate": "<= 0.3460",
+        "pass": true,
+        "mandatory": true
+      },
+      {
+        "#": 3,
+        "criterion": "OOS Calmar",
+        "cand": 1.6356,
+        "gate": ">= 1.8803",
+        "pass": false,
+        "mandatory": false
+      },
+      {
+        "#": 4,
+        "criterion": "OOS IC (3M)",
+        "cand": 0.01580605107179648,
+        "gate": ">= 0.03197",
+        "pass": false,
+        "mandatory": false
+      },
+      {
+        "#": 5,
+        "criterion": "Commission %",
+        "cand": 1.22,
+        "gate": "<= 0.7840",
+        "pass": false,
+        "mandatory": true
+      },
+      {
+        "#": 6,
+        "criterion": "Temporal (T5)",
+        "cand": NaN,
+        "gate": "fold CAGR std <= mean * 0.5",
+        "pass": null,
+        "mandatory": false,
+        "deferred": true
+      }
+    ],
+    "n_pass_of_5": 1,
+    "mandatory_pass": false,
+    "verdict_full": "REJECT",
+    "verdict_interim": "REJECT*",
+    "thresholds": {
+      "CAGR_ge": 0.563348,
+      "MDD_le": 0.3460402,
+      "Calmar_ge": 1.8803400000000001,
+      "IC3M_ge": 0.03196888969330367,
+      "Comm_le": 0.784
+    }
+  }
+}
