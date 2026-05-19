@@ -339,7 +339,17 @@ class TestLauncherFileContract(unittest.TestCase):
                          f"not executable by user: oct={oct(mode)}")
 
     def test_launcher_command_contains_no_secrets(self) -> None:
-        text = self.LAUNCHER.read_text(encoding="utf-8")
+        """The launcher must never *set* secrets or danger gates. Comment
+        lines that mention these names as operator guidance ("export
+        KIS_PAPER_SUBMIT_OK=true in your shell before relaunching") are
+        explicitly allowed — they document the manual contract instead
+        of bypassing it. The test therefore strips comment-only lines
+        before fingerprint-matching."""
+        raw = self.LAUNCHER.read_text(encoding="utf-8")
+        non_comment = "\n".join(
+            line for line in raw.splitlines()
+            if not line.lstrip().startswith("#")
+        )
         forbidden = [
             "KIS_APPKEY=", "KIS_APPSECRET=",
             cp.SUBMIT_GATE + "=", cp.CANCEL_GATE + "=",
@@ -350,9 +360,14 @@ class TestLauncherFileContract(unittest.TestCase):
         ]
         for needle in forbidden:
             self.assertNotIn(
-                needle, text,
-                msg=f"launcher must not embed {needle!r}: file={self.LAUNCHER}",
+                needle, non_comment,
+                msg=f"launcher must not embed {needle!r} outside a comment: "
+                    f"file={self.LAUNCHER}",
             )
+        # Belt-and-suspenders: the demo secret must NEVER appear, even in
+        # a comment. The danger gate names *may* appear in comments to
+        # document the manual export contract.
+        self.assertNotIn("PSaIzWkpRqB1JxUX9PrG4a8tkzvGwl28akQ", raw)
 
     def test_launcher_runs_control_panel_module(self) -> None:
         text = self.LAUNCHER.read_text(encoding="utf-8")

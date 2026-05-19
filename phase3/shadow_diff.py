@@ -86,20 +86,46 @@ def compare_recommendations(
 
     shadow_only_buy = sorted(shadow_buys - live_buys)
     live_only_buy = sorted(live_buys - shadow_buys)
+    both_buy = sorted(live_buys & shadow_buys)
 
     rank_corr = _rank_correlation(live_scores, shadow_scores)
 
-    shadow_buy_details = []
-    for t in shadow_only_buy:
-        row = shadow_recos.loc[shadow_recos["Ticker"] == t]
-        score = float(row["Score"].iloc[0]) if not row.empty and "Score" in row.columns else 0.0
-        shadow_buy_details.append({"ticker": t, "score": score})
+    def _score_for(df: pd.DataFrame, ticker: str) -> float:
+        if df.empty or "Ticker" not in df.columns or "Score" not in df.columns:
+            return 0.0
+        row = df.loc[df["Ticker"] == ticker]
+        if row.empty:
+            return 0.0
+        val = row["Score"].iloc[0]
+        return float(val) if pd.notna(val) else 0.0
 
-    live_buy_details = []
-    for t in live_only_buy:
-        row = live_recos.loc[live_recos["Ticker"] == t]
-        score = float(row["Score"].iloc[0]) if not row.empty and "Score" in row.columns else 0.0
-        live_buy_details.append({"ticker": t, "score": score})
+    shadow_buy_details = [{"ticker": t, "score": _score_for(shadow_recos, t)}
+                          for t in shadow_only_buy]
+    live_buy_details = [{"ticker": t, "score": _score_for(live_recos, t)}
+                        for t in live_only_buy]
+    # Tickers both signals want to BUY today. Carry both scores so the
+    # email can show how the two signals rank the shared name.
+    both_buy_details = [
+        {"ticker": t,
+         "live_score": _score_for(live_recos, t),
+         "shadow_score": _score_for(shadow_recos, t)}
+        for t in both_buy
+    ]
+    # Tickers both signals rank inside their top-N pool today (regardless
+    # of BUY/HOLD action). This is a strictly larger set than ``both_buy``
+    # — e.g. a ticker may be top-ranked by both signals but blocked from
+    # BUY on one side by buy_grace_days, sector cap, etc. Sort by mean
+    # score descending so the strongest shared conviction floats up.
+    both_topn_details = [
+        {"ticker": t,
+         "live_score": _score_for(live_scores, t),
+         "shadow_score": _score_for(shadow_scores, t)}
+        for t in sorted(overlap)
+    ]
+    both_topn_details.sort(
+        key=lambda r: (r["live_score"] + r["shadow_score"]) / 2.0,
+        reverse=True,
+    )
 
     return {
         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -114,8 +140,11 @@ def compare_recommendations(
         "topn_overlap_rate": round(overlap_rate, 4),
         "live_buy_count": len(live_buys),
         "shadow_buy_count": len(shadow_buys),
+        "both_buy_count": len(both_buy_details),
         "shadow_only_buys": shadow_buy_details,
         "live_only_buys": live_buy_details,
+        "both_buys": both_buy_details,
+        "both_topn": both_topn_details,
         "shadow_topn_picks": shadow_topn_picks,
         "shadow_buys_all": shadow_buys_all,
         "shadow_sells_all": shadow_sells_all,
@@ -167,8 +196,36 @@ def format_email_section(diff: Dict[str, Any]) -> str:
     olap_rate = diff.get("topn_overlap_rate", 0)
     lines.append(f"  Top-N Overlap: {olap_n}/{union_n} ({olap_rate:.0%})")
 
+    both_topn = diff.get("both_topn", [])
+    both_buys = diff.get("both_buys", [])
     shadow_only = diff.get("shadow_only_buys", [])
     live_only = diff.get("live_only_buys", [])
+
+    # Tickers both signals rank in top-N today (superset of Both BUY —
+    # includes names a sector cap / buy-grace blocks from actually
+    # firing a BUY on one side).
+    if both_topn:
+        parts = [
+            f"{b['ticker']} (L{b['live_score']:+.1f}/S{b['shadow_score']:+.1f})"
+            for b in both_topn[:5]
+        ]
+        extra = f" +{len(both_topn)-5} more" if len(both_topn) > 5 else ""
+        lines.append(f"  Both Top-N:      {', '.join(parts)}{extra}")
+    else:
+        lines.append(f"  Both Top-N:      (none)")
+
+    # Both BUY: tickers both signals want to buy today. Show live and
+    # shadow scores side-by-side so the operator can see whether the two
+    # signals agree on conviction strength, not just on the pick.
+    if both_buys:
+        parts = [
+            f"{b['ticker']} (L{b['live_score']:+.1f}/S{b['shadow_score']:+.1f})"
+            for b in both_buys[:5]
+        ]
+        extra = f" +{len(both_buys)-5} more" if len(both_buys) > 5 else ""
+        lines.append(f"  Both BUY:        {', '.join(parts)}{extra}")
+    else:
+        lines.append(f"  Both BUY:        (none)")
 
     if shadow_only:
         parts = [f"{b['ticker']} ({b['score']:+.1f})" for b in shadow_only[:5]]

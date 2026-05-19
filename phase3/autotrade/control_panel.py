@@ -36,6 +36,8 @@ import json
 import os
 import subprocess
 import sys
+import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -412,6 +414,15 @@ def compute_button_gates(
         enabled=not gen_reasons,
         reason="; ".join(gen_reasons),
     )
+    # R10C — "Generate ALL Intents" shares the same enablement gates as
+    # the single-shot generator. It is intentionally allowed even when
+    # the dropdown has no selection, because batch generation does not
+    # depend on the highlighted candidate.
+    out["generate_all"] = ButtonGate(
+        "generate_all",
+        enabled=not gen_reasons,
+        reason="; ".join(gen_reasons),
+    )
 
     # 2. Paper Submit — many preconditions, all checked here.
     submit_reasons: List[str] = []
@@ -502,6 +513,154 @@ def _shell_quote(s: str) -> str:
     return "'" + s.replace("'", "'\\''") + "'"
 
 
+def build_panel_snapshot_text(
+    ps: "PanelState",
+    *,
+    run_id: str,
+    output_tail: str = "",
+    last_argv: Optional[List[str]] = None,
+    generated_at: Optional[str] = None,
+) -> str:
+    """Render the current panel state + last subprocess output as a
+    plain-text block the operator can paste into chat / a bug report.
+
+    Pure helper (no Tk, no os.environ) so the test suite can lock the
+    format down. Anything that could leak credentials (e.g. raw env-var
+    values that aren't already exposed in ``ps.gates``) is intentionally
+    omitted — only the booleans/labels already shown in the dashboard
+    are included.
+    """
+    ts = generated_at or datetime.now(timezone.utc).strftime(
+        "%Y-%m-%d %H:%M:%S UTC"
+    )
+    lines: List[str] = []
+    lines.append("=== Autotrade Control Panel snapshot ===")
+    lines.append(f"generated_at : {ts}")
+    lines.append(f"run_id       : {run_id or '(empty)'}")
+    lines.append(f"run_dir      : {ps.run_dir}")
+    lines.append(f"artifact     : {ps.artifact_status}")
+    intents_line = (
+        f"state={ps.intents.state}"
+        f"  intents={ps.intents.intent_count}"
+        f"  buys={ps.intents.buy_count}"
+    )
+    if ps.intents.reason:
+        intents_line += f"  ({ps.intents.reason})"
+    lines.append(f"intents      : {intents_line}")
+    if ps.last_report.exists:
+        rep = ps.last_report.md_path or ps.last_report.json_path
+        lines.append(f"last_report  : {rep}")
+        lines.append(f"last_rc      : {ps.last_report.summary}")
+    else:
+        lines.append("last_report  : —")
+        lines.append("last_rc      : —")
+    lines.append("")
+    lines.append("--- Safety Gates ---")
+    for g in ps.gates:
+        flag = "OK" if g.ok else "BLOCK"
+        note = f"  ({g.note})" if g.note else ""
+        lines.append(f"  {g.name:<24} = {g.value:<14} [{flag}]{note}")
+    lines.append(
+        f"  halt                     halted={ps.halt.halted}  "
+        f"reason={ps.halt.reason or '(none)'}"
+    )
+    if ps.t10_journal.is_clean:
+        lines.append("  t10_journal              clean")
+    else:
+        lines.append(
+            f"  t10_journal              open_started="
+            f"{ps.t10_journal.open_started_batches}  "
+            f"recovery={ps.t10_journal.recovery_batches}"
+        )
+    lines.append("")
+    lines.append("--- Intent Preparation ---")
+    lines.append(
+        f"  recommendations.csv     "
+        f"{'exists' if ps.recommendations_csv_exists else 'missing'}"
+        f"  buy_candidates={ps.recommendations_buy_count}"
+    )
+    if last_argv:
+        lines.append("")
+        lines.append("--- Last command ---")
+        lines.append("  $ " + " ".join(last_argv))
+    if output_tail:
+        lines.append("")
+        lines.append("--- Output / Log tail ---")
+        lines.append(output_tail.rstrip())
+    return "\n".join(lines) + "\n"
+
+
+class DangerActionDenied(RuntimeError):
+    """Raised by ``revalidate_danger_action`` when a paper-submit or
+    T10-apply callback fires while the button matrix says the action
+    is disabled. The Tk callback catches this, shows the reason in a
+    messagebox, and exits without spawning a subprocess.
+
+    This is defence-in-depth on top of the visible button state — it
+    closes the small window where (a) the operator clicks faster
+    than ``_refresh`` runs, (b) a programmatic Tk event fires the
+    callback directly, or (c) a future refactor accidentally removes
+    the Tk-level disabled state. The Arm toggles MUST already have
+    set the corresponding env vars on ``os.environ`` before this
+    function is reached; we do not synthesise gate values here.
+    """
+    def __init__(self, action: str, reason: str):
+        super().__init__(f"{action} denied: {reason}")
+        self.action = action
+        self.reason = reason
+
+
+def revalidate_danger_action(
+    *,
+    action: str,
+    output_dir: Optional[Path],
+    run_id: str,
+    env: Dict[str, str],
+    confirm_submit_checked: bool = False,
+    confirm_apply_checked: bool = False,
+    overwrite_intents_checked: bool = False,
+    dry_run_rc_clean: bool = False,
+    submit_outcome_clean: bool = False,
+) -> "PanelState":
+    """Recompute panel state + button gates and refuse if the action
+    is currently disabled. Returns the freshly computed PanelState so
+    callers can reuse it for logging / preview.
+
+    ``action`` is one of: 'paper_submit', 't10_apply', 'full_paper_run'
+    (R11). Other actions are not danger-gated and use the gate matrix
+    only for UX hints, not safety enforcement, so this helper refuses
+    to be called with them — pass through directly.
+    """
+    DANGER_ACTIONS = {"paper_submit", "t10_apply", "full_paper_run"}
+    if action not in DANGER_ACTIONS:
+        raise ValueError(
+            f"revalidate_danger_action only applies to danger actions "
+            f"{sorted(DANGER_ACTIONS)}; got {action!r}"
+        )
+    if output_dir is None:
+        raise DangerActionDenied(action, "phase3 paper config not loadable")
+    if not run_id or not run_id.strip():
+        raise DangerActionDenied(action, "no run_id selected")
+    ps = compute_panel_state(
+        output_dir=Path(output_dir), run_id=run_id, env=env,
+    )
+    gates = compute_button_gates(
+        ps,
+        dry_run_rc_clean=dry_run_rc_clean,
+        submit_outcome_clean=submit_outcome_clean,
+        confirm_submit_checked=confirm_submit_checked,
+        confirm_apply_checked=confirm_apply_checked,
+        overwrite_intents_checked=overwrite_intents_checked,
+    )
+    if action not in gates:
+        raise DangerActionDenied(
+            action, f"no gate entry for {action!r} in button matrix")
+    g = gates[action]
+    if not g.enabled:
+        raise DangerActionDenied(action, g.reason or "gate disabled")
+    return ps
+
+
 def build_command_preview(
     button_id: str, *, run_id: str, profile: str = "paper",
 ) -> str:
@@ -547,6 +706,57 @@ def build_command_preview(
             "BUY candidate; no broker call)"
         )
     raise ValueError(f"unknown button_id: {button_id!r}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# R10-ARM — In-UI gate activation
+# ──────────────────────────────────────────────────────────────────────
+# Why this is safe vs the original shell-export workflow:
+#
+#   * The R10 safety contract is "the operator must express explicit
+#     intent each time a danger action is enabled". The original design
+#     achieved that with a shell ``export``. The same contract is
+#     preserved here by requiring an in-UI checkbox + a confirmation
+#     dialog before the env var is set.
+#   * The env var is written into the CURRENT process's ``os.environ``
+#     ONLY. There is no on-disk persistence, no .env mutation, and no
+#     exec into a parent shell. When the UI process exits, the value
+#     is gone. Closing the UI = disarming.
+#   * The four-layer guard is unchanged: KIS_ENV=paper, this Arm gate,
+#     the "I authorize" checkbox, and the buttoned action itself.
+#   * compute_button_gates() reads the same env mapping that
+#     daily_runner subprocesses inherit, so an armed UI directly maps
+#     to the same env that the subprocess sees on the next click.
+
+ARM_PAPER_GATE_VARS: Tuple[str, ...] = (SUBMIT_GATE, CANCEL_GATE)
+ARM_T10_GATE_VARS:   Tuple[str, ...] = (APPLY_GATE,)
+
+
+def arm_gate_vars(env: Dict[str, str], gate_vars: Tuple[str, ...]) -> Dict[str, str]:
+    """Return a copy of ``env`` with every var in ``gate_vars`` set to
+    ``"true"``. Pure / testable; the UI callback applies the returned
+    map back onto ``os.environ``."""
+    out = dict(env)
+    for var in gate_vars:
+        out[var] = "true"
+    return out
+
+
+def disarm_gate_vars(env: Dict[str, str], gate_vars: Tuple[str, ...]) -> Dict[str, str]:
+    """Return a copy of ``env`` with every var in ``gate_vars`` cleared.
+    Mirrors :func:`arm_gate_vars` and is what the UI calls when the
+    operator unticks an Arm checkbox."""
+    out = dict(env)
+    for var in gate_vars:
+        out.pop(var, None)
+    return out
+
+
+def gate_is_armed(env: Dict[str, str], gate_vars: Tuple[str, ...]) -> bool:
+    """True iff every var in ``gate_vars`` is currently set to ``"true"``
+    in ``env``. Used to derive the initial checkbox state on UI start so
+    a pre-existing shell export still reflects in the toggle."""
+    return all(env.get(v, "").strip().lower() == "true" for v in gate_vars)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -712,6 +922,95 @@ def run_t10(run_id: str, *, apply_mode: bool, profile: str = "paper",
 
 
 # ──────────────────────────────────────────────────────────────────────
+# R10C — Streaming subprocess runner
+# ──────────────────────────────────────────────────────────────────────
+# The UI used to call ``subprocess.run`` which blocks the Tk main loop
+# for the entire daily_runner invocation (up to minutes). That made the
+# panel look frozen and gave the operator zero visibility into progress
+# — the exact symptom that prompted R10C. ``run_subprocess_streaming``
+# is the line-by-line replacement: it spawns the child immediately,
+# pumps stdout / stderr from two background threads, and hands every
+# line to ``on_line`` so the UI can append it to its log widget in
+# real time. ``on_done(rc)`` fires once both pipes have drained and
+# the process has exited.
+#
+# Pure helper (no Tk references). The Tk side just wraps every callback
+# with ``root.after(0, …)`` so the actual widget mutation always lands
+# on the main thread.
+
+def run_subprocess_streaming(
+    argv: List[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[Dict[str, str]] = None,
+    on_line: Callable[[str, str], None],
+    on_done: Callable[[int], None],
+    popen: Callable[..., Any] = subprocess.Popen,
+) -> Any:
+    """Spawn ``argv`` and stream its stdout/stderr lines back via
+    callbacks. Returns the ``Popen`` immediately so the caller can keep
+    a handle (e.g. to surface PID, or to terminate on a STOP button).
+
+    ``on_line(stream, line)`` is called once per logical output line
+    (newline stripped). ``stream`` is one of ``"stdout"`` / ``"stderr"``
+    so the UI can colourize. ``on_done(rc)`` is called exactly once
+    after both pipes have closed and the child has exited.
+
+    Both callbacks fire from background threads — callers that need
+    to mutate Tk state MUST trampoline through ``root.after``.
+    """
+    # Force the child Python to flush stdout/stderr line-by-line.
+    # Without PYTHONUNBUFFERED, CPython block-buffers when the parent
+    # captures via PIPE, which would silently hold every line until
+    # the buffer (~4 KiB) fills — i.e. no live progress in the UI.
+    env_eff: Dict[str, str] = dict(env) if env is not None else dict(os.environ)
+    env_eff.setdefault("PYTHONUNBUFFERED", "1")
+    proc = popen(
+        argv,
+        cwd=str(cwd) if cwd is not None else str(_REPO_ROOT),
+        env=env_eff,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,  # line-buffered on the parent side
+    )
+
+    def _pump(stream_name: str, fh: Any) -> None:
+        try:
+            for raw in iter(fh.readline, ""):
+                on_line(stream_name, raw.rstrip("\n"))
+        finally:
+            try:
+                fh.close()
+            except Exception:
+                pass
+
+    t_out = threading.Thread(
+        target=_pump, args=("stdout", proc.stdout), daemon=True)
+    t_err = threading.Thread(
+        target=_pump, args=("stderr", proc.stderr), daemon=True)
+    t_out.start()
+    t_err.start()
+
+    def _waiter() -> None:
+        proc.wait()
+        # R10D / P1-3 — guarantee stdout/stderr are fully drained
+        # before signalling completion. ``proc.wait()`` has already
+        # returned, so both readline() loops will see EOF (empty
+        # string) and exit. Joining without a timeout means
+        # ``on_done`` cannot fire while there's still a queued line
+        # waiting to be appended to the log — important once the
+        # autotrade email and the panel snapshot start reading the
+        # last_run buffers right after on_done.
+        t_out.join()
+        t_err.join()
+        on_done(int(proc.returncode))
+
+    threading.Thread(target=_waiter, daemon=True).start()
+    return proc
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Submit-outcome quality check
 # ──────────────────────────────────────────────────────────────────────
 def submit_outcome_is_clean(run_dir: Path) -> Tuple[bool, str]:
@@ -838,6 +1137,11 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
     confirm_submit_var = tk.BooleanVar(value=False)
     confirm_apply_var  = tk.BooleanVar(value=False)
     overwrite_intents_var = tk.BooleanVar(value=False)
+    # R10-ARM — Activation toggles. Initial state mirrors whatever is
+    # *already* in os.environ so a pre-launch shell export still shows
+    # the checkbox ticked. Untick = clear from os.environ this session.
+    arm_paper_var = tk.BooleanVar(value=gate_is_armed(os.environ, ARM_PAPER_GATE_VARS))
+    arm_t10_var   = tk.BooleanVar(value=gate_is_armed(os.environ, ARM_T10_GATE_VARS))
     run_id_var = tk.StringVar()
     # R10B — Intent Preparation widget state. We hold the buy-candidate
     # list in a closure dict so _refresh() can repopulate the dropdown.
@@ -933,6 +1237,43 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                      variable=overwrite_intents_var,
                      command=lambda: _refresh()).grid(
         row=4, column=0, columnspan=2, sticky="w", padx=4, pady=2)
+
+    # R10C — batch knob: limit pad % applied to every candidate's
+    # reco_price in the batch path. 0 = use reco_price as-is.
+    ttk.Label(frm_prep, text="Batch limit pad (%):").grid(
+        row=5, column=0, sticky="w")
+    intent_state["limit_pad_var"] = tk.StringVar(value="0.0")
+    ttk.Entry(
+        frm_prep, textvariable=intent_state["limit_pad_var"], width=10,
+    ).grid(row=5, column=1, sticky="w", padx=4)
+    ttk.Label(
+        frm_prep,
+        text="(positive % bumps every BUY limit upward to lift fill probability)",
+        foreground="gray",
+    ).grid(row=6, column=0, columnspan=2, sticky="w", padx=4)
+
+    # R10D-3 — quote-fresh limit toggle. When checked, the batch
+    # generator calls ``adapter.get_quote(symbol)`` for each candidate
+    # and sets ``limit = max(reco_padded, ask*(1+quote_pad))``. The
+    # confirmation dialog shows row-level reco/refreshed/asof so the
+    # operator can sanity-check before clobbering the intent file.
+    intent_state["use_quote_var"] = tk.BooleanVar(value=False)
+    ttk.Checkbutton(
+        frm_prep,
+        text="Refresh limits with live KIS quote (R10D-3)",
+        variable=intent_state["use_quote_var"],
+    ).grid(row=7, column=0, columnspan=2, sticky="w", padx=4, pady=2)
+    ttk.Label(frm_prep, text="Quote pad (%):").grid(
+        row=8, column=0, sticky="w")
+    intent_state["quote_pad_var"] = tk.StringVar(value="0.1")
+    ttk.Entry(
+        frm_prep, textvariable=intent_state["quote_pad_var"], width=10,
+    ).grid(row=8, column=1, sticky="w", padx=4)
+    ttk.Label(
+        frm_prep,
+        text="(applied to max(reco*(1+batch_pad), ask*(1+quote_pad)))",
+        foreground="gray",
+    ).grid(row=9, column=0, columnspan=2, sticky="w", padx=4)
     frm_prep.columnconfigure(1, weight=1)
 
     def _on_cand_select(_event: Any = None) -> None:
@@ -952,8 +1293,8 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
     btns: Dict[str, ttk.Button] = {}
     reasons: Dict[str, tk.StringVar] = {
         k: tk.StringVar(value="")
-        for k in ("generate_intent", "dry_run", "paper_submit",
-                  "t10_dry", "t10_apply", "full_paper_run")
+        for k in ("generate_intent", "generate_all", "dry_run",
+                  "paper_submit", "t10_dry", "t10_apply", "full_paper_run")
     }
 
     def _on_generate_intent():
@@ -1019,66 +1360,381 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
         messagebox.showinfo(
             "Generated", f"submitted_intents.json written for {cand.ticker} qty={qty}.")
 
+    # R10C — generate one intent file covering every BUY candidate at
+    # once. Uses each candidate's reco_shares & reco_price (with the
+    # optional pad %) so the operator does not have to walk through
+    # them one by one.
+    # R10D-3 — when ``Refresh limits with live KIS quote`` is checked,
+    # each candidate's limit is lifted with the broker's current ask
+    # so gap-up tickers do not silently mis-fill at yesterday's close.
+    def _on_generate_all_intents():
+        rid = run_id_var.get().strip()
+        if not rid:
+            messagebox.showwarning("Run ID required", "Pick a run_id first.")
+            return
+        cands: List[intents_io.BuyCandidate] = list(intent_state["candidates"])
+        if not cands:
+            messagebox.showwarning(
+                "No BUY candidates",
+                "recommendations.csv has no BUY rows for this run.")
+            return
+        try:
+            pad = float(intent_state["limit_pad_var"].get())
+        except (TypeError, ValueError):
+            messagebox.showerror(
+                "Invalid limit pad",
+                "Batch limit pad must be a number (e.g. 0, 0.5, 1.0).")
+            return
+        if pad < 0:
+            messagebox.showerror(
+                "Negative batch pad refused",
+                "Negative batch pad is not allowed for BUY orders "
+                "(it would lower limits below reco_close). "
+                "Set pad >= 0.")
+            return
+        use_quote = bool(intent_state["use_quote_var"].get())
+        try:
+            qpad = float(intent_state["quote_pad_var"].get())
+        except (TypeError, ValueError):
+            messagebox.showerror(
+                "Invalid quote pad",
+                "Quote pad must be a number (e.g. 0, 0.1, 0.5).")
+            return
+        if use_quote and qpad < 0:
+            messagebox.showerror(
+                "Negative quote pad refused",
+                "Negative quote pad is not allowed for BUY orders.")
+            return
+
+        run_dir = Path(output_dir) / "daily_runs" / rid
+        already = intents_io.validate_submitted_intents(run_dir)
+        if already.is_ok and not overwrite_intents_var.get():
+            messagebox.showerror(
+                "submitted_intents.json already exists",
+                "Tick 'Allow overwrite of existing submitted_intents.json' "
+                "and press Refresh first.")
+            return
+
+        # R10D-3: build a quote_fn closure if the operator wants live
+        # quotes. We construct one adapter per click (cheap; the
+        # auth token is cached on the adapter so subsequent quote
+        # calls reuse it).
+        quote_fn = None
+        warnings: List[intents_io.IntentBuildWarning] = []
+        if use_quote:
+            try:
+                from phase3.autotrade.kis_broker_adapter import (
+                    KisBrokerAdapter, load_env_config,
+                )
+                env_cfg = load_env_config()
+                if env_cfg.env_name != "paper":
+                    messagebox.showerror(
+                        "Quote refresh paper-only",
+                        f"R10D-3 quote refresh is paper-only "
+                        f"(KIS_ENV={env_cfg.env_name!r}).")
+                    return
+                _quote_adapter = KisBrokerAdapter(cfg=env_cfg, verbose=False)
+
+                # R10E — recommendations.csv has no exchange column,
+                # so candidate.market is hard-coded NASD. KIS quote
+                # then returns last=0/ask=0 for NYSE/AMEX tickers
+                # (JBL, DOW, etc.) and the R10D-3 helper falls back
+                # to yesterday's close — which is exactly how
+                # 20260519_220825_daily overpriced its limits.
+                # ``get_quote_with_exchange_fallback`` probes
+                # NASD → NYSE → AMEX so the helper only falls back
+                # to reco_close when the symbol genuinely has no
+                # live US quote.
+                def _quote_fn(symbol: str, market: str):
+                    return _quote_adapter.get_quote_with_exchange_fallback(
+                        symbol, preferred_market=market,
+                    )
+                quote_fn = _quote_fn
+            except Exception as e:  # noqa: BLE001
+                messagebox.showerror(
+                    "Quote adapter init failed",
+                    f"{type(e).__name__}: {e}")
+                return
+
+        # Preview line so the operator knows what they're about to write.
+        rows_preview = intents_io.candidates_to_intent_rows(
+            cands, limit_pad_pct=pad,
+            quote_fn=quote_fn, quote_pad_pct=qpad,
+            warnings_out=warnings)
+        total_qty = sum(int(r["qty"]) for r in rows_preview)
+        usd_estimate = sum(
+            int(r["qty"]) * float(r["limit_price"]) for r in rows_preview)
+        sample_lines = "\n".join(
+            f"  - {r['symbol']:<6} qty={r['qty']:<3} "
+            f"limit={r['limit_price']:.4f}  src={r.get('_quote_source', '?')}"
+            for r in rows_preview[:10]
+        )
+        more = (f"\n  ... and {len(rows_preview) - 10} more"
+                if len(rows_preview) > 10 else "")
+        warn_block = ""
+        if warnings:
+            warn_lines = "\n".join(
+                f"  ! {w.ticker}: {w.reason}" for w in warnings[:10])
+            warn_more = (f"\n  ... and {len(warnings) - 10} more"
+                          if len(warnings) > 10 else "")
+            warn_block = (
+                f"\n\nQuote-refresh fallback warnings "
+                f"({len(warnings)} row(s)):\n{warn_lines}{warn_more}"
+            )
+        if already.is_ok:
+            confirm_msg = (
+                f"This will OVERWRITE the existing\n  {already.path}\n"
+                f"(currently {already.buy_count} BUY rows).\n\n"
+            )
+        else:
+            confirm_msg = ""
+        quote_line = (f"  quote refresh: ON (quote pad {qpad:+.2f}%)"
+                      if use_quote else "  quote refresh: OFF")
+        if not messagebox.askokcancel(
+            "Confirm batch intent generation",
+            f"{confirm_msg}Write {len(rows_preview)} BUY intent rows\n"
+            f"  total qty     : {total_qty}\n"
+            f"  total notional ≈ ${usd_estimate:,.2f}\n"
+            f"  batch pad     : {pad:+.2f}%\n"
+            f"{quote_line}\n\n"
+            f"{sample_lines}{more}{warn_block}\n\nProceed?",
+        ):
+            return
+        try:
+            # Write rows_preview directly — we already paid the
+            # network cost (and recorded warnings) above. Calling
+            # write_intent_file_from_candidates with the same quote_fn
+            # would re-issue every quote call and could yield
+            # different results in the worst case.
+            written = intents_io.write_submitted_intents(
+                run_dir, rows_preview, run_id=rid,
+                overwrite=overwrite_intents_var.get(),
+            )
+        except Exception as e:  # noqa: BLE001
+            messagebox.showerror(
+                "Generate ALL Intents failed",
+                f"{type(e).__name__}: {e}")
+            return
+        _set_preview(build_command_preview("generate_intent", run_id=rid))
+        txt.delete("1.0", "end")
+        txt.insert("end", f"Wrote {written}\n")
+        txt.insert("end",
+                    f"  rows={len(rows_preview)}  total_qty={total_qty}  "
+                    f"notional≈${usd_estimate:,.2f}  "
+                    f"batch_pad={pad:+.2f}%  "
+                    f"quote_refresh={'on' if use_quote else 'off'}\n\n")
+        for r in rows_preview:
+            txt.insert("end",
+                        f"  {r['symbol']:<6} qty={r['qty']:<3} "
+                        f"limit={r['limit_price']:.4f}  "
+                        f"src={r.get('_quote_source', '?')}  "
+                        f"cid={r['client_order_id']}\n")
+        if warnings:
+            txt.insert("end", "\n[quote refresh warnings]\n")
+            for w in warnings:
+                txt.insert("end", f"  ! {w.ticker}: {w.reason}\n")
+        overwrite_intents_var.set(False)
+        _refresh()
+        messagebox.showinfo(
+            "Generated (batch)",
+            f"submitted_intents.json written with {len(rows_preview)} rows "
+            f"(total qty={total_qty}, notional≈${usd_estimate:,.2f}, "
+            f"warnings={len(warnings)}).")
+
+    # ── R10C — Tk-side wrapper around run_subprocess_streaming ────────
+    # The previous wiring used blocking ``subprocess.run`` which froze
+    # the Tk main loop for the entire daily_runner invocation. This
+    # wrapper streams every stdout / stderr line into the Output area
+    # the moment the subprocess prints it, while a ticking status
+    # label keeps the operator aware that "yes, it's still working".
+    def _tick_status():
+        if running_state["active"]:
+            elapsed = time.monotonic() - running_state["started"]
+            status_var.set(
+                f"running {running_state['label']}  {elapsed:5.1f}s"
+            )
+            root.after(500, _tick_status)
+
+    def _stream_argv(
+        argv: List[str],
+        *,
+        label: str,
+        env: Optional[Dict[str, str]] = None,
+        on_finished: Optional[Callable[[int], None]] = None,
+    ) -> None:
+        if running_state["active"]:
+            messagebox.showwarning(
+                "Another action is still running",
+                f"Wait for '{running_state['label']}' to finish first."
+            )
+            return
+        txt.delete("1.0", "end")
+        started_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        txt.insert("end", f"$ {' '.join(argv)}\n")
+        txt.insert("end", f"[{label}] starting at {started_iso}\n\n")
+        txt.see("end")
+        running_state.update({
+            "active": True,
+            "label": label,
+            "started": time.monotonic(),
+        })
+        status_var.set(f"running {label}  0.0s")
+        for b in btns.values():
+            b.config(state="disabled")
+        # Reset the streaming accumulators so the Copy Snapshot button
+        # only ever exposes the current invocation.
+        stream_buffers: Dict[str, List[str]] = {"stdout": [], "stderr": []}
+
+        def _on_line(stream: str, line: str) -> None:
+            stream_buffers[stream].append(line)
+
+            def _append() -> None:
+                prefix = "[stderr] " if stream == "stderr" else ""
+                txt.insert("end", prefix + line + "\n")
+                txt.see("end")
+            root.after(0, _append)
+
+        def _on_done(rc: int) -> None:
+            def _finish() -> None:
+                elapsed = time.monotonic() - running_state["started"]
+                txt.insert(
+                    "end",
+                    f"\n[done] {label} rc={rc}  elapsed={elapsed:.1f}s\n",
+                )
+                txt.see("end")
+                status_var.set(f"done rc={rc}  ({elapsed:.1f}s)")
+                running_state["active"] = False
+                running_state["proc"] = None
+                last_run["argv"] = list(argv)
+                last_run["stdout"] = "\n".join(stream_buffers["stdout"])
+                last_run["stderr"] = "\n".join(stream_buffers["stderr"])
+                if on_finished is not None:
+                    try:
+                        on_finished(rc)
+                    except Exception as e:  # noqa: BLE001
+                        txt.insert(
+                            "end",
+                            f"[panel] on_finished hook raised: "
+                            f"{type(e).__name__}: {e}\n",
+                        )
+                _refresh()
+            root.after(0, _finish)
+
+        proc = run_subprocess_streaming(
+            list(argv), cwd=_REPO_ROOT, env=env,
+            on_line=_on_line, on_done=_on_done,
+        )
+        running_state["proc"] = proc
+        root.after(500, _tick_status)
+
     def _on_dry_run():
         rid = run_id_var.get().strip()
         if not rid:
             messagebox.showwarning("Run ID required", "Pick a run_id first.")
             return
-        _set_preview(build_command_preview("dry_run", run_id=rid))
-        res = run_dry_run(rid)
-        _render_output(res)
-        session["dry_run_rc_clean"] = (res.rc == 0)
-        _refresh()
+        cmd = build_command_preview("dry_run", run_id=rid)
+        _set_preview(cmd)
+        argv = _build_dry_run_argv(rid, profile="paper")
+
+        def _after(rc: int) -> None:
+            session["dry_run_rc_clean"] = (rc == 0)
+        _stream_argv(argv, label="dry-run", on_finished=_after)
 
     def _on_paper_submit():
         rid = run_id_var.get().strip()
+        # R10D / P0-3 — defence-in-depth: re-evaluate the button matrix
+        # at callback entry so a stale UI state can't bypass the gate.
+        # Crucially, this also forbids the callback from synthesising
+        # the danger env vars itself — the operator must have already
+        # armed them via the UI toggle, so they are present in
+        # os.environ. The previous wiring forced
+        # SUBMIT_GATE/CANCEL_GATE to "true" inside this callback
+        # regardless of Arm state; that loophole is now closed.
+        try:
+            revalidate_danger_action(
+                action="paper_submit",
+                output_dir=output_dir,
+                run_id=rid,
+                env=os.environ,
+                confirm_submit_checked=confirm_submit_var.get(),
+                confirm_apply_checked=confirm_apply_var.get(),
+                overwrite_intents_checked=overwrite_intents_var.get(),
+                dry_run_rc_clean=session["dry_run_rc_clean"],
+                submit_outcome_clean=session["submit_outcome_clean"],
+            )
+        except DangerActionDenied as e:
+            messagebox.showerror("Paper submit refused", e.reason)
+            _refresh()
+            return
         cmd = build_command_preview("paper_submit", run_id=rid)
         if not messagebox.askokcancel(
             "Confirm paper submit",
             f"This will execute:\n\n{cmd}\n\nProceed?"):
             return
+        # Inherit the already-armed env. We do NOT inject the gates
+        # here — revalidate_danger_action above confirmed they are
+        # set in os.environ via the Arm toggle.
         env = os.environ.copy()
-        env[SUBMIT_GATE] = "true"
-        env[CANCEL_GATE] = "true"
         _set_preview(cmd)
-        res = run_paper_submit(rid, env=env)
-        _render_output(res)
-        clean, why = submit_outcome_is_clean(
-            Path(output_dir) / "daily_runs" / rid
-        ) if output_dir else (False, "no output_dir")
-        session["submit_outcome_clean"] = clean
-        _refresh()
-        confirm_submit_var.set(False)
+        argv = _build_paper_submit_argv(rid, profile="paper")
+
+        def _after(rc: int) -> None:
+            clean = False
+            if output_dir is not None:
+                clean, _why = submit_outcome_is_clean(
+                    Path(output_dir) / "daily_runs" / rid
+                )
+            session["submit_outcome_clean"] = clean
+            confirm_submit_var.set(False)
+        _stream_argv(argv, label="paper-submit", env=env, on_finished=_after)
 
     def _on_t10_dry():
         rid = run_id_var.get().strip()
         cmd = build_command_preview("t10_dry", run_id=rid)
         _set_preview(cmd)
-        res = run_t10(rid, apply_mode=False)
-        _render_output(res)
+        argv = _build_t10_argv(rid, apply_mode=False, profile="paper")
+        _stream_argv(argv, label="t10-dry")
 
     def _on_t10_apply():
         rid = run_id_var.get().strip()
+        # R10D / P0-3 — same defence-in-depth as paper-submit.
+        try:
+            revalidate_danger_action(
+                action="t10_apply",
+                output_dir=output_dir,
+                run_id=rid,
+                env=os.environ,
+                confirm_submit_checked=confirm_submit_var.get(),
+                confirm_apply_checked=confirm_apply_var.get(),
+                overwrite_intents_checked=overwrite_intents_var.get(),
+                dry_run_rc_clean=session["dry_run_rc_clean"],
+                submit_outcome_clean=session["submit_outcome_clean"],
+            )
+        except DangerActionDenied as e:
+            messagebox.showerror("T10 apply refused", e.reason)
+            _refresh()
+            return
         cmd = build_command_preview("t10_apply", run_id=rid)
         if not messagebox.askokcancel(
             "Confirm T10 real apply",
             f"This will mutate holdings_log.xlsx via:\n\n{cmd}\n\nProceed?"):
             return
         env = os.environ.copy()
-        env[APPLY_GATE] = "true"
         _set_preview(cmd)
-        res = run_t10(rid, apply_mode=True, env=env)
-        _render_output(res)
-        confirm_apply_var.set(False)
-        _refresh()
+        argv = _build_t10_argv(rid, apply_mode=True, profile="paper")
+
+        def _after(rc: int) -> None:
+            confirm_apply_var.set(False)
+        _stream_argv(argv, label="t10-apply", env=env, on_finished=_after)
 
     btn_specs = [
-        ("generate_intent","0. Generate Intent File",       _on_generate_intent),
-        ("dry_run",       "1. Dry Run Preflight / Report",  _on_dry_run),
-        ("paper_submit",  "2. Paper Submit + Manage",       _on_paper_submit),
-        ("t10_dry",       "3. T10 Apply Dry Run",           _on_t10_dry),
-        ("t10_apply",     "4. T10 Apply Real",              _on_t10_apply),
-        ("full_paper_run","5. Full Paper Run (R11)",        lambda: messagebox.showinfo(
+        ("generate_intent","0a. Generate Intent File (single)", _on_generate_intent),
+        ("generate_all",   "0b. Generate ALL Intents (batch)",  _on_generate_all_intents),
+        ("dry_run",        "1. Dry Run Preflight / Report",     _on_dry_run),
+        ("paper_submit",   "2. Paper Submit + Manage",          _on_paper_submit),
+        ("t10_dry",        "3. T10 Apply Dry Run",              _on_t10_dry),
+        ("t10_apply",      "4. T10 Apply Real",                 _on_t10_apply),
+        ("full_paper_run", "5. Full Paper Run (R11)",           lambda: messagebox.showinfo(
             "Disabled", DISABLED_TOOLTIP_FULL_RUN)),
     ]
     for i, (bid, label, fn) in enumerate(btn_specs):
@@ -1088,6 +1744,78 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                   wraplength=580, anchor="w").grid(row=i, column=1, sticky="we", padx=4)
         btns[bid] = b
     frm_act.columnconfigure(1, weight=1)
+
+    # — Activation (R10-ARM) — in-UI replacement for the old shell-export
+    #   workflow. Ticking either box sets the corresponding env var(s)
+    #   ON this process's os.environ; unticking clears them. The
+    #   subsequent confirmation row + the per-button "I authorize"
+    #   checkbox are unchanged.
+    frm_arm = ttk.LabelFrame(_body, text="Activation (this session)", padding=8)
+    frm_arm.pack(fill="x", padx=8, pady=4)
+
+    def _on_arm_paper_toggle():
+        if arm_paper_var.get():
+            ok = messagebox.askokcancel(
+                "Arm Paper Submit gate",
+                "This will set\n"
+                f"  {SUBMIT_GATE}=true\n"
+                f"  {CANCEL_GATE}=true\n"
+                "in THIS UI session only. No file is modified. Closing "
+                "the UI clears it. You still have to tick "
+                "'I authorize PAPER SUBMIT' and click the button "
+                "before any order is sent.\n\nContinue?",
+            )
+            if not ok:
+                arm_paper_var.set(False)
+                _refresh()
+                return
+            for k, v in arm_gate_vars(os.environ, ARM_PAPER_GATE_VARS).items():
+                os.environ[k] = v
+        else:
+            for k in ARM_PAPER_GATE_VARS:
+                os.environ.pop(k, None)
+        _refresh()
+
+    def _on_arm_t10_toggle():
+        if arm_t10_var.get():
+            ok = messagebox.askokcancel(
+                "Arm T10 Apply gate",
+                "This will set\n"
+                f"  {APPLY_GATE}=true\n"
+                "in THIS UI session only. No file is modified. Closing "
+                "the UI clears it. You still have to tick "
+                "'I authorize T10 REAL APPLY' and click the button "
+                "before holdings_log.xlsx is mutated.\n\nContinue?",
+            )
+            if not ok:
+                arm_t10_var.set(False)
+                _refresh()
+                return
+            for k, v in arm_gate_vars(os.environ, ARM_T10_GATE_VARS).items():
+                os.environ[k] = v
+        else:
+            for k in ARM_T10_GATE_VARS:
+                os.environ.pop(k, None)
+        _refresh()
+
+    ttk.Checkbutton(
+        frm_arm,
+        text=f"Arm Paper Submit gate  ({SUBMIT_GATE} + {CANCEL_GATE} = true)",
+        variable=arm_paper_var,
+        command=_on_arm_paper_toggle,
+    ).grid(row=0, column=0, sticky="w", padx=4, pady=2)
+    ttk.Checkbutton(
+        frm_arm,
+        text=f"Arm T10 Apply gate  ({APPLY_GATE} = true)",
+        variable=arm_t10_var,
+        command=_on_arm_t10_toggle,
+    ).grid(row=1, column=0, sticky="w", padx=4, pady=2)
+    ttk.Label(
+        frm_arm,
+        text=("Each toggle requires a confirmation dialog and only affects "
+              "this UI session. Closing the UI fully disarms."),
+        foreground="#666", wraplength=820,
+    ).grid(row=2, column=0, sticky="w", padx=4, pady=(4, 0))
 
     # — Confirmation checkboxes
     frm_conf = ttk.Frame(_body, padding=(8, 0))
@@ -1115,8 +1843,30 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
     # — Output
     frm_out = ttk.LabelFrame(_body, text="Output / Log", padding=6)
     frm_out.pack(fill="both", expand=True, padx=8, pady=4)
+
+    # Toolbar above the text area (copy buttons + live status).
+    frm_out_tools = ttk.Frame(frm_out)
+    frm_out_tools.pack(fill="x", pady=(0, 4))
+
     txt = tk.Text(frm_out, wrap="word", height=12)
     txt.pack(fill="both", expand=True)
+
+    # Remember the last subprocess invocation so the snapshot button
+    # can include it without re-parsing the text widget.
+    last_run = {"argv": [], "stdout": "", "stderr": ""}
+
+    # ── R10C — live progress / streaming status ───────────────────────
+    # status_var drives a label next to the copy buttons that ticks the
+    # elapsed seconds while a subprocess is running, and freezes on
+    # "done rc=…" once it exits. running_state is a 1-cell dict so
+    # nested closures can mutate it without the ``nonlocal`` dance.
+    status_var = tk.StringVar(value="idle")
+    running_state = {
+        "active": False,
+        "label": "",
+        "started": 0.0,
+        "proc": None,
+    }
 
     def _render_output(res: DryRunResult):
         txt.delete("1.0", "end")
@@ -1125,6 +1875,121 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             txt.insert("end", res.stdout + "\n")
         if res.stderr:
             txt.insert("end", "[stderr]\n" + res.stderr + "\n")
+        last_run["argv"] = list(res.argv)
+        last_run["stdout"] = res.stdout or ""
+        last_run["stderr"] = res.stderr or ""
+
+    # ── R10 — copy helpers ────────────────────────────────────────────
+    def _copy_to_clipboard(text: str, *, toast: str) -> None:
+        try:
+            root.clipboard_clear()
+            root.clipboard_append(text)
+            # update() forces the X selection / NSPasteboard sync so
+            # the clipboard survives after this Tk app exits.
+            root.update()
+            messagebox.showinfo("Copied", toast)
+        except tk.TclError as e:
+            messagebox.showerror("Copy failed", str(e))
+
+    def _copy_output() -> None:
+        text = txt.get("1.0", "end-1c")
+        if not text.strip():
+            messagebox.showinfo("Copy", "Output area is empty.")
+            return
+        _copy_to_clipboard(
+            text,
+            toast=f"Copied output/log ({len(text)} chars) to clipboard.",
+        )
+
+    def _copy_snapshot() -> None:
+        rid = run_id_var.get().strip()
+        if output_dir is None:
+            messagebox.showerror(
+                "Cannot build snapshot",
+                f"phase3 config not loadable: {load_err}",
+            )
+            return
+        ps = compute_panel_state(
+            output_dir=Path(output_dir), run_id=rid, env=os.environ,
+        )
+        tail_parts = []
+        if last_run["stdout"]:
+            tail_parts.append(last_run["stdout"])
+        if last_run["stderr"]:
+            tail_parts.append("[stderr]\n" + last_run["stderr"])
+        # Cap the tail so we don't blow up the clipboard on a huge
+        # stdout. 8 KiB is plenty for one daily_runner invocation.
+        tail = "\n".join(tail_parts)
+        if len(tail) > 8192:
+            tail = "... (truncated head) ...\n" + tail[-8192:]
+        snap = build_panel_snapshot_text(
+            ps,
+            run_id=rid,
+            output_tail=tail,
+            last_argv=last_run["argv"] or None,
+        )
+        _copy_to_clipboard(
+            snap,
+            toast=f"Copied panel snapshot ({len(snap)} chars) to clipboard.",
+        )
+
+    ttk.Button(
+        frm_out_tools, text="Copy Output / Log",
+        command=_copy_output,
+    ).pack(side="left", padx=2)
+    ttk.Button(
+        frm_out_tools, text="Copy Panel Snapshot",
+        command=_copy_snapshot,
+    ).pack(side="left", padx=2)
+    ttk.Label(
+        frm_out_tools,
+        text="(or select text + Cmd+C)",
+        foreground="gray",
+    ).pack(side="left", padx=8)
+    # R10C — live status: "idle" / "running <label> 12.3s" / "done rc=0 (4.5s)"
+    ttk.Label(
+        frm_out_tools, textvariable=status_var,
+        foreground="#0a5", font=("TkDefaultFont", 10, "bold"),
+    ).pack(side="right", padx=8)
+
+    # ── R10 — keyboard + context menu on the output area ──────────────
+    # macOS Tk needs explicit Cmd-bindings; Linux/Win get Control-* too.
+    def _select_all_text(event=None):
+        txt.tag_add("sel", "1.0", "end-1c")
+        return "break"
+
+    def _copy_selection(event=None):
+        try:
+            sel = txt.get("sel.first", "sel.last")
+        except tk.TclError:
+            sel = txt.get("1.0", "end-1c")
+        if sel:
+            root.clipboard_clear()
+            root.clipboard_append(sel)
+            root.update()
+        return "break"
+
+    for seq in ("<Command-a>", "<Command-A>", "<Control-a>", "<Control-A>"):
+        txt.bind(seq, _select_all_text)
+    for seq in ("<Command-c>", "<Command-C>", "<Control-c>", "<Control-C>"):
+        txt.bind(seq, _copy_selection)
+
+    txt_menu = tk.Menu(txt, tearoff=0)
+    txt_menu.add_command(label="Copy selection", command=_copy_selection)
+    txt_menu.add_command(label="Select all", command=_select_all_text)
+    txt_menu.add_separator()
+    txt_menu.add_command(label="Copy panel snapshot", command=_copy_snapshot)
+
+    def _show_txt_menu(event):
+        try:
+            txt_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            txt_menu.grab_release()
+
+    # Button-2 (middle) on X11, Button-3 (right) elsewhere, plus the
+    # Mac Control-click convention.
+    for seq in ("<Button-3>", "<Button-2>", "<Control-Button-1>"):
+        txt.bind(seq, _show_txt_menu)
 
     # — Refresh logic
     def _refresh():
@@ -1133,6 +1998,13 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             for v in run_lbls.values():
                 v.set("(phase3 config unloadable)")
             return
+        # R10-ARM — keep Arm checkboxes in sync with the actual env in
+        # case something else (a still-open Terminal export, a subprocess
+        # that leaked an env var, etc.) changed os.environ behind our
+        # back. The checkbox is the user-facing source of truth, but the
+        # env mapping is the runtime source of truth.
+        arm_paper_var.set(gate_is_armed(os.environ, ARM_PAPER_GATE_VARS))
+        arm_t10_var.set(gate_is_armed(os.environ, ARM_T10_GATE_VARS))
         ps = compute_panel_state(
             output_dir=Path(output_dir), run_id=rid, env=os.environ,
         )

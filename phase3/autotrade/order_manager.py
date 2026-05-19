@@ -72,6 +72,14 @@ class OrderManagementPolicy:
     cancel_confirm_wait_sec: float = 3.0
     allow_market_order: bool = False  # never set True in R8
 
+    # R10D-1: KIS paper inquire-ccnl transient disconnect absorption.
+    # Number of extra retries on a ccnl polling exception AFTER the
+    # broker has already accepted the order. 0 reproduces the pre-R10D
+    # one-shot behaviour. 2 retries with 2 s backoff covered every
+    # disconnect observed in R10C Run 1 + Run 2.
+    ccnl_poll_retry_count: int = 2
+    ccnl_poll_retry_backoff_sec: float = 2.0
+
 
 @dataclass(frozen=True)
 class ManagedOrderOutcome:
@@ -200,6 +208,71 @@ def _now_classify(
         target_odno=broker_order_id,
         position_delta=position_delta,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# R10D-1 — ccnl poll retry
+# ──────────────────────────────────────────────────────────────────────
+# R10C observed KIS paper's ``inquire-ccnl`` randomly raising
+# ``ConnectionError('Connection aborted.', RemoteDisconnected(...))``
+# 30~80 s after a successful broker accept. That single transient
+# exception was enough to flip the manage loop into UNKNOWN ->
+# rc=2 hard_stop, blocking T10 apply for the whole batch. R10D-1
+# absorbs those transients with a small bounded retry budget while
+# preserving today's conservative UNKNOWN behaviour when retries are
+# exhausted.
+#
+# Pure helper (no Tk, no os.environ). The caller passes ``log_attempt``
+# so each retry can leave an audit row through ``_safe_log_transition``
+# without coupling this helper to the OrderStore.
+
+def _now_classify_with_retry(
+    adapter: _AdapterLike,
+    *,
+    broker_order_id: str,
+    position_delta: Optional[float],
+    retry_count: int,
+    backoff_sec: float,
+    sleep_fn: Callable[[float], None],
+    log_attempt: Optional[Callable[[int, int, BaseException], None]] = None,
+) -> BrokerOrderState:
+    """Call ``_now_classify`` with up to ``retry_count`` retries on any
+    ``Exception``. ``log_attempt(attempt_index, max_attempts, exc)`` is
+    invoked exactly once per failed attempt (before sleeping for the
+    next retry, and also for the final attempt that exhausts the
+    budget). On final failure the original exception is re-raised so
+    the caller's existing UNKNOWN bookkeeping fires unchanged.
+
+    ``retry_count = 0`` reproduces the previous one-shot behaviour
+    exactly (no extra calls, same exception path).
+    """
+    if retry_count < 0:
+        retry_count = 0
+    max_attempts = retry_count + 1
+    last_exc: Optional[BaseException] = None
+    for attempt in range(max_attempts):
+        try:
+            return _now_classify(
+                adapter,
+                broker_order_id=broker_order_id,
+                position_delta=position_delta,
+            )
+        except Exception as e:  # noqa: BLE001
+            last_exc = e
+            if log_attempt is not None:
+                try:
+                    log_attempt(attempt, max_attempts, e)
+                except Exception:  # noqa: BLE001
+                    # Audit logging must never raise out — swallow any
+                    # logging error so we don't mask the original ccnl
+                    # exception path.
+                    pass
+            if attempt < retry_count:
+                sleep_fn(backoff_sec)
+                continue
+            break
+    assert last_exc is not None
+    raise last_exc
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -458,10 +531,38 @@ def manage_order(
             pos_now = _pos_qty()
             position_delta = pos_now - pre_position_qty
             try:
-                bs = _now_classify(
+                # R10D-1: absorb KIS paper ccnl transient disconnects
+                # with a bounded retry budget. Every retry leaves an
+                # audit row via ``_log_ccnl_retry`` below.
+                def _log_ccnl_retry(
+                    attempt: int, max_attempts: int, exc: BaseException,
+                ) -> None:
+                    _safe_log_transition(
+                        store,
+                        autotrade_run_id=autotrade_run_id, mode=mode,
+                        run_id=run_id, rec_row_id=rec_row_id,
+                        ticker=cur_intent.symbol, market=cur_intent.market,
+                        side=cur_intent.side, qty_intended=cur_intent.qty,
+                        limit_price=cur_limit,
+                        client_order_id=cur_intent.client_order_id,
+                        state=OrderState.UNKNOWN,
+                        status_source=StatusSource.UNKNOWN,
+                        broker_order_id=new_broker_order_id,
+                        error=f"{type(exc).__name__}: {exc}",
+                        note=(f"ccnl poll retry {attempt + 1}/"
+                              f"{max_attempts} — transient"),
+                        extra={"reprice_attempt": reprice_attempts,
+                               "parent_broker_order_id": last_broker_order_id,
+                               "ccnl_retry_phase": "main"},
+                    )
+                bs = _now_classify_with_retry(
                     adapter,
                     broker_order_id=new_broker_order_id,
                     position_delta=position_delta,
+                    retry_count=policy.ccnl_poll_retry_count,
+                    backoff_sec=policy.ccnl_poll_retry_backoff_sec,
+                    sleep_fn=sleep_fn,
+                    log_attempt=_log_ccnl_retry,
                 )
             except Exception as e:  # noqa: BLE001
                 _safe_log_transition(
@@ -473,7 +574,9 @@ def manage_order(
                     state=OrderState.UNKNOWN, status_source=StatusSource.UNKNOWN,
                     broker_order_id=new_broker_order_id,
                     error=f"{type(e).__name__}: {e}",
-                    note="ccnl poll exception — verify before retry",
+                    note=(f"ccnl poll exception after "
+                          f"{policy.ccnl_poll_retry_count} retries "
+                          f"— verify before retry"),
                     extra={"reprice_attempt": reprice_attempts,
                            "parent_broker_order_id": last_broker_order_id},
                 )
@@ -783,10 +886,41 @@ def manage_order(
             pos_now = _pos_qty()
             position_delta = pos_now - pre_position_qty
             try:
-                bs_post_cancel = _now_classify(
+                # R10D-1: same transient absorption as the main poll.
+                # The cancel-post phase is the worst case for an
+                # UNKNOWN classification (the order may have filled
+                # during the cancel race), so retry visibility is
+                # especially important.
+                def _log_ccnl_retry_post_cancel(
+                    attempt: int, max_attempts: int, exc: BaseException,
+                ) -> None:
+                    _safe_log_transition(
+                        store,
+                        autotrade_run_id=autotrade_run_id, mode=mode,
+                        run_id=run_id, rec_row_id=rec_row_id,
+                        ticker=cur_intent.symbol, market=cur_intent.market,
+                        side=cur_intent.side, qty_intended=cur_intent.qty,
+                        limit_price=cur_limit,
+                        client_order_id=cur_intent.client_order_id,
+                        state=OrderState.UNKNOWN,
+                        status_source=StatusSource.CANCEL_ACK,
+                        broker_order_id=new_broker_order_id,
+                        error=f"{type(exc).__name__}: {exc}",
+                        note=(f"ccnl re-poll retry {attempt + 1}/"
+                              f"{max_attempts} after cancel — transient"),
+                        extra={"reprice_attempt": reprice_attempts,
+                               "parent_broker_order_id": last_broker_order_id,
+                               "cancel_ack_oid": cancel_res.cancel_order_id,
+                               "ccnl_retry_phase": "post_cancel"},
+                    )
+                bs_post_cancel = _now_classify_with_retry(
                     adapter,
                     broker_order_id=new_broker_order_id,
                     position_delta=position_delta,
+                    retry_count=policy.ccnl_poll_retry_count,
+                    backoff_sec=policy.ccnl_poll_retry_backoff_sec,
+                    sleep_fn=sleep_fn,
+                    log_attempt=_log_ccnl_retry_post_cancel,
                 )
             except Exception as e:  # noqa: BLE001
                 # ccnl re-poll exception after our cancel went out is
@@ -802,7 +936,8 @@ def manage_order(
                     broker_order_id=new_broker_order_id,
                     error=f"{type(e).__name__}: {e}",
                     note=("cancel_requested_but_unconfirmed: ccnl re-poll "
-                          "exception — verify before retry"),
+                          f"exception after {policy.ccnl_poll_retry_count} "
+                          "retries — verify before retry"),
                     extra={"reprice_attempt": reprice_attempts,
                            "parent_broker_order_id": last_broker_order_id,
                            "cancel_ack_oid": cancel_res.cancel_order_id},

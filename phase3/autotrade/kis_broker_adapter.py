@@ -640,6 +640,13 @@ class OrderIntent:
     limit_price: Optional[float] = None
     client_order_id: str = field(default_factory=lambda: f"co-{uuid.uuid4().hex[:12]}")
     note: str = ""
+    # R10E — recommendations.csv RecRowId for the intent. The
+    # autotrade pipeline must thread this through manage_order so
+    # OrderStore.log_transition writes a real rid (not 0), otherwise
+    # t10_applicator cannot match broker fills back to the
+    # recommendation row. Default 0 stays compatible with the older
+    # callers (probe scripts, tests) that don't care.
+    rec_row_id: int = 0
 
     def validate(self) -> None:
         if self.side not in ("BUY", "SELL"):
@@ -1017,6 +1024,54 @@ class KisBrokerAdapter:
             ask=_safe_float(out.get("pask")) or None,
             asof=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         )
+
+    def get_quote_with_exchange_fallback(
+        self,
+        symbol: str,
+        *,
+        preferred_market: str = "NASD",
+        exchanges: Tuple[str, ...] = ("NASD", "NYSE", "AMEX"),
+    ) -> Optional[Quote]:
+        """R10E — try ``get_quote`` against multiple US exchanges and
+        return the first one whose `ask` or `last` is positive.
+
+        The autotrade pipeline used to hard-code ``market="NASD"`` for
+        every BUY candidate (because recommendations.csv has no
+        exchange column). That worked for NASDAQ tickers but for
+        NYSE-listed names like JBL or DOW the KIS quote endpoint
+        returned ``last=0, ask=0`` and the R10D-3 quote-refresh helper
+        fell back to yesterday's close — exactly the failure that
+        produced an overpriced limit in 20260519_220825_daily.
+
+        We probe the preferred market first (so symbols that actually
+        live on NASD are resolved in a single round trip), then walk
+        the remaining exchanges. Anything that raises (auth, network,
+        404, EXCD mismatch) is treated as "try the next one".
+
+        Returns ``None`` only when EVERY exchange in the list either
+        raised or returned a zero-priced Quote. The caller is then
+        free to fall back to the recommendation price.
+        """
+        seen: List[str] = []
+        ordered: List[str] = [self._normalize_market(preferred_market)]
+        for ex in exchanges:
+            ex_t = self._normalize_market(ex)
+            if ex_t not in ordered:
+                ordered.append(ex_t)
+        for ex in ordered:
+            seen.append(ex)
+            try:
+                q = self.get_quote(symbol, market=ex)
+            except Exception:  # noqa: BLE001
+                continue
+            if q is None:
+                continue
+            # Treat a Quote as "good enough" if ASK > 0 OR LAST > 0.
+            ask = q.ask if q.ask is not None else 0.0
+            last = q.last if q.last is not None else 0.0
+            if (ask and ask > 0) or (last and last > 0):
+                return q
+        return None
 
     def get_positions(
         self,

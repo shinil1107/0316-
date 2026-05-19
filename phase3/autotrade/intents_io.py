@@ -233,11 +233,23 @@ def make_buy_intent_row(
     qty: int,
     limit_price: float,
     market: str = "NASD",
+    rec_row_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Construct one BUY intent row in the canonical shape. Raises
     ValueError on obvious mistakes so the operator can't accidentally
-    write a zero-share or zero-price file."""
-    row = {
+    write a zero-share or zero-price file.
+
+    R10E: ``rec_row_id`` becomes an explicit on-disk field so the
+    autotrade pipeline can thread it through manage_order without
+    re-parsing it out of client_order_id. When the caller omits it
+    we try to recover it from the client_order_id pattern
+    ``co-<run_id>-<rec_row_id>-B-<qty>-<ticker>`` written by
+    ``build_intent_client_order_id``; if that fails the field is
+    left absent and the loader will fall back to 0 (the old shape).
+    """
+    if rec_row_id is None:
+        rec_row_id = rec_row_id_from_client_order_id(client_order_id)
+    row: Dict[str, Any] = {
         "client_order_id": str(client_order_id),
         "symbol": str(symbol).upper(),
         "market": str(market),
@@ -246,10 +258,49 @@ def make_buy_intent_row(
         "ord_type": "LIMIT",
         "limit_price": float(limit_price),
     }
+    if rec_row_id is not None:
+        row["rec_row_id"] = int(rec_row_id)
     ok, why = _validate_row(row)
     if not ok:
         raise ValueError(f"intent row rejected: {why}")
     return row
+
+
+def rec_row_id_from_client_order_id(cid: str) -> Optional[int]:
+    """Best-effort recovery of ``rec_row_id`` from the canonical
+    client_order_id pattern ``co-<run_id>-<rec_row_id>-B-<qty>-<ticker>``.
+
+    Returns the parsed int on success, or ``None`` if the pattern is
+    unrecognisable. Used both by ``make_buy_intent_row`` (when the
+    caller did not pass rec_row_id explicitly) and by
+    ``default_intents_loader`` in ``daily_runner`` (when reading
+    older intent files written before R10E).
+
+    The pattern is anchored on the ``-B-<qty>-<ticker>`` tail rather
+    than on the run_id, because run_ids can contain underscores and
+    dashes; we walk back from the tail instead.
+    """
+    if not cid or not isinstance(cid, str):
+        return None
+    parts = cid.split("-")
+    # need at least co + run_id + rid + B + qty + ticker = 6 segments
+    if len(parts) < 6:
+        return None
+    if parts[0] != "co":
+        return None
+    # walk back from the tail: ticker, qty, side, rec_row_id
+    side_pos = None
+    for i in range(len(parts) - 1, 1, -1):
+        if parts[i] in ("B", "S"):
+            side_pos = i
+            break
+    if side_pos is None or side_pos < 2:
+        return None
+    rid_part = parts[side_pos - 1]
+    try:
+        return int(rid_part)
+    except (TypeError, ValueError):
+        return None
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -439,6 +490,7 @@ def candidate_to_intent_row(
         market=candidate.market,
         qty=qty,
         limit_price=lp,
+        rec_row_id=int(candidate.rec_row_id),
     )
 
 
@@ -462,6 +514,195 @@ def write_intent_file_from_candidate(
     return write_submitted_intents(
         run_dir, [row],
         run_id=run_id if run_id is not None else candidate.run_id,
+        overwrite=overwrite,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Batch helpers (R10C — "submit everything in one shot" workflow)
+# ──────────────────────────────────────────────────────────────────────
+
+# R10D-3 — quote-fresh limit metadata. ``quote_source`` is one of:
+#   "reco_close"          -> reco_price * (1 + pad), no quote attempted
+#   "quote_refreshed"     -> max(reco_close_padded, quote_ref * (1+qpad))
+#   "fallback_quote_fail" -> quote_fn was provided but raised / returned None
+#   "fallback_quote_zero" -> quote_fn returned a Quote whose ref price is <= 0
+# These are stored in each intent row under ``_quote_source`` so the
+# post-trade email and the audit JSONL can show how each limit was set.
+
+_QUOTE_SOURCE_KEY = "_quote_source"
+_QUOTE_REF_PRICE_KEY = "_quote_ref_price"
+_QUOTE_ASOF_KEY = "_quote_asof"
+
+
+@dataclass(frozen=True)
+class IntentBuildWarning:
+    """One row-level warning produced by ``candidates_to_intent_rows``
+    when quote refreshing was requested but fell back to the close.
+
+    The UI surface uses ``ticker`` + ``reason`` to highlight problem
+    rows in the confirmation dialog; the audit JSONL preserves the
+    same info via the ``_quote_source`` field on the row itself.
+    """
+    ticker: str
+    reason: str
+
+
+def _resolve_quote_ref(quote: Any) -> Optional[float]:
+    """Extract a reference price from a Quote-like object. We prefer
+    ``ask`` (the operator pays the ask on a marketable BUY), then
+    ``last``, then fall back to None so the caller can flag the row.
+    """
+    if quote is None:
+        return None
+    ask = getattr(quote, "ask", None)
+    if ask is not None and float(ask) > 0:
+        return float(ask)
+    last = getattr(quote, "last", None)
+    if last is not None and float(last) > 0:
+        return float(last)
+    return None
+
+
+def candidates_to_intent_rows(
+    candidates: List[BuyCandidate],
+    *,
+    limit_pad_pct: float = 0.0,
+    qty_override: Optional[int] = None,
+    quote_fn: Optional[Any] = None,
+    quote_pad_pct: float = 0.1,
+    warnings_out: Optional[List[IntentBuildWarning]] = None,
+) -> List[Dict[str, Any]]:
+    """Build a full intent batch from every supplied ``BuyCandidate``.
+
+    Each row uses ``candidate.reco_shares`` for qty (unless
+    ``qty_override`` is given — useful for "tiny test" batches) and
+    ``candidate.reco_price`` for the limit, padded by ``limit_pad_pct``
+    percent to lift the fill probability in paper.
+
+    R10D-3: when ``quote_fn`` is supplied, the helper calls
+    ``quote_fn(symbol, market)`` for each candidate and lifts the
+    limit to ``max(reco_padded, quote_ref * (1+quote_pad_pct))`` where
+    ``quote_ref`` is the broker's ask, falling back to last. If the
+    quote lookup raises, returns ``None``, or returns a quote whose
+    reference price is non-positive, the row falls back to the close
+    path and an ``IntentBuildWarning`` is appended to ``warnings_out``
+    (when provided). The row's ``_quote_source`` field records which
+    path was taken so downstream audit/email can reflect that.
+
+    ``limit_pad_pct=1.0`` means "+1% above reco_price". A positive pad
+    is the only direction that makes sense for BUY (paying a bit more
+    to get filled). Negative pads are accepted but caller-beware
+    (the UI rejects them for the full-auto path).
+    """
+    rows: List[Dict[str, Any]] = []
+    reco_pad = 1.0 + float(limit_pad_pct) / 100.0
+    qpad = 1.0 + float(quote_pad_pct) / 100.0
+    for c in candidates:
+        reco_limit = round(float(c.reco_price) * reco_pad, 4)
+        quote_source = "reco_close"
+        quote_ref_price: Optional[float] = None
+        quote_asof: Optional[str] = None
+        chosen_limit = reco_limit
+
+        if quote_fn is not None:
+            q = None
+            failed = False
+            try:
+                q = quote_fn(c.ticker, c.market)
+            except Exception as e:  # noqa: BLE001
+                failed = True
+                if warnings_out is not None:
+                    warnings_out.append(IntentBuildWarning(
+                        ticker=c.ticker,
+                        reason=f"quote lookup failed: {type(e).__name__}: {e}",
+                    ))
+                quote_source = "fallback_quote_fail"
+            if not failed and q is None:
+                # The caller's quote function returned None — treat
+                # that as a soft failure (e.g. symbol not in the
+                # broker's price universe) and fall back.
+                if warnings_out is not None:
+                    warnings_out.append(IntentBuildWarning(
+                        ticker=c.ticker,
+                        reason="quote lookup failed: returned None",
+                    ))
+                quote_source = "fallback_quote_fail"
+            elif q is not None:
+                quote_ref_price = _resolve_quote_ref(q)
+                quote_asof = getattr(q, "asof", None)
+                if quote_ref_price is None or quote_ref_price <= 0:
+                    if warnings_out is not None:
+                        warnings_out.append(IntentBuildWarning(
+                            ticker=c.ticker,
+                            reason="quote returned non-positive ref price",
+                        ))
+                    quote_source = "fallback_quote_zero"
+                    quote_ref_price = None
+                else:
+                    quote_limit = round(quote_ref_price * qpad, 4)
+                    chosen_limit = max(reco_limit, quote_limit)
+                    # Only flip to refreshed if the quote actually
+                    # moved the limit; otherwise reco_close was the
+                    # binding constraint and we should say so.
+                    if chosen_limit > reco_limit:
+                        quote_source = "quote_refreshed"
+                    else:
+                        quote_source = "quote_refreshed_below_reco"
+
+        row = candidate_to_intent_row(
+            c,
+            qty_override=qty_override,
+            limit_price=chosen_limit,
+        )
+        row[_QUOTE_SOURCE_KEY] = quote_source
+        if quote_ref_price is not None:
+            row[_QUOTE_REF_PRICE_KEY] = quote_ref_price
+        if quote_asof:
+            row[_QUOTE_ASOF_KEY] = str(quote_asof)
+        rows.append(row)
+    return rows
+
+
+def write_intent_file_from_candidates(
+    run_dir: Path,
+    candidates: List[BuyCandidate],
+    *,
+    limit_pad_pct: float = 0.0,
+    qty_override: Optional[int] = None,
+    quote_fn: Optional[Any] = None,
+    quote_pad_pct: float = 0.1,
+    warnings_out: Optional[List[IntentBuildWarning]] = None,
+    overwrite: bool = False,
+    run_id: Optional[str] = None,
+) -> Path:
+    """Batch counterpart of ``write_intent_file_from_candidate`` —
+    serialize ALL given candidates into one ``submitted_intents.json``
+    in one shot. Refuses an empty list outright so the operator can't
+    accidentally clobber an existing intent file with nothing.
+
+    R10D-3: when ``quote_fn`` is supplied, every row's limit is also
+    lifted toward the broker's current ask. See
+    ``candidates_to_intent_rows`` for the exact rule. The resulting
+    rows carry a ``_quote_source`` field so the post-trade audit /
+    email can show how each limit was set.
+    """
+    if not candidates:
+        raise ValueError(
+            "write_intent_file_from_candidates: candidates is empty — "
+            "refusing to write an empty intent batch."
+        )
+    rows = candidates_to_intent_rows(
+        candidates,
+        limit_pad_pct=limit_pad_pct,
+        qty_override=qty_override,
+        quote_fn=quote_fn,
+        quote_pad_pct=quote_pad_pct,
+        warnings_out=warnings_out,
+    )
+    return write_submitted_intents(
+        run_dir, rows,
+        run_id=(run_id if run_id is not None else candidates[0].run_id),
         overwrite=overwrite,
     )
 

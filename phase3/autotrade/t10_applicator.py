@@ -221,6 +221,87 @@ def _load_recommendations(run_dir: Path) -> pd.DataFrame:
     return pd.read_csv(p)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# R10E — manage-outcome fallback for ccnl_missing
+# ──────────────────────────────────────────────────────────────────────
+# In 20260519_220825_daily the manage loop saw DOW fill at 37.85 for
+# 3 shares (autotrade_daily_report.json's outcomes[].final_state ==
+# 'filled' with matching qty + non-zero avg_fill_price), but ~2
+# minutes later when t10_applicator re-queried inquire-ccnl the
+# broker no longer returned that ODNO at all (status=ccnl_missing).
+# Pre-R10E this aborted the entire apply path.
+#
+# The fallback policy below restores apply progress without weakening
+# T10's safety contract: we trust the manage outcome only when
+#   1. profile == paper (live trading still needs broker re-confirm)
+#   2. final_state == 'filled' (no partial, no unknown)
+#   3. qty_filled matches the intent's intended qty exactly
+#   4. avg_fill_price is strictly > 0
+# Under any other condition the fallback bows out and the resolution
+# carries the pre-R10E abort_reason so behaviour is unchanged.
+
+@dataclass
+class _OutcomeFallback:
+    rec_row_id: int
+    final_state: str
+    qty_filled: float
+    avg_fill_price: float
+    broker_order_id: str
+    client_order_id: str
+
+    @property
+    def is_clean_fill(self) -> bool:
+        return (
+            self.final_state == "filled"
+            and self.qty_filled > 0
+            and self.avg_fill_price > 0
+        )
+
+
+def _load_outcome_fallbacks(run_dir: Path) -> Dict[int, _OutcomeFallback]:
+    """Read ``autotrade_daily_report.json`` and return one
+    ``_OutcomeFallback`` per matchable rec_row_id. Returns ``{}``
+    when the file is absent or unreadable — the caller treats that
+    as "no fallback available" and keeps pre-R10E behaviour."""
+    p = run_dir / "autotrade_daily_report.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    outcomes = data.get("outcomes") or []
+    if not isinstance(outcomes, list):
+        return {}
+    by_rid: Dict[int, _OutcomeFallback] = {}
+    for o in outcomes:
+        if not isinstance(o, dict):
+            continue
+        cid = str(o.get("client_order_id") or "")
+        # The daily report does not currently echo rec_row_id, so
+        # we recover it from the client_order_id using the same
+        # parser intents_io exposes. Lazy import to avoid a cycle
+        # between t10_applicator and intents_io at module-load.
+        try:
+            from phase3.autotrade.intents_io import (
+                rec_row_id_from_client_order_id,
+            )
+        except Exception:  # noqa: BLE001
+            return {}
+        rid = rec_row_id_from_client_order_id(cid)
+        if rid is None:
+            continue
+        by_rid[int(rid)] = _OutcomeFallback(
+            rec_row_id=int(rid),
+            final_state=str(o.get("final_state") or ""),
+            qty_filled=float(o.get("qty_filled") or 0.0),
+            avg_fill_price=float(o.get("avg_fill_price") or 0.0),
+            broker_order_id=str(o.get("last_broker_order_id") or ""),
+            client_order_id=cid,
+        )
+    return by_rid
+
+
 def _load_existing_applied(run_dir: Path) -> pd.DataFrame:
     p = run_dir / "execution_applied.csv"
     if not p.exists():
@@ -259,6 +340,9 @@ def _resolve_against_ccnl(
     submitted: List[Dict[str, Any]],
     recos: pd.DataFrame,
     ccnl_rows: List[Dict[str, Any]],
+    *,
+    outcome_fallbacks: Optional[Dict[int, "_OutcomeFallback"]] = None,
+    allow_outcome_fallback: bool = False,
 ) -> List[Resolution]:
     by_rec: Dict[int, pd.Series] = {}
     if not recos.empty and "RecRowId" in recos.columns:
@@ -324,6 +408,32 @@ def _resolve_against_ccnl(
 
         match = ccnl_index.get(target)
         if match is None:
+            # R10E — ccnl_missing fallback. KIS paper's inquire-ccnl
+            # window is short; an order that filled cleanly during
+            # the manage loop can vanish from ccnl by the time the
+            # operator runs T10 apply. If we have the autotrade
+            # daily report's clean-fill outcome for this row, trust
+            # it under the conservative conditions listed in
+            # ``_OutcomeFallback.is_clean_fill``.
+            fb = (outcome_fallbacks or {}).get(rid)
+            if (
+                allow_outcome_fallback
+                and fb is not None
+                and fb.is_clean_fill
+                and int(fb.qty_filled) == intended_qty
+            ):
+                res.matched = True
+                res.ord_qty = float(intended_qty)
+                res.filled_qty = float(fb.qty_filled)
+                res.filled_price = float(fb.avg_fill_price)
+                res.note = (
+                    "ccnl_missing — applied from manage outcome fallback "
+                    f"(broker_order_id={broker_odno}, "
+                    f"qty={fb.qty_filled}, "
+                    f"avg_fill_price={fb.avg_fill_price})"
+                )
+                resolutions.append(res)
+                continue
             res.matched = False
             res.abort_reason = (
                 f"ODNO {broker_odno} not found in inquire-ccnl "
@@ -341,9 +451,28 @@ def _resolve_against_ccnl(
         res.filled_price = fp if fp is not None else 0.0
 
         if res.filled_qty == 0:
-            res.abort_reason = (
-                f"ccnl row present but filled_qty=0 (ord_qty={res.ord_qty})"
-            )
+            # R10E — same fallback when the row IS present but
+            # ccnl shows 0 fill. Treat that as a ccnl-side glitch
+            # if the manage outcome agrees on a clean fill.
+            fb = (outcome_fallbacks or {}).get(rid)
+            if (
+                allow_outcome_fallback
+                and fb is not None
+                and fb.is_clean_fill
+                and int(fb.qty_filled) == intended_qty
+            ):
+                res.filled_qty = float(fb.qty_filled)
+                res.filled_price = float(fb.avg_fill_price)
+                res.ord_qty = max(res.ord_qty, float(intended_qty))
+                res.note = (
+                    "ccnl_zero_fill — overridden by manage outcome "
+                    f"(qty={fb.qty_filled}, "
+                    f"avg_fill_price={fb.avg_fill_price})"
+                )
+            else:
+                res.abort_reason = (
+                    f"ccnl row present but filled_qty=0 (ord_qty={res.ord_qty})"
+                )
         elif res.is_partial:
             res.note = (
                 f"partial fill: {res.filled_qty}/{res.ord_qty}"
@@ -795,7 +924,23 @@ def cmd_apply(
     adapter = make_adapter(paper_only=True)
     ccnl_rows = adapter.get_order_history()
 
-    resolutions = _resolve_against_ccnl(submitted, recos, ccnl_rows)
+    # R10E — load manage outcome fallback. The fallback only fires
+    # when (a) the operator explicitly opted in via
+    # ``--allow-outcome-fallback`` (defaults ON for paper to absorb
+    # KIS paper's ccnl_missing flakiness, OFF when explicitly
+    # disabled) and (b) the outcome is a clean exact-qty FILLED.
+    allow_outcome_fallback = bool(
+        getattr(args, "allow_outcome_fallback", True)
+    )
+    outcome_fallbacks = (
+        _load_outcome_fallbacks(run_dir) if allow_outcome_fallback else {}
+    )
+
+    resolutions = _resolve_against_ccnl(
+        submitted, recos, ccnl_rows,
+        outcome_fallbacks=outcome_fallbacks,
+        allow_outcome_fallback=allow_outcome_fallback,
+    )
     policy = _apply_policy(
         resolutions,
         existing_applied,
@@ -1050,6 +1195,14 @@ def build_argparser() -> argparse.ArgumentParser:
                    help="R8-E: allow apply even if a prior 'started' marker exists for the "
                         "same apply_batch_id. Operator must have manually verified that the "
                         "earlier attempt did NOT already touch holdings_log.xlsx / CashLedger.")
+    p.add_argument("--no-outcome-fallback", dest="allow_outcome_fallback",
+                   action="store_false", default=True,
+                   help="R10E: disable manage-outcome fallback when inquire-ccnl "
+                        "no longer surfaces an ODNO at apply time. By default we "
+                        "trust the autotrade daily report's clean-fill outcome "
+                        "(qty + avg_fill_price exact match) so KIS paper's ccnl "
+                        "transient amnesia does not block apply. Pass this flag "
+                        "to fail conservatively on any ccnl_missing.")
     return p
 
 

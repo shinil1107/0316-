@@ -835,14 +835,33 @@ def default_intents_loader(ctx: DailyRunContext) -> List[OrderIntent]:
         # the in-memory dataclass uses ``order_type``. The mapping is
         # local to this loader so the on-disk shape stays the canonical
         # one the operator hand-edits.
+        # R10E — recover rec_row_id from the row's explicit field
+        # first (post-R10E shape), falling back to parsing the
+        # client_order_id (pre-R10E shape). Without this, every
+        # submitted-event in OrderStore is rec_row_id=0 and
+        # t10_applicator cannot match broker fills back to
+        # recommendations.csv — the exact failure observed in
+        # 20260519_220825_daily.
+        cid = str(r["client_order_id"])
+        rid_raw = r.get("rec_row_id")
+        if rid_raw is None:
+            rid_int = intents_io.rec_row_id_from_client_order_id(cid) or 0
+        else:
+            try:
+                rid_int = int(rid_raw)
+            except (TypeError, ValueError):
+                rid_int = (
+                    intents_io.rec_row_id_from_client_order_id(cid) or 0
+                )
         intents.append(OrderIntent(
-            client_order_id=str(r["client_order_id"]),
+            client_order_id=cid,
             symbol=str(r["symbol"]),
             market=str(r.get("market", "NASD")),
             side="BUY",
             qty=int(r["qty"]),
             order_type=str(r.get("ord_type", "LIMIT")).upper(),
             limit_price=float(r["limit_price"]),
+            rec_row_id=rid_int,
         ))
     return intents
 
@@ -866,17 +885,24 @@ def default_manage_loop_fn(
             f"KIS environment (got {env_cfg.env_name!r}). R9 is paper-only."
         )
     adapter = KisBrokerAdapter(cfg=env_cfg, verbose=False)
-    store = OrderStore(run_dir=ctx.run_dir)
+    # OrderStore takes the JSONL path, not the directory. Other callers
+    # (orchestrator, t10_applicator) follow the same convention so this
+    # restores parity.
+    store = OrderStore(ctx.run_dir / "autotrade_orders.jsonl")
     policy = OrderManagementPolicy()
     outcomes: List[ManagedOrderOutcome] = []
     for intent in intents:
+        # R10E — thread the intent's rec_row_id through manage_order
+        # so OrderStore.log_transition writes the real RecRowId and
+        # t10_applicator can match the fill back to recommendations.csv.
+        # Falls back to 0 when an upstream caller has not populated
+        # the field (probe scripts / unit tests).
         outcome = manage_order(
             intent,
             adapter=adapter, store=store, policy=policy,
             autotrade_run_id=ctx.autotrade_run_id,
             run_id=ctx.run_id,
-            rec_row_id=0,  # real intent rows carry their own rec_row_id;
-                           # plumbing that through is a follow-up
+            rec_row_id=int(getattr(intent, "rec_row_id", 0) or 0),
         )
         outcomes.append(outcome)
         if outcome.final_state != OrderState.FILLED:
