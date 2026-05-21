@@ -2242,7 +2242,7 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
 
         try:
             rows = intents_io.candidates_to_intent_rows(
-                cands, run_id=rid, batch_pad_pct=pad,
+                cands, limit_pad_pct=pad,
                 quote_fn=quote_fn, quote_pad_pct=qpad,
                 quote_only=quote_only,
             )

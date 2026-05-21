@@ -188,6 +188,58 @@ class TestRunnersWireCorrectArgv(unittest.TestCase):
         self.assertEqual(rc, 2)
 
 
+class TestInProcessGenerateIntentsCallSites(unittest.TestCase):
+    """R11A regression: the in-process generate-intents path inside
+    ``control_panel._run_generate_all_intents_blocking`` calls
+    ``intents_io.candidates_to_intent_rows`` and
+    ``intents_io.write_submitted_intents``. The first live test of
+    R11A (run_id=20260521_184710_daily) blew up because the closure
+    was passing ``run_id=`` and ``batch_pad_pct=`` to
+    ``candidates_to_intent_rows`` — neither argument exists on that
+    function. This test pins the contract so a future rename can't
+    silently re-introduce the same TypeError under the coordinator.
+
+    We deliberately do NOT exercise the Tk closure (that needs a
+    panel root); instead we assert the function signatures the
+    closure depends on. That is enough: as long as the kwargs the
+    closure passes exist on the callee, the runtime call will not
+    raise TypeError.
+    """
+
+    def test_candidates_to_intent_rows_signature(self):
+        import inspect
+        from phase3.autotrade import intents_io
+        sig = inspect.signature(intents_io.candidates_to_intent_rows)
+        names = set(sig.parameters)
+        # Positional candidates list still in.
+        self.assertIn("candidates", names)
+        # The kwargs the R11A closure passes MUST be on the callee.
+        self.assertIn("limit_pad_pct", names)
+        self.assertIn("quote_fn", names)
+        self.assertIn("quote_pad_pct", names)
+        self.assertIn("quote_only", names)
+        # The two names the original bug used MUST NOT be on the
+        # callee (so a future rename that brings them back will
+        # require an explicit decision instead of silently masking
+        # the wrong call site).
+        self.assertNotIn("run_id", names,
+            "candidates_to_intent_rows must not gain a 'run_id' kwarg "
+            "without also updating the R11A in-process closure.")
+        self.assertNotIn("batch_pad_pct", names,
+            "candidates_to_intent_rows must not gain a 'batch_pad_pct' "
+            "kwarg — the closure expects 'limit_pad_pct'.")
+
+    def test_write_submitted_intents_signature(self):
+        import inspect
+        from phase3.autotrade import intents_io
+        sig = inspect.signature(intents_io.write_submitted_intents)
+        names = set(sig.parameters)
+        self.assertIn("run_dir", names)
+        self.assertIn("intents", names)
+        self.assertIn("run_id", names)
+        self.assertIn("overwrite", names)
+
+
 class TestArgvSnapshotIsolation(unittest.TestCase):
 
     def test_caller_mutation_does_not_leak(self):
