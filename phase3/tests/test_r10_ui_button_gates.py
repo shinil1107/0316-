@@ -78,12 +78,28 @@ def _build_state(*, run_id: str = "20260516_R10", base: Path,
 
 def _setup_run(base: Path, run_id: str = "20260516_R10", *,
                 with_intents: bool = True,
+                with_recs: bool = False,
                 artifact_status: str = "awaiting_execution") -> Path:
     rd = base / "daily_runs" / run_id
     _run_meta(rd, status=artifact_status)
     if with_intents:
         _good_intent_file(rd)
+    if with_recs:
+        _write_recommendations_csv(rd)
     return rd
+
+
+def _write_recommendations_csv(rd: Path) -> None:
+    """Minimal recommendations.csv with one BUY row — only used by
+    R11A full-paper-run gate tests that need the recommendations
+    precondition to pass. Column names match ``load_buy_candidates``
+    (Action / Ticker / Shares / Price / RecRowId)."""
+    rd.mkdir(parents=True, exist_ok=True)
+    (rd / "recommendations.csv").write_text(
+        "Action,Ticker,Shares,Price,RecRowId\n"
+        "BUY,APA,1,18.85,1\n",
+        encoding="utf-8",
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -390,10 +406,14 @@ class TestButtonMatrixFullCoverage(unittest.TestCase):
                          "full_paper_run", "stop", "clear_halt"):
                 self.assertIn(bid, gates)
 
-    def test_full_paper_run_is_disabled_in_r10(self) -> None:
+    def test_full_paper_run_is_disabled_without_authorize_checkbox(self) -> None:
+        """R11A: with every gate armed but the one-click authorize box
+        unchecked, the Full Paper Run button must stay disabled. This
+        replaces the R10-era ``test_full_paper_run_is_disabled_in_r10``,
+        which asserted the unconditional disable that R11A relaxes."""
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
-            _setup_run(base)
+            _setup_run(base, with_recs=True)
             _write_submit_report(base / "daily_runs" / "20260516_R10", rc=0)
             halt = base / "halt.json"
             state = _build_state(base=base, env=_all_gates_env(), halt_path=halt)
@@ -401,9 +421,72 @@ class TestButtonMatrixFullCoverage(unittest.TestCase):
                 state,
                 dry_run_rc_clean=True, submit_outcome_clean=True,
                 confirm_submit_checked=True, confirm_apply_checked=True,
+                oneclick_authorized_checked=False,
             )
             self.assertFalse(gates["full_paper_run"].enabled)
-            self.assertIn("R10", gates["full_paper_run"].reason)
+            self.assertIn("authorize", gates["full_paper_run"].reason.lower())
+
+    def test_full_paper_run_is_enabled_when_authorize_checked(self) -> None:
+        """R11A: with every gate armed AND the authorize checkbox
+        ticked, the Full Paper Run button is lit. This is the success
+        path the panel must allow on a real KIS paper-open morning."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            _setup_run(base, with_recs=True)
+            _write_submit_report(base / "daily_runs" / "20260516_R10", rc=0)
+            halt = base / "halt.json"
+            state = _build_state(base=base, env=_all_gates_env(), halt_path=halt)
+            gates = cp.compute_button_gates(
+                state,
+                dry_run_rc_clean=True, submit_outcome_clean=True,
+                confirm_submit_checked=True, confirm_apply_checked=True,
+                oneclick_authorized_checked=True,
+            )
+            self.assertTrue(
+                gates["full_paper_run"].enabled,
+                f"Expected enabled, got reason={gates['full_paper_run'].reason}",
+            )
+
+    def test_full_paper_run_disabled_when_kis_env_is_live(self) -> None:
+        """R11A: defence in depth. Even with everything else green, a
+        non-paper KIS_ENV must veto the one-click run because the
+        whole pipeline is paper-only by design."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            _setup_run(base, with_recs=True)
+            _write_submit_report(base / "daily_runs" / "20260516_R10", rc=0)
+            halt = base / "halt.json"
+            env = dict(_all_gates_env())
+            env["KIS_ENV"] = "live"
+            state = _build_state(base=base, env=env, halt_path=halt)
+            gates = cp.compute_button_gates(
+                state,
+                dry_run_rc_clean=True, submit_outcome_clean=True,
+                confirm_submit_checked=True, confirm_apply_checked=True,
+                oneclick_authorized_checked=True,
+            )
+            self.assertFalse(gates["full_paper_run"].enabled)
+            self.assertIn("KIS_ENV", gates["full_paper_run"].reason)
+
+    def test_full_paper_run_disabled_when_recommendations_missing(self) -> None:
+        """R11A: the plan starts at generate_intents which depends on
+        recommendations.csv. Without it the gate must refuse — the
+        coordinator would otherwise burn a button click only to halt
+        at the first pre-check."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            _setup_run(base, with_recs=False)
+            halt = base / "halt.json"
+            state = _build_state(base=base, env=_all_gates_env(), halt_path=halt)
+            gates = cp.compute_button_gates(
+                state,
+                dry_run_rc_clean=True, submit_outcome_clean=True,
+                confirm_submit_checked=True, confirm_apply_checked=True,
+                oneclick_authorized_checked=True,
+            )
+            self.assertFalse(gates["full_paper_run"].enabled)
+            self.assertIn("recommendations.csv",
+                          gates["full_paper_run"].reason)
 
     def test_dry_run_button_enabled_with_only_run_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

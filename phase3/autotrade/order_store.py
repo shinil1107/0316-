@@ -253,6 +253,57 @@ class OrderStore:
             "duration_sec": duration_sec,
         })
 
+    def log_operator_cleared(
+        self,
+        *,
+        autotrade_run_id: str,
+        run_id: str,
+        client_order_id: str,
+        broker_state_at_clear: str,
+        operator_note: str = "",
+        broker_probe: Optional[Dict[str, Any]] = None,
+    ) -> StoredEvent:
+        """Record an explicit operator-driven clearing of a stuck
+        client_order_id (R10F-S).
+
+        R5B-P1.1's ``is_already_active`` treats any ACTIVE state ever
+        seen for a cid as blocking — including the long tail of
+        cancelled-then-reprice-then-cancelled chains that pile up on a
+        retried CIEN/LRCX intent. The only safe out used to be moving
+        the JSONL aside; that worked for one operator but lost audit
+        history and was easy to miss.
+
+        Now the operator can append a single ``operator_cleared`` event
+        AFTER they have:
+
+          1. Independently verified the broker has no live order for
+             this cid (status one of ``cancelled``, ``rejected``,
+             ``absent``, ``no_broker_contact``);
+          2. Optionally captured the probe summary so a future audit
+             can see what the broker actually said at the moment of
+             the clear.
+
+        ``is_already_active`` will then treat any ACTIVE evidence that
+        predates this cleared event as resolved. A future ACTIVE
+        transition for the same cid (e.g. a fresh paper-submit that
+        reuses the deterministic cid) re-arms the guard, because the
+        cleared event is no longer the latest entry for the cid.
+
+        ``broker_state_at_clear`` is free-form but the UI restricts it
+        to the four canonical values above. ``broker_probe`` is the
+        raw structured payload the UI captured (e.g. the ccnl row for
+        the original ODNO), kept for forensic value only.
+        """
+        return self.append_event({
+            "event_kind": "operator_cleared",
+            "autotrade_run_id": autotrade_run_id,
+            "run_id": run_id,
+            "client_order_id": client_order_id,
+            "broker_state_at_clear": broker_state_at_clear,
+            "operator_note": operator_note,
+            "broker_probe": broker_probe or {},
+        })
+
     def log_transition(
         self,
         *,
@@ -400,33 +451,71 @@ class OrderStore:
         place_order again. Now we scan all events and use a strict
         union of the active states plus blocking-UNKNOWN conditions.
 
-        A future, explicit `operator_cleared` resolution event can
-        invalidate this guard cleanly without changing the scanner;
-        for v0 we err conservative and require manual resolution.
+        R10F-S extension:
+        an explicit ``operator_cleared`` event (see
+        ``log_operator_cleared``) invalidates ACTIVE evidence that
+        predates it. We walk the cid's events in append order and
+        flip an ``active`` flag on/off as we see ACTIVE or cleared
+        rows; the final flag is the answer. A future ACTIVE row that
+        lands AFTER an ``operator_cleared`` re-arms the guard, which
+        is the desired behaviour: a fresh paper-submit reusing the
+        same deterministic cid must still be blocked once it touches
+        the broker again.
         """
+        active = False
         for ev in self.read_events():
-            if ev.event_kind != "transition":
-                continue
             if ev.client_order_id != client_order_id:
+                continue
+            kind = ev.event_kind
+            if kind == "operator_cleared":
+                active = False
+                continue
+            if kind != "transition":
                 continue
             state = ev.state
             if state in self._ACTIVE_STATES:
-                return True
-            if state == OrderState.UNKNOWN and self._unknown_is_blocking(ev.raw):
-                return True
-        return False
+                active = True
+            elif state == OrderState.UNKNOWN and self._unknown_is_blocking(ev.raw):
+                active = True
+        return active
+
+    def find_stuck_client_order_ids(self) -> List[str]:
+        """R10F-S: list every client_order_id whose JSONL history is
+        currently blocking (i.e. ``is_already_active`` would return
+        True). Used by the panel's Operator Recovery UI to surface
+        candidates without making the operator type the cid by hand.
+
+        Order is first-appearance in the JSONL — stable across calls.
+        Returns ``[]`` for an empty/missing store."""
+        seen: List[str] = []
+        for ev in self.read_events():
+            cid = ev.client_order_id
+            if not cid or cid in seen:
+                continue
+            seen.append(cid)
+        return [cid for cid in seen if self.is_already_active(cid)]
 
     def find_latest_blocking_by_client_id(
         self, client_order_id: str,
     ) -> Optional[StoredEvent]:
         """Companion to `is_already_active`: return the most recent
         blocking event. Returns None if the client_id is not currently
-        blocked. Insertion order (last write wins) is the tie-breaker."""
+        blocked. Insertion order (last write wins) is the tie-breaker.
+
+        R10F-S: respects ``operator_cleared`` resolution events. An
+        ACTIVE transition that predates a ``cleared`` row is no longer
+        the latest blocking row — the cid is unblocked unless a later
+        ACTIVE transition lands.
+        """
         latest: Optional[StoredEvent] = None
         for ev in self.read_events():
-            if ev.event_kind != "transition":
-                continue
             if ev.client_order_id != client_order_id:
+                continue
+            kind = ev.event_kind
+            if kind == "operator_cleared":
+                latest = None
+                continue
+            if kind != "transition":
                 continue
             state = ev.state
             blocking = state in self._ACTIVE_STATES or (

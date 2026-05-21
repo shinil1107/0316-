@@ -522,11 +522,23 @@ def write_intent_file_from_candidate(
 # Batch helpers (R10C — "submit everything in one shot" workflow)
 # ──────────────────────────────────────────────────────────────────────
 
-# R10D-3 — quote-fresh limit metadata. ``quote_source`` is one of:
+# R10D-3 / R10F-Q1 — quote-fresh limit metadata. ``quote_source`` is one of:
 #   "reco_close"          -> reco_price * (1 + pad), no quote attempted
-#   "quote_refreshed"     -> max(reco_close_padded, quote_ref * (1+qpad))
+#   "quote_refreshed"     -> quote-binding limit (see below)
+#   "quote_refreshed_below_reco" -> in floor mode, reco_padded won the max()
 #   "fallback_quote_fail" -> quote_fn was provided but raised / returned None
 #   "fallback_quote_zero" -> quote_fn returned a Quote whose ref price is <= 0
+#
+# R10F-Q1: ``quote_only`` parameter controls floor behaviour.
+#   quote_only=False (R10D-3 legacy): chosen = max(reco_padded, quote_padded).
+#       Reco_close acts as a price floor — protects against bad quote data
+#       but exposes operator to gap-down risk (we keep buying near yesterday's
+#       close even after today's price dropped 2%).
+#   quote_only=True  (R10F-Q1, recommended): chosen = quote_padded when the
+#       quote is healthy. Reco_close is used only when quote_fn fails or
+#       returns a non-positive ref price (the existing fallback paths).
+#       Gap-down risk goes away; gap-up risk is unchanged (we still pay the
+#       live ask + pad).
 # These are stored in each intent row under ``_quote_source`` so the
 # post-trade email and the audit JSONL can show how each limit was set.
 
@@ -571,24 +583,39 @@ def candidates_to_intent_rows(
     qty_override: Optional[int] = None,
     quote_fn: Optional[Any] = None,
     quote_pad_pct: float = 0.1,
+    quote_only: bool = False,
     warnings_out: Optional[List[IntentBuildWarning]] = None,
 ) -> List[Dict[str, Any]]:
     """Build a full intent batch from every supplied ``BuyCandidate``.
 
     Each row uses ``candidate.reco_shares`` for qty (unless
     ``qty_override`` is given — useful for "tiny test" batches) and
-    ``candidate.reco_price`` for the limit, padded by ``limit_pad_pct``
-    percent to lift the fill probability in paper.
+    a limit derived from the reco close, the live quote, or both.
 
-    R10D-3: when ``quote_fn`` is supplied, the helper calls
-    ``quote_fn(symbol, market)`` for each candidate and lifts the
-    limit to ``max(reco_padded, quote_ref * (1+quote_pad_pct))`` where
-    ``quote_ref`` is the broker's ask, falling back to last. If the
-    quote lookup raises, returns ``None``, or returns a quote whose
-    reference price is non-positive, the row falls back to the close
-    path and an ``IntentBuildWarning`` is appended to ``warnings_out``
-    (when provided). The row's ``_quote_source`` field records which
-    path was taken so downstream audit/email can reflect that.
+    Pricing modes:
+
+    * ``quote_fn is None`` — pure ``reco_close`` mode:
+      ``limit = reco_price * (1 + limit_pad_pct/100)``.
+
+    * ``quote_fn`` provided, ``quote_only=False`` (R10D-3 legacy floor
+      mode): ``limit = max(reco_padded, quote_padded)`` where
+      ``quote_padded = quote_ref * (1 + quote_pad_pct/100)``.
+      Protects against bad quote data at the cost of accepting
+      gap-down risk (we keep buying near yesterday's close even when
+      today's price dropped meaningfully).
+
+    * ``quote_fn`` provided, ``quote_only=True`` (R10F-Q1, recommended):
+      ``limit = quote_padded`` when the quote is healthy. The reco
+      close is used only when the quote function raises, returns
+      ``None``, or returns a non-positive reference price — same
+      fallback paths as the floor mode. This removes the gap-down
+      mispricing observed on R10E (NYSE symbols filling well above
+      market when the live broker quote came back cleaner than the
+      reco close).
+
+    On quote failure ``IntentBuildWarning`` is appended to
+    ``warnings_out`` (when provided). The row's ``_quote_source`` field
+    records which path was taken.
 
     ``limit_pad_pct=1.0`` means "+1% above reco_price". A positive pad
     is the only direction that makes sense for BUY (paying a bit more
@@ -619,9 +646,6 @@ def candidates_to_intent_rows(
                     ))
                 quote_source = "fallback_quote_fail"
             if not failed and q is None:
-                # The caller's quote function returned None — treat
-                # that as a soft failure (e.g. symbol not in the
-                # broker's price universe) and fall back.
                 if warnings_out is not None:
                     warnings_out.append(IntentBuildWarning(
                         ticker=c.ticker,
@@ -641,14 +665,19 @@ def candidates_to_intent_rows(
                     quote_ref_price = None
                 else:
                     quote_limit = round(quote_ref_price * qpad, 4)
-                    chosen_limit = max(reco_limit, quote_limit)
-                    # Only flip to refreshed if the quote actually
-                    # moved the limit; otherwise reco_close was the
-                    # binding constraint and we should say so.
-                    if chosen_limit > reco_limit:
-                        quote_source = "quote_refreshed"
+                    if quote_only:
+                        # R10F-Q1: trust the live quote. Reco close
+                        # acts only as a sanity fallback when the
+                        # quote pipeline fails (see branches above).
+                        chosen_limit = quote_limit
+                        quote_source = "quote_only"
                     else:
-                        quote_source = "quote_refreshed_below_reco"
+                        # R10D-3 legacy floor mode.
+                        chosen_limit = max(reco_limit, quote_limit)
+                        if chosen_limit > reco_limit:
+                            quote_source = "quote_refreshed"
+                        else:
+                            quote_source = "quote_refreshed_below_reco"
 
         row = candidate_to_intent_row(
             c,
@@ -672,6 +701,7 @@ def write_intent_file_from_candidates(
     qty_override: Optional[int] = None,
     quote_fn: Optional[Any] = None,
     quote_pad_pct: float = 0.1,
+    quote_only: bool = False,
     warnings_out: Optional[List[IntentBuildWarning]] = None,
     overwrite: bool = False,
     run_id: Optional[str] = None,
@@ -683,9 +713,15 @@ def write_intent_file_from_candidates(
 
     R10D-3: when ``quote_fn`` is supplied, every row's limit is also
     lifted toward the broker's current ask. See
-    ``candidates_to_intent_rows`` for the exact rule. The resulting
-    rows carry a ``_quote_source`` field so the post-trade audit /
-    email can show how each limit was set.
+    ``candidates_to_intent_rows`` for the exact rule.
+
+    R10F-Q1: ``quote_only`` (default False for backwards compatibility)
+    drops the reco-close floor so a healthy live quote alone decides
+    the limit. The UI sets this True by default. Falls back to the
+    reco close when the quote pipeline fails (same paths as legacy).
+
+    The resulting rows carry a ``_quote_source`` field so the
+    post-trade audit / email can show how each limit was set.
     """
     if not candidates:
         raise ValueError(
@@ -698,6 +734,7 @@ def write_intent_file_from_candidates(
         qty_override=qty_override,
         quote_fn=quote_fn,
         quote_pad_pct=quote_pad_pct,
+        quote_only=quote_only,
         warnings_out=warnings_out,
     )
     return write_submitted_intents(

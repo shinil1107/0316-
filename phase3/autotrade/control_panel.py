@@ -41,7 +41,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 _HERE = Path(__file__).resolve().parent
 _PHASE3 = _HERE.parent
@@ -52,7 +52,10 @@ for _p in (_PHASE3, _REPO_ROOT):
 
 from phase3.autotrade import global_halt  # noqa: E402
 from phase3.autotrade import intents_io   # noqa: E402
+from phase3.autotrade import oneclick_coordinator as oneclick  # noqa: E402
+from phase3.autotrade import recovery     # noqa: E402
 from phase3.autotrade import t10_apply_journal as tj  # noqa: E402
+from phase3.autotrade.order_store import OrderStore  # noqa: E402
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -352,6 +355,7 @@ def compute_button_gates(
     confirm_submit_checked: bool = False,
     confirm_apply_checked:  bool = False,
     overwrite_intents_checked: bool = False,
+    oneclick_authorized_checked: bool = False,
 ) -> Dict[str, ButtonGate]:
     """Translate a PanelState + session flags into per-button gates.
 
@@ -490,10 +494,43 @@ def compute_button_gates(
         reason="; ".join(t10apply_reasons),
     )
 
-    # 5. Full Paper Run — R10 keeps disabled by design (§2.2).
+    # 5. Full Paper Run — R11A. Lit only when BOTH paper-submit and
+    # T10 apply would also be lit on their own AND the operator has
+    # ticked the one-click authorise box. We reuse the per-stage gates
+    # rather than re-deriving the conditions so the matrix can never
+    # disagree with itself.
+    full_reasons: List[str] = []
+    if not has_run_id:
+        full_reasons.append("no run_id selected")
+    if state.artifact_status != "awaiting_execution":
+        full_reasons.append(
+            f"artifact status is {state.artifact_status!r}, "
+            f"need 'awaiting_execution'")
+    if state.kis_env != "paper":
+        full_reasons.append(f"KIS_ENV={state.kis_env!r} (need 'paper')")
+    if not state.submit_gate_on:
+        full_reasons.append(f"{SUBMIT_GATE} not set to true")
+    if not state.cancel_gate_on:
+        full_reasons.append(f"{CANCEL_GATE} not set to true")
+    if not state.apply_gate_on:
+        full_reasons.append(f"{APPLY_GATE} not set to true")
+    if state.halt.halted:
+        full_reasons.append("global_halt is ON")
+    if not state.t10_journal.is_clean:
+        full_reasons.append(
+            "T10 journal has unresolved started/recovery marker")
+    if not state.recommendations_csv_exists:
+        full_reasons.append("recommendations.csv missing for this run")
+    elif state.recommendations_buy_count <= 0:
+        full_reasons.append("no BUY candidates in recommendations.csv")
+    if not oneclick_authorized_checked:
+        full_reasons.append(
+            "tick the 'authorize one-click full paper run' checkbox")
     out["full_paper_run"] = ButtonGate(
-        "full_paper_run", enabled=False,
-        reason=DISABLED_TOOLTIP_FULL_RUN,
+        "full_paper_run",
+        enabled=not full_reasons,
+        reason=("; ".join(full_reasons) if full_reasons
+                else "all preconditions satisfied — one-click run is armed"),
     )
     return out
 
@@ -610,6 +647,76 @@ class DangerActionDenied(RuntimeError):
         self.reason = reason
 
 
+def build_full_paper_run_plan(
+    *,
+    run_id: str,
+    generate_intents_fn: Callable[[], int],
+    dry_run_argv: List[str],
+    paper_submit_argv: List[str],
+    paper_submit_env_extra: Dict[str, str],
+    t10_apply_argv: List[str],
+    stream_argv_blocking: Callable[..., int],
+    submit_outcome_check_fn: Callable[[], Optional[str]],
+    profile: str = "paper",
+) -> List["oneclick.StageSpec"]:
+    """R11A — build the canonical 4-stage plan used by the panel's
+    Full Paper Run button.
+
+    Stages:
+
+    1. ``generate_intents`` — runs ``generate_intents_fn`` (UI passes
+       a closure that drives the same code path the "Generate ALL
+       Intents (batch)" button uses, but blocking).
+    2. ``dry_run`` — invokes ``stream_argv_blocking(dry_run_argv)``.
+    3. ``paper_submit`` — invokes ``stream_argv_blocking(paper_submit_argv,
+       env_extra=paper_submit_env_extra)`` and post-checks
+       ``submit_outcome_check_fn`` so a rc=0 with a dirty outcome
+       still halts.
+    4. ``t10_apply`` — invokes ``stream_argv_blocking(t10_apply_argv)``.
+
+    This indirection is what lets the unit tests build the plan
+    against fake closures and exercise the coordinator without
+    spawning real processes.
+    """
+
+    def _stage_runner_for_argv(argv: List[str],
+                                env_extra: Optional[Dict[str, str]] = None
+                                ) -> Callable[[], int]:
+        argv_snapshot = list(argv)
+        env_snapshot = dict(env_extra) if env_extra else None
+
+        def _run() -> int:
+            return int(stream_argv_blocking(
+                argv_snapshot, env_extra=env_snapshot))
+        return _run
+
+    stages: List["oneclick.StageSpec"] = [
+        oneclick.StageSpec(
+            key="generate_intents",
+            label="Generate Intents (batch)",
+            runner=generate_intents_fn,
+        ),
+        oneclick.StageSpec(
+            key="dry_run",
+            label="Dry Run Preflight",
+            runner=_stage_runner_for_argv(dry_run_argv),
+        ),
+        oneclick.StageSpec(
+            key="paper_submit",
+            label="Paper Submit + Manage",
+            runner=_stage_runner_for_argv(
+                paper_submit_argv, env_extra=paper_submit_env_extra),
+            post_check=submit_outcome_check_fn,
+        ),
+        oneclick.StageSpec(
+            key="t10_apply",
+            label="T10 Apply (real)",
+            runner=_stage_runner_for_argv(t10_apply_argv),
+        ),
+    ]
+    return stages
+
+
 def revalidate_danger_action(
     *,
     action: str,
@@ -621,6 +728,7 @@ def revalidate_danger_action(
     overwrite_intents_checked: bool = False,
     dry_run_rc_clean: bool = False,
     submit_outcome_clean: bool = False,
+    oneclick_authorized_checked: bool = False,
 ) -> "PanelState":
     """Recompute panel state + button gates and refuse if the action
     is currently disabled. Returns the freshly computed PanelState so
@@ -651,6 +759,7 @@ def revalidate_danger_action(
         confirm_submit_checked=confirm_submit_checked,
         confirm_apply_checked=confirm_apply_checked,
         overwrite_intents_checked=overwrite_intents_checked,
+        oneclick_authorized_checked=oneclick_authorized_checked,
     )
     if action not in gates:
         raise DangerActionDenied(
@@ -1137,6 +1246,11 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
     confirm_submit_var = tk.BooleanVar(value=False)
     confirm_apply_var  = tk.BooleanVar(value=False)
     overwrite_intents_var = tk.BooleanVar(value=False)
+    # R11A — one-click authorise. Independent from per-stage confirm
+    # toggles so the operator can still drive stages individually
+    # without this box affecting them. The Full Paper Run button uses
+    # *only* this box.
+    oneclick_authorize_var = tk.BooleanVar(value=False)
     # R10-ARM — Activation toggles. Initial state mirrors whatever is
     # *already* in os.environ so a pre-launch shell export still shows
     # the checkbox ticked. Untick = clear from os.environ this session.
@@ -1254,10 +1368,15 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
 
     # R10D-3 — quote-fresh limit toggle. When checked, the batch
     # generator calls ``adapter.get_quote(symbol)`` for each candidate
-    # and sets ``limit = max(reco_padded, ask*(1+quote_pad))``. The
-    # confirmation dialog shows row-level reco/refreshed/asof so the
+    # and uses the broker's current ask as the basis for the limit.
+    # The confirmation dialog shows row-level reco/refreshed/asof so the
     # operator can sanity-check before clobbering the intent file.
-    intent_state["use_quote_var"] = tk.BooleanVar(value=False)
+    #
+    # R10F-Q1: default ON. We learned on 2026-05-20 that NYSE-gap-down
+    # tickers silently mis-priced when the reco close was used as a
+    # floor; the legacy floor mode is still available via the second
+    # checkbox below for diagnostic comparisons.
+    intent_state["use_quote_var"] = tk.BooleanVar(value=True)
     ttk.Checkbutton(
         frm_prep,
         text="Refresh limits with live KIS quote (R10D-3)",
@@ -1271,10 +1390,273 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
     ).grid(row=8, column=1, sticky="w", padx=4)
     ttk.Label(
         frm_prep,
-        text="(applied to max(reco*(1+batch_pad), ask*(1+quote_pad)))",
+        text="(applied to the live ask; see Quote-only mode below)",
         foreground="gray",
     ).grid(row=9, column=0, columnspan=2, sticky="w", padx=4)
+
+    # R10F-Q1 — quote-only mode (recommended default). When checked,
+    # the limit equals quote_padded; reco_close is used only when the
+    # quote pipeline fails. When unchecked, the legacy R10D-3 floor
+    # mode applies: limit = max(reco_padded, quote_padded).
+    intent_state["quote_only_var"] = tk.BooleanVar(value=True)
+    ttk.Checkbutton(
+        frm_prep,
+        text="Quote-only mode (R10F-Q1) — drop reco-close floor when live quote is healthy",
+        variable=intent_state["quote_only_var"],
+    ).grid(row=10, column=0, columnspan=2, sticky="w", padx=4, pady=2)
+    ttk.Label(
+        frm_prep,
+        text="(unchecked = legacy R10D-3 floor: limit=max(reco_padded, quote_padded))",
+        foreground="gray",
+    ).grid(row=11, column=0, columnspan=2, sticky="w", padx=4)
     frm_prep.columnconfigure(1, weight=1)
+
+    # — Order Management section (R10F-Q2) ─────────────────────────────
+    # These four fields override OrderManagementPolicy defaults via
+    # ``AUTOTRADE_*_*`` env vars set on the paper-submit subprocess.
+    # Empty fields keep the dataclass defaults.
+    frm_mgmt = ttk.LabelFrame(
+        _body,
+        text="Order Management (paper submit only — R10F-Q2)",
+        padding=8,
+    )
+    frm_mgmt.pack(fill="x", padx=8, pady=4)
+
+    order_mgmt: Dict[str, tk.StringVar] = {}
+
+    def _mgmt_row(idx: int, label: str, key: str, default: str, hint: str) -> None:
+        ttk.Label(frm_mgmt, text=label).grid(row=idx, column=0, sticky="w")
+        var = tk.StringVar(value=default)
+        order_mgmt[key] = var
+        ttk.Entry(frm_mgmt, textvariable=var, width=10).grid(
+            row=idx, column=1, sticky="w", padx=4)
+        ttk.Label(
+            frm_mgmt, text=hint, foreground="gray",
+        ).grid(row=idx, column=2, sticky="w", padx=4)
+
+    _mgmt_row(
+        0, "Reprice step (bps):", "reprice_step",
+        "30",
+        "(+0.30%/reprice — was 10 bps; CIEN-class gap-up needs >=25)",
+    )
+    _mgmt_row(
+        1, "Max slippage (bps):", "max_slippage",
+        "120",
+        "(absolute ceiling above original limit; was 35 bps)",
+    )
+    _mgmt_row(
+        2, "Max reprice attempts:", "max_attempts",
+        "4",
+        "(was 2; more chases the market for high-vol opens)",
+    )
+    _mgmt_row(
+        3, "Max wait per attempt (s):", "max_wait",
+        "60",
+        "(was 120; shorter = faster cancel-reprice cadence)",
+    )
+    frm_mgmt.columnconfigure(2, weight=1)
+
+    # — Operator Recovery section (R10F-S) ─────────────────────────────
+    # When a paper-submit aborts on the duplicate guard, the operator
+    # used to have to manually move the JSONL aside. Here we expose
+    # the formal clearing path: pick a stuck cid → probe the broker →
+    # confirm safe state → write an ``operator_cleared`` event into
+    # the same JSONL. The next submit will then walk through the cid
+    # because ``OrderStore.is_already_active`` honours the clear.
+    frm_recover = ttk.LabelFrame(
+        _body,
+        text="Operator Recovery — stuck client_order_id clear (R10F-S)",
+        padding=8,
+    )
+    frm_recover.pack(fill="x", padx=8, pady=4)
+
+    recovery_state: Dict[str, Any] = {
+        "stuck_cids": [],
+        "probe_result": None,
+    }
+
+    ttk.Label(frm_recover, text="Stuck cid:").grid(row=0, column=0, sticky="w")
+    stuck_cid_var = tk.StringVar(value="")
+    stuck_combo = ttk.Combobox(
+        frm_recover, textvariable=stuck_cid_var, state="readonly",
+        width=44, values=[],
+    )
+    stuck_combo.grid(row=0, column=1, sticky="we", padx=4, pady=2)
+
+    probe_summary_var = tk.StringVar(value="(no probe yet)")
+    ttk.Label(
+        frm_recover, textvariable=probe_summary_var,
+        foreground="gray",
+    ).grid(row=1, column=0, columnspan=3, sticky="w", padx=4)
+
+    ttk.Label(frm_recover, text="Operator note:").grid(
+        row=2, column=0, sticky="w")
+    recover_note_var = tk.StringVar(value="")
+    ttk.Entry(
+        frm_recover, textvariable=recover_note_var, width=44,
+    ).grid(row=2, column=1, sticky="we", padx=4)
+
+    def _store_for_current_run() -> Optional[OrderStore]:
+        rid = run_id_var.get().strip()
+        if not rid or output_dir is None:
+            return None
+        run_dir = Path(output_dir) / "daily_runs" / rid
+        if not run_dir.exists():
+            return None
+        return OrderStore(run_dir / "autotrade_orders.jsonl")
+
+    def _on_recover_refresh():
+        store = _store_for_current_run()
+        if store is None:
+            messagebox.showwarning(
+                "No run selected",
+                "Pick a run_id first so we know which JSONL to inspect.")
+            return
+        try:
+            stuck = store.find_stuck_client_order_ids()
+        except Exception as e:  # noqa: BLE001
+            messagebox.showerror(
+                "Could not read JSONL",
+                f"{type(e).__name__}: {e}")
+            return
+        recovery_state["stuck_cids"] = list(stuck)
+        stuck_combo.configure(values=list(stuck))
+        if stuck:
+            stuck_cid_var.set(stuck[0])
+        else:
+            stuck_cid_var.set("")
+        probe_summary_var.set(
+            f"{len(stuck)} stuck cid(s) detected"
+            if stuck else "no stuck cids — store is clean")
+        btn_recover_clear.state(["disabled"])
+        recovery_state["probe_result"] = None
+
+    def _on_recover_probe():
+        cid = stuck_cid_var.get().strip()
+        if not cid:
+            messagebox.showwarning(
+                "Pick a cid first",
+                "Refresh the stuck list and select a client_order_id.")
+            return
+        store = _store_for_current_run()
+        if store is None:
+            return
+        latest = store.find_latest_blocking_by_client_id(cid)
+        broker_order_id = latest.broker_order_id if latest else None
+        try:
+            from phase3.autotrade.kis_broker_adapter import (
+                KisBrokerAdapter, load_env_config,
+            )
+            env_cfg = load_env_config()
+            adapter = KisBrokerAdapter(cfg=env_cfg, verbose=False)
+        except Exception as e:  # noqa: BLE001
+            messagebox.showerror(
+                "Broker adapter init failed",
+                f"{type(e).__name__}: {e}")
+            return
+        try:
+            result = recovery.probe_broker_state(
+                adapter,
+                client_order_id=cid,
+                broker_order_id=broker_order_id,
+            )
+        except Exception as e:  # noqa: BLE001
+            probe_summary_var.set(f"probe error: {type(e).__name__}: {e}")
+            btn_recover_clear.state(["disabled"])
+            return
+        recovery_state["probe_result"] = result
+        probe_summary_var.set(result.summary)
+        if result.safe_to_clear:
+            btn_recover_clear.state(["!disabled"])
+        else:
+            btn_recover_clear.state(["disabled"])
+
+    def _on_recover_clear():
+        result: Optional[recovery.BrokerProbeResult] = (
+            recovery_state.get("probe_result"))
+        if result is None or not result.safe_to_clear:
+            messagebox.showerror(
+                "No safe probe result",
+                "Run 'Probe broker' first and only clear when the "
+                "probe confirms a safe state "
+                "(cancelled / rejected / absent / no_broker_contact).")
+            return
+        store = _store_for_current_run()
+        if store is None:
+            return
+        rid = run_id_var.get().strip()
+        if not messagebox.askokcancel(
+            "Confirm clear",
+            f"This will append an `operator_cleared` event for\n"
+            f"  cid = {result.client_order_id}\n"
+            f"  broker_state_at_clear = {result.broker_state_at_clear}\n\n"
+            f"After this, paper-submit will walk past the duplicate "
+            f"guard for this cid (unless a NEW broker contact lands "
+            f"after the clear).\n\nProceed?"):
+            return
+        note = recover_note_var.get().strip() or result.summary
+        try:
+            store.log_operator_cleared(
+                autotrade_run_id=f"manual-clear-{int(time.time())}",
+                run_id=rid,
+                client_order_id=result.client_order_id,
+                broker_state_at_clear=result.broker_state_at_clear,
+                operator_note=note,
+                broker_probe=result.raw,
+            )
+        except Exception as e:  # noqa: BLE001
+            messagebox.showerror(
+                "Clear write failed", f"{type(e).__name__}: {e}")
+            return
+        messagebox.showinfo(
+            "Cleared",
+            f"{result.client_order_id} cleared.\nThe stuck list will "
+            f"refresh automatically.")
+        btn_recover_clear.state(["disabled"])
+        recovery_state["probe_result"] = None
+        recover_note_var.set("")
+        _on_recover_refresh()
+        _refresh()
+
+    btn_recover_refresh = ttk.Button(
+        frm_recover, text="Refresh stuck cids",
+        command=_on_recover_refresh)
+    btn_recover_refresh.grid(row=3, column=0, sticky="we", padx=4, pady=4)
+    btn_recover_probe = ttk.Button(
+        frm_recover, text="Probe broker",
+        command=_on_recover_probe)
+    btn_recover_probe.grid(row=3, column=1, sticky="we", padx=4, pady=4)
+    btn_recover_clear = ttk.Button(
+        frm_recover, text="Clear stuck cid",
+        command=_on_recover_clear)
+    btn_recover_clear.grid(row=3, column=2, sticky="we", padx=4, pady=4)
+    btn_recover_clear.state(["disabled"])
+    frm_recover.columnconfigure(1, weight=1)
+
+    def _build_mgmt_env() -> Dict[str, str]:
+        """Translate the four StringVars into env vars consumed by
+        ``OrderManagementPolicy.from_env`` on the subprocess side.
+        Empty or unparseable cells fall through silently."""
+        env_overrides: Dict[str, str] = {}
+        mapping = [
+            ("reprice_step",  "AUTOTRADE_REPRICE_STEP_BPS"),
+            ("max_slippage",  "AUTOTRADE_MAX_SLIPPAGE_BPS"),
+            ("max_attempts",  "AUTOTRADE_MAX_REPRICE_ATTEMPTS"),
+            ("max_wait",      "AUTOTRADE_MAX_WAIT_SEC"),
+        ]
+        for ui_key, env_key in mapping:
+            raw = order_mgmt.get(ui_key)
+            if raw is None:
+                continue
+            val = raw.get().strip()
+            if val == "":
+                continue
+            try:
+                float(val)
+            except (TypeError, ValueError):
+                continue
+            env_overrides[env_key] = val
+        return env_overrides
 
     def _on_cand_select(_event: Any = None) -> None:
         cands: List[intents_io.BuyCandidate] = intent_state["candidates"]
@@ -1393,6 +1775,7 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 "Set pad >= 0.")
             return
         use_quote = bool(intent_state["use_quote_var"].get())
+        quote_only = bool(intent_state["quote_only_var"].get()) and use_quote
         try:
             qpad = float(intent_state["quote_pad_var"].get())
         except (TypeError, ValueError):
@@ -1460,6 +1843,7 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
         rows_preview = intents_io.candidates_to_intent_rows(
             cands, limit_pad_pct=pad,
             quote_fn=quote_fn, quote_pad_pct=qpad,
+            quote_only=quote_only,
             warnings_out=warnings)
         total_qty = sum(int(r["qty"]) for r in rows_preview)
         usd_estimate = sum(
@@ -1488,8 +1872,14 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             )
         else:
             confirm_msg = ""
-        quote_line = (f"  quote refresh: ON (quote pad {qpad:+.2f}%)"
-                      if use_quote else "  quote refresh: OFF")
+        if use_quote:
+            mode_label = "quote-only" if quote_only else "max(reco, quote) floor"
+            quote_line = (
+                f"  quote refresh: ON ({mode_label}, "
+                f"quote pad {qpad:+.2f}%)"
+            )
+        else:
+            quote_line = "  quote refresh: OFF"
         if not messagebox.askokcancel(
             "Confirm batch intent generation",
             f"{confirm_msg}Write {len(rows_preview)} BUY intent rows\n"
@@ -1675,6 +2065,9 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
         # here — revalidate_danger_action above confirmed they are
         # set in os.environ via the Arm toggle.
         env = os.environ.copy()
+        # R10F-Q2: layer per-session order-management overrides on top.
+        # Empty cells fall through to OrderManagementPolicy defaults.
+        env.update(_build_mgmt_env())
         _set_preview(cmd)
         argv = _build_paper_submit_argv(rid, profile="paper")
 
@@ -1727,6 +2120,291 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             confirm_apply_var.set(False)
         _stream_argv(argv, label="t10-apply", env=env, on_finished=_after)
 
+    def _append_log(line: str) -> None:
+        """Append a free-form line to the Output / Log textbox. R11A
+        uses this to stamp stage transitions and the coordinator's
+        final summary."""
+        try:
+            txt.insert("end", line)
+            txt.see("end")
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _stream_argv_blocking(
+        argv: Sequence[str],
+        *,
+        env_extra: Optional[Dict[str, str]] = None,
+        label: Optional[str] = None,
+    ) -> int:
+        """Block-and-stream version of ``_stream_argv`` for the
+        one-click coordinator. Uses ``run_subprocess_streaming`` so
+        the live log keeps flowing into the Output / Log textbox,
+        but waits for completion before returning the rc.
+
+        IMPORTANT: this MUST be called from a background thread —
+        from the Tk main thread it would block the event loop and
+        freeze the panel.
+        """
+        env = os.environ.copy()
+        if env_extra:
+            env.update(env_extra)
+        finished = threading.Event()
+        result_holder: Dict[str, int] = {"rc": -1}
+
+        def _on_line(stream: str, line: str) -> None:
+            prefix = "[stderr] " if stream == "stderr" else ""
+            display = prefix + line + "\n"
+            root.after(0, lambda d=display: _append_log(d))
+
+        def _on_done(rc: int) -> None:
+            result_holder["rc"] = int(rc)
+            tag = label or "stage"
+            root.after(0, lambda r=rc, t=tag:
+                       _append_log(f"[{t}] rc={r}\n"))
+            finished.set()
+
+        run_subprocess_streaming(
+            list(argv), cwd=_REPO_ROOT, env=env,
+            on_line=_on_line, on_done=_on_done,
+        )
+        finished.wait()
+        return result_holder["rc"]
+
+    def _run_generate_all_intents_blocking() -> int:
+        """R11A — in-process intent generation wrapped to look like a
+        stage runner. Mirrors ``_on_generate_all_intents`` but without
+        UI dialogs: failures return a non-zero rc instead of popping
+        a messagebox, because the coordinator already handles the
+        halt message.
+
+        This deliberately RUNS ON THE BACKGROUND THREAD that the
+        coordinator is using; Tk calls inside it are guarded with
+        ``root.after`` for the log lines only.
+        """
+        rid = run_id_var.get().strip()
+        if not rid or output_dir is None:
+            root.after(0, lambda: _append_log(
+                "[generate_intents] no run_id selected\n"))
+            return 2
+
+        cands: List[intents_io.BuyCandidate] = list(intent_state["candidates"])
+        if not cands:
+            root.after(0, lambda: _append_log(
+                "[generate_intents] no BUY candidates in recommendations.csv\n"))
+            return 2
+
+        try:
+            pad = float(intent_state["limit_pad_var"].get())
+        except (TypeError, ValueError):
+            root.after(0, lambda: _append_log(
+                "[generate_intents] invalid batch limit pad\n"))
+            return 2
+        if pad < 0:
+            root.after(0, lambda: _append_log(
+                "[generate_intents] negative batch pad refused\n"))
+            return 2
+
+        use_quote = bool(intent_state["use_quote_var"].get())
+        quote_only = bool(intent_state["quote_only_var"].get()) and use_quote
+        try:
+            qpad = float(intent_state["quote_pad_var"].get())
+        except (TypeError, ValueError):
+            root.after(0, lambda: _append_log(
+                "[generate_intents] invalid quote pad\n"))
+            return 2
+
+        run_dir = Path(output_dir) / "daily_runs" / rid
+
+        quote_fn = None
+        if use_quote:
+            try:
+                from phase3.autotrade.kis_broker_adapter import (
+                    KisBrokerAdapter, load_env_config,
+                )
+                env_cfg = load_env_config()
+                if env_cfg.env_name != "paper":
+                    root.after(0, lambda: _append_log(
+                        f"[generate_intents] KIS_ENV={env_cfg.env_name!r} "
+                        f"is not paper — refusing\n"))
+                    return 2
+                _qa = KisBrokerAdapter(cfg=env_cfg, verbose=False)
+
+                def _quote_fn(symbol: str, market: str):
+                    return _qa.get_quote_with_exchange_fallback(
+                        symbol, preferred_market=market,
+                    )
+                quote_fn = _quote_fn
+            except Exception as e:  # noqa: BLE001
+                root.after(0, lambda e=e: _append_log(
+                    f"[generate_intents] quote adapter init failed: "
+                    f"{type(e).__name__}: {e}\n"))
+                return 2
+
+        try:
+            rows = intents_io.candidates_to_intent_rows(
+                cands, run_id=rid, batch_pad_pct=pad,
+                quote_fn=quote_fn, quote_pad_pct=qpad,
+                quote_only=quote_only,
+            )
+            intents_io.write_submitted_intents(
+                run_dir, rows, run_id=rid,
+                overwrite=True,
+            )
+        except Exception as e:  # noqa: BLE001
+            root.after(0, lambda e=e: _append_log(
+                f"[generate_intents] failed: "
+                f"{type(e).__name__}: {e}\n"))
+            return 1
+
+        root.after(0, lambda n=len(rows): _append_log(
+            f"[generate_intents] wrote {n} intent row(s)\n"))
+        return 0
+
+    def _submit_outcome_post_check() -> Optional[str]:
+        """Post-check for the paper_submit stage. Returns a halt
+        reason if the submit_outcome on disk is dirty (any UNKNOWN /
+        cancel-unconfirmed / open) even though rc was 0."""
+        rid = run_id_var.get().strip()
+        if not rid or output_dir is None:
+            return "no run_id"
+        clean, why = submit_outcome_is_clean(
+            Path(output_dir) / "daily_runs" / rid)
+        session["submit_outcome_clean"] = clean
+        if clean:
+            return None
+        return why or "submit outcome dirty"
+
+    def _on_full_paper_run():
+        """R11A — one-click coordinator entry point.
+
+        Re-runs the full danger-action revalidation (the same gates
+        ``paper_submit`` and ``t10_apply`` would each enforce), then
+        spawns a background thread that drives ``run_oneclick`` so
+        the Tk main loop stays responsive. Output from each stage's
+        subprocess is streamed into the panel log via the same
+        ``run_subprocess_streaming`` plumbing the manual buttons use.
+        """
+        rid = run_id_var.get().strip()
+        try:
+            revalidate_danger_action(
+                action="full_paper_run",
+                output_dir=output_dir,
+                run_id=rid,
+                env=os.environ,
+                confirm_submit_checked=confirm_submit_var.get(),
+                confirm_apply_checked=confirm_apply_var.get(),
+                overwrite_intents_checked=overwrite_intents_var.get(),
+                dry_run_rc_clean=session["dry_run_rc_clean"],
+                submit_outcome_clean=session["submit_outcome_clean"],
+                oneclick_authorized_checked=oneclick_authorize_var.get(),
+            )
+        except DangerActionDenied as e:
+            messagebox.showerror("Full Paper Run refused", e.reason)
+            _refresh()
+            return
+
+        cmd_preview = (
+            "[one-click] generate_intents → dry_run → paper_submit → "
+            "t10_apply (each stage runs the same CLI you would invoke "
+            "by hand)")
+        _set_preview(cmd_preview)
+        if not messagebox.askokcancel(
+            "Confirm one-click Full Paper Run",
+            "This will run every stage in sequence and HALT on the "
+            "first non-zero rc or dirty post-check:\n\n"
+            "  1. generate_intents (overwriting submitted_intents.json)\n"
+            "  2. dry_run\n"
+            "  3. paper_submit\n"
+            "  4. t10_apply (real)\n\n"
+            "All danger gates are armed; the operator must stay at "
+            "the keyboard to STOP if anything looks off.\n\nProceed?"):
+            return
+
+        run_dir = Path(output_dir) / "daily_runs" / rid
+        run_dir.mkdir(parents=True, exist_ok=True)
+        marker_path = run_dir / oneclick.MARKER_FILENAME
+
+        plan = build_full_paper_run_plan(
+            run_id=rid,
+            generate_intents_fn=_run_generate_all_intents_blocking,
+            dry_run_argv=_build_dry_run_argv(rid, profile="paper"),
+            paper_submit_argv=_build_paper_submit_argv(
+                rid, profile="paper"),
+            paper_submit_env_extra=_build_mgmt_env(),
+            t10_apply_argv=_build_t10_argv(
+                rid, apply_mode=True, profile="paper"),
+            stream_argv_blocking=_stream_argv_blocking,
+            submit_outcome_check_fn=_submit_outcome_post_check,
+        )
+
+        # Lock the UI for the duration of the coordinator run.
+        for b in btns.values():
+            b.state(["disabled"])
+
+        def _ui_log(line: str) -> None:
+            try:
+                root.after(0, lambda l=line: _append_log(l))
+            except Exception:  # noqa: BLE001
+                pass
+
+        def _on_start(spec: oneclick.StageSpec) -> None:
+            _ui_log(f"\n[one-click] ── stage start: {spec.label} ──\n")
+
+        def _on_end(out: oneclick.StageOutcome) -> None:
+            tag = "ok" if (out.rc == 0 and not out.halt_reason) else "halt"
+            _ui_log(
+                f"[one-click] ── stage end:   {out.label} "
+                f"(rc={out.rc}, {tag}, {out.duration_sec:.1f}s)"
+                + (f" — halt_reason={out.halt_reason}"
+                   if out.halt_reason else "")
+                + "\n")
+
+        def _on_halt(out: oneclick.StageOutcome) -> None:
+            _ui_log(
+                f"\n[one-click] HALTED at {out.label}: "
+                f"{out.halt_reason}\n")
+
+        def _run_in_bg() -> None:
+            try:
+                result = oneclick.run_oneclick(
+                    run_id=rid,
+                    stages=plan,
+                    marker_path=marker_path,
+                    on_stage_start=_on_start,
+                    on_stage_end=_on_end,
+                    on_halt=_on_halt,
+                )
+            except Exception as e:  # noqa: BLE001
+                _ui_log(
+                    f"\n[one-click] coordinator crashed: "
+                    f"{type(e).__name__}: {e}\n")
+                root.after(0, _unlock_buttons)
+                return
+            _ui_log(
+                f"\n[one-click] FINISHED — overall_rc={result.overall_rc} "
+                f"halt_reason={result.halt_reason!r} "
+                f"duration={result.duration_sec:.1f}s\n")
+            root.after(0, _unlock_buttons)
+            # Refresh session state after the run.
+            def _post_refresh():
+                if output_dir is not None and rid:
+                    clean, _why = submit_outcome_is_clean(
+                        Path(output_dir) / "daily_runs" / rid)
+                    session["submit_outcome_clean"] = clean
+                # Auto-disarm so a second click cannot replay the
+                # exact same plan without the operator re-affirming.
+                confirm_submit_var.set(False)
+                confirm_apply_var.set(False)
+                oneclick_authorize_var.set(False)
+                _refresh()
+            root.after(0, _post_refresh)
+
+        threading.Thread(target=_run_in_bg, daemon=True).start()
+
+    def _unlock_buttons() -> None:
+        for b in btns.values():
+            b.state(["!disabled"])
+
     btn_specs = [
         ("generate_intent","0a. Generate Intent File (single)", _on_generate_intent),
         ("generate_all",   "0b. Generate ALL Intents (batch)",  _on_generate_all_intents),
@@ -1734,8 +2412,8 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
         ("paper_submit",   "2. Paper Submit + Manage",          _on_paper_submit),
         ("t10_dry",        "3. T10 Apply Dry Run",              _on_t10_dry),
         ("t10_apply",      "4. T10 Apply Real",                 _on_t10_apply),
-        ("full_paper_run", "5. Full Paper Run (R11)",           lambda: messagebox.showinfo(
-            "Disabled", DISABLED_TOOLTIP_FULL_RUN)),
+        ("full_paper_run", "5. Full Paper Run (R11A — one-click)",
+                                                                 _on_full_paper_run),
     ]
     for i, (bid, label, fn) in enumerate(btn_specs):
         b = ttk.Button(frm_act, text=label, command=fn)
@@ -1828,6 +2506,12 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                      text="I authorize T10 REAL APPLY for this run",
                      variable=confirm_apply_var,
                      command=lambda: _refresh()).pack(side="left", padx=8)
+    ttk.Checkbutton(
+        frm_conf,
+        text="I authorize ONE-CLICK Full Paper Run (R11A)",
+        variable=oneclick_authorize_var,
+        command=lambda: _refresh(),
+    ).pack(side="left", padx=8)
 
     # — Command preview
     frm_prev = ttk.LabelFrame(_body, text="Command Preview", padding=6)
@@ -2076,6 +2760,7 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             confirm_submit_checked=confirm_submit_var.get(),
             confirm_apply_checked=confirm_apply_var.get(),
             overwrite_intents_checked=overwrite_intents_var.get(),
+            oneclick_authorized_checked=oneclick_authorize_var.get(),
         )
         for bid, btn in btns.items():
             g = gates[bid]

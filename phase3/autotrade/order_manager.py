@@ -36,6 +36,7 @@ Outputs
 from __future__ import annotations
 
 import math
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Protocol
@@ -60,14 +61,28 @@ from phase3.autotrade.order_store import OrderStore
 # ──────────────────────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class OrderManagementPolicy:
-    """R8 §6 policy. Defaults are conservative; tests inject tight values
-    so the suite runs in milliseconds."""
+    """R8 §6 policy.
+
+    R8 defaults were intentionally tight (10 bps step, 35 bps cap, 2
+    reprices) — safe for unit testing and the early acceptance runs
+    where we wanted to bias toward "fail rather than overpay". R10E
+    acceptance (2026-05-20) exposed the downside: CIEN gapped +1.5 %
+    overnight, and the 35 bps cap meant every reprice landed below the
+    market so the order died unfilled. R10F-Q2 lifts the defaults to
+    the values shown below; ``from_env()`` lets the operator dial them
+    further per-session without touching code.
+
+    The new defaults still respect "never accept a market order"
+    (`allow_market_order=False`) and "cancel before reprice"
+    (`cancel_before_reprice=True`); only the magnitude / cadence of the
+    bid bumping has changed.
+    """
 
     poll_interval_sec: float = 5.0
-    max_wait_sec: float = 120.0
-    max_reprice_attempts: int = 2
-    reprice_step_bps: float = 10.0
-    max_total_slippage_bps: float = 35.0
+    max_wait_sec: float = 60.0
+    max_reprice_attempts: int = 4
+    reprice_step_bps: float = 30.0
+    max_total_slippage_bps: float = 120.0
     cancel_before_reprice: bool = True
     cancel_confirm_wait_sec: float = 3.0
     allow_market_order: bool = False  # never set True in R8
@@ -79,6 +94,64 @@ class OrderManagementPolicy:
     # disconnect observed in R10C Run 1 + Run 2.
     ccnl_poll_retry_count: int = 2
     ccnl_poll_retry_backoff_sec: float = 2.0
+
+    # R10F-Q2 — env-driven overrides. The control panel writes these
+    # env vars on the manage-loop subprocess so the operator can tune
+    # the bid chase per-session (e.g. wider step on a high-vol day)
+    # without rebuilding the policy dataclass.
+    @classmethod
+    def from_env(cls, env: Optional[Dict[str, str]] = None) -> "OrderManagementPolicy":
+        """Build a policy from environment variables, falling back to
+        the class defaults whenever a var is unset or unparseable.
+
+        Recognised env vars (all optional):
+
+          AUTOTRADE_POLL_INTERVAL_SEC
+          AUTOTRADE_MAX_WAIT_SEC
+          AUTOTRADE_MAX_REPRICE_ATTEMPTS
+          AUTOTRADE_REPRICE_STEP_BPS
+          AUTOTRADE_MAX_SLIPPAGE_BPS
+          AUTOTRADE_CCNL_RETRY_COUNT
+          AUTOTRADE_CCNL_RETRY_BACKOFF_SEC
+
+        Parse failure on any single var is silent (logged at the
+        caller's discretion) and that field keeps the dataclass
+        default — we'd rather run with the safe defaults than abort
+        the whole loop because someone typed ``"thirty"``.
+        """
+        src = env if env is not None else os.environ
+        d = cls()
+
+        def _f(key: str, fallback: float) -> float:
+            v = src.get(key)
+            if v is None or v == "":
+                return fallback
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return fallback
+
+        def _i(key: str, fallback: int) -> int:
+            v = src.get(key)
+            if v is None or v == "":
+                return fallback
+            try:
+                return int(float(v))
+            except (TypeError, ValueError):
+                return fallback
+
+        return cls(
+            poll_interval_sec=_f("AUTOTRADE_POLL_INTERVAL_SEC", d.poll_interval_sec),
+            max_wait_sec=_f("AUTOTRADE_MAX_WAIT_SEC", d.max_wait_sec),
+            max_reprice_attempts=_i("AUTOTRADE_MAX_REPRICE_ATTEMPTS", d.max_reprice_attempts),
+            reprice_step_bps=_f("AUTOTRADE_REPRICE_STEP_BPS", d.reprice_step_bps),
+            max_total_slippage_bps=_f("AUTOTRADE_MAX_SLIPPAGE_BPS", d.max_total_slippage_bps),
+            cancel_before_reprice=d.cancel_before_reprice,
+            cancel_confirm_wait_sec=d.cancel_confirm_wait_sec,
+            allow_market_order=d.allow_market_order,
+            ccnl_poll_retry_count=_i("AUTOTRADE_CCNL_RETRY_COUNT", d.ccnl_poll_retry_count),
+            ccnl_poll_retry_backoff_sec=_f("AUTOTRADE_CCNL_RETRY_BACKOFF_SEC", d.ccnl_poll_retry_backoff_sec),
+        )
 
 
 @dataclass(frozen=True)
@@ -163,6 +236,35 @@ def reprice_would_improve(*, current_limit: float, candidate: float,
     been reached and another reprice would just resubmit at the same
     price (which the broker would reject as a duplicate)."""
     return candidate > (current_limit + eps)
+
+
+# R10F-Q3 — extract a usable reference price from a Quote-like object.
+# Kept here (vs imported from ``intents_io``) to avoid a manage-loop
+# dependency on the intent-builder module and to let tests inject
+# arbitrary duck-typed Quote stand-ins.
+def _extract_quote_ref(quote: Any) -> Optional[float]:
+    """Prefer ``ask`` (the price a BUY chase needs to clear), fall
+    back to ``last``. Returns ``None`` when neither is present or
+    both are non-positive."""
+    if quote is None:
+        return None
+    ask = getattr(quote, "ask", None)
+    if ask is not None:
+        try:
+            f = float(ask)
+            if f > 0:
+                return f
+        except (TypeError, ValueError):
+            pass
+    last = getattr(quote, "last", None)
+    if last is not None:
+        try:
+            f = float(last)
+            if f > 0:
+                return f
+        except (TypeError, ValueError):
+            pass
+    return None
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -293,6 +395,8 @@ def manage_order(
     cancel_dry_run: bool = False,
     time_provider: Callable[[], float] = time.monotonic,
     sleep_fn: Callable[[float], None] = time.sleep,
+    quote_fn: Optional[Callable[[str, str], Any]] = None,
+    quote_pad_pct: float = 0.1,
 ) -> ManagedOrderOutcome:
     """Submit ``intent`` and drive it to a terminal state per ``policy``.
 
@@ -1127,11 +1231,46 @@ def manage_order(
             if (terminal_state == OrderState.OPEN_OR_PENDING
                     and cur_intent.side == "BUY"
                     and reprice_attempts < policy.max_reprice_attempts):
-                new_limit = reprice_limit_buy(
+                step_limit = reprice_limit_buy(
                     original_limit=original_limit,
                     current_limit=cur_limit,
                     policy=policy,
                 )
+                # R10F-Q3: also pull a fresh KIS quote and consider
+                # chasing the live ask. The new limit is
+                #     min(max(step_limit, quote_chase), ceiling)
+                # so we never overrun the slippage cap, but the bid
+                # can leapfrog the linear ladder when the market has
+                # moved more than ``reprice_step_bps`` since submit.
+                # Any quote failure is non-fatal — we silently fall
+                # back to the step-only candidate.
+                ceiling = round(
+                    original_limit * (1 + policy.max_total_slippage_bps / 10_000.0),
+                    4,
+                )
+                quote_chase: Optional[float] = None
+                quote_chase_ref: Optional[float] = None
+                if quote_fn is not None:
+                    try:
+                        q = quote_fn(cur_intent.symbol, cur_intent.market)
+                        ref = _extract_quote_ref(q)
+                        if ref is not None and ref > 0:
+                            quote_chase_ref = ref
+                            quote_chase = round(
+                                ref * (1 + float(quote_pad_pct) / 100.0), 4
+                            )
+                    except Exception:  # noqa: BLE001
+                        # Reprice path stays on the deterministic step
+                        # ladder when quote refresh blows up. The
+                        # caller's audit (if any) can pick up the
+                        # failure from its own logs; we don't want a
+                        # quote outage to block a routine reprice.
+                        quote_chase = None
+                        quote_chase_ref = None
+                if quote_chase is not None and quote_chase > step_limit:
+                    new_limit = round(min(quote_chase, ceiling), 4)
+                else:
+                    new_limit = step_limit
                 if not reprice_would_improve(
                     current_limit=cur_limit, candidate=new_limit,
                 ):
@@ -1174,6 +1313,23 @@ def manage_order(
 
                 # New child intent with reprice client_order_id.
                 child_cid = _reprice_client_id(intent.client_order_id, reprice_attempts)
+                quote_source_tag = (
+                    "quote_chase"
+                    if quote_chase is not None and new_limit > step_limit
+                    else "step_only"
+                )
+                reprice_extra: Dict[str, Any] = {
+                    "reprice_attempt": reprice_attempts,
+                    "parent_broker_order_id": last_broker_order_id,
+                    "parent_client_order_id": cur_intent.client_order_id,
+                    "qty": next_qty,
+                    "step_limit": step_limit,
+                    "quote_source": quote_source_tag,
+                }
+                if quote_chase is not None:
+                    reprice_extra["quote_chase_limit"] = quote_chase
+                if quote_chase_ref is not None:
+                    reprice_extra["quote_chase_ref_price"] = quote_chase_ref
                 _safe_log_transition(
                     store,
                     autotrade_run_id=autotrade_run_id, mode=mode, run_id=run_id,
@@ -1184,11 +1340,9 @@ def manage_order(
                     broker_order_id=new_broker_order_id,
                     error=None,
                     note=(f"reprice #{reprice_attempts}: "
-                          f"{cur_limit:.4f} -> {new_limit:.4f}"),
-                    extra={"reprice_attempt": reprice_attempts,
-                           "parent_broker_order_id": last_broker_order_id,
-                           "parent_client_order_id": cur_intent.client_order_id,
-                           "qty": next_qty},
+                          f"{cur_limit:.4f} -> {new_limit:.4f} "
+                          f"(src={quote_source_tag})"),
+                    extra=reprice_extra,
                 )
                 cur_intent = OrderIntent(
                     symbol=cur_intent.symbol,

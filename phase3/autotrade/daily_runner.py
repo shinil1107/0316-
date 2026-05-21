@@ -889,7 +889,35 @@ def default_manage_loop_fn(
     # (orchestrator, t10_applicator) follow the same convention so this
     # restores parity.
     store = OrderStore(ctx.run_dir / "autotrade_orders.jsonl")
-    policy = OrderManagementPolicy()
+    # R10F-Q2: honour env-supplied policy overrides so the control
+    # panel can dial step / ceiling / attempts per session without a
+    # code change. ``from_env`` silently keeps the dataclass default
+    # for any var the operator did not set.
+    policy = OrderManagementPolicy.from_env()
+
+    # R10F-Q3 — at every reprice, refresh the KIS ask so the new limit
+    # can leapfrog the linear step ladder when the market moved more
+    # than ``reprice_step_bps`` since submit. ``quote_fn`` is opt-in
+    # via ``AUTOTRADE_REPRICE_QUOTE_CHASE`` (default on); we expose
+    # the toggle so operators can fall back to step-only if a quote
+    # outage is suspected. Quote pad uses the same env knob as intent
+    # generation so the operator only tunes one value.
+    quote_chase_enabled = os.environ.get(
+        "AUTOTRADE_REPRICE_QUOTE_CHASE", "1").strip().lower() not in (
+            "", "0", "false", "no", "off")
+    try:
+        reprice_quote_pad = float(os.environ.get(
+            "AUTOTRADE_REPRICE_QUOTE_PAD_PCT", "0.1"))
+    except (TypeError, ValueError):
+        reprice_quote_pad = 0.1
+
+    def _reprice_quote_fn(symbol: str, market: str):
+        return adapter.get_quote_with_exchange_fallback(
+            symbol, preferred_market=market,
+        )
+
+    quote_fn = _reprice_quote_fn if quote_chase_enabled else None
+
     outcomes: List[ManagedOrderOutcome] = []
     for intent in intents:
         # R10E — thread the intent's rec_row_id through manage_order
@@ -903,6 +931,8 @@ def default_manage_loop_fn(
             autotrade_run_id=ctx.autotrade_run_id,
             run_id=ctx.run_id,
             rec_row_id=int(getattr(intent, "rec_row_id", 0) or 0),
+            quote_fn=quote_fn,
+            quote_pad_pct=reprice_quote_pad,
         )
         outcomes.append(outcome)
         if outcome.final_state != OrderState.FILLED:
