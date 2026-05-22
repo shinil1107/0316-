@@ -749,7 +749,20 @@ def resolve_profile_paths(profile: str) -> Dict[str, Path]:
 def _reconcile_summary_from_report(rep: Any) -> ReconcileSummary:
     """Translate ``reconcile.ReconcileReport`` into the small slice the
     daily runner needs. Tolerant of attribute shape — only the fields
-    R8 §8 actually keys on are required."""
+    R8 §8 actually keys on are required.
+
+    R10F-2 fix: the detail arrays live in ``rep.buckets[<name>]``,
+    not on attributes like ``rep.qty_mismatches`` / ``rep.local_only`` /
+    ``rep.broker_only_managed``. Before R10F-2 the ``raw`` dict was
+    populated by ``getattr(rep, 'qty_mismatches', [])`` against a
+    non-existent attribute, so it was always ``[]`` and the
+    pre-reconcile hard-stop report carried a ``qty_mismatch_count=1``
+    with no usable detail rows — that's exactly the empty-array
+    diagnostic blind spot the 5/20 dry-run hit. Now we read the
+    canonical ``buckets`` dict and gracefully fall back to ``[]`` when
+    a bucket is missing (e.g. tests using a stub ReconcileReport).
+    """
+    buckets = getattr(rep, "buckets", None) or {}
     return ReconcileSummary(
         qty_mismatch_count=int(getattr(rep, "qty_mismatch_count", 0) or 0),
         local_only_count=int(getattr(rep, "local_only_count", 0) or 0),
@@ -761,9 +774,9 @@ def _reconcile_summary_from_report(rep: Any) -> ReconcileSummary:
             getattr(rep, "settlement_pending_usd", 0.0) or 0.0
         ),
         raw={
-            "qty_mismatches": getattr(rep, "qty_mismatches", []),
-            "local_only": getattr(rep, "local_only", []),
-            "broker_only_managed": getattr(rep, "broker_only_managed", []),
+            "qty_mismatches": buckets.get("qty_mismatch", []),
+            "local_only": buckets.get("local_only", []),
+            "broker_only_managed": buckets.get("broker_only_managed", []),
         },
     )
 

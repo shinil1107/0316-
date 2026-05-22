@@ -54,6 +54,7 @@ from phase3.autotrade import global_halt  # noqa: E402
 from phase3.autotrade import intents_io   # noqa: E402
 from phase3.autotrade import oneclick_coordinator as oneclick  # noqa: E402
 from phase3.autotrade import recovery     # noqa: E402
+from phase3.autotrade import smtp_mailer  # noqa: E402
 from phase3.autotrade import t10_apply_journal as tj  # noqa: E402
 from phase3.autotrade.order_store import OrderStore  # noqa: E402
 
@@ -2384,6 +2385,46 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 f"\n[one-click] FINISHED — overall_rc={result.overall_rc} "
                 f"halt_reason={result.halt_reason!r} "
                 f"duration={result.duration_sec:.1f}s\n")
+            # R11B — post-trade SMTP. Independent of overall_rc:
+            # we mail the operator on success AND on halt because
+            # halt is exactly when they need to know. Failure to
+            # send is logged but does not change overall_rc / state.
+            try:
+                stage_outcomes_for_mail = [
+                    {
+                        "key": o.key, "rc": int(o.rc),
+                        "duration_sec": float(o.duration_sec),
+                        "halt_reason": o.halt_reason,
+                        "skipped": bool(o.skipped),
+                    }
+                    for o in result.stages
+                ]
+                mail_result = smtp_mailer.send_run_summary_mail(
+                    run_dir=run_dir, run_id=rid,
+                    profile="paper",
+                    overall_rc=result.overall_rc,
+                    halt_reason=result.halt_reason,
+                    duration_sec=result.duration_sec,
+                    stage_outcomes=stage_outcomes_for_mail,
+                )
+                if mail_result.ok:
+                    if mail_result.dry_run:
+                        _ui_log(
+                            "[one-click] R11B mail dry-run "
+                            f"({mail_result.bytes_sent} bytes "
+                            "composed, not sent)\n")
+                    else:
+                        _ui_log(
+                            "[one-click] R11B mail sent "
+                            f"({mail_result.bytes_sent} bytes)\n")
+                else:
+                    _ui_log(
+                        f"[one-click] R11B mail SKIPPED — "
+                        f"{mail_result.reason}\n")
+            except Exception as e:  # noqa: BLE001
+                _ui_log(
+                    f"[one-click] R11B mail crashed (ignored): "
+                    f"{type(e).__name__}: {e}\n")
             root.after(0, _unlock_buttons)
             # Refresh session state after the run.
             def _post_refresh():

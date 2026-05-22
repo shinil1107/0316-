@@ -137,8 +137,17 @@ class HoldingsManager:
         # Normalise dtypes so later ``.at[i, col] = value`` writes don't
         # raise TypeError — Excel round-trips turn all-integer float
         # columns into int64 and empty string columns into float64(NaN).
-        for col in ("EntryScore", "PeakPrice", "LastScore"):
-            out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0.0).astype(float)
+        #
+        # R10F-1: BuyPrice / CurrentPrice / MarketValue / PnL_Pct must
+        # be float for ``apply_partial_execution`` to assign a
+        # weighted average like 105.7143 into them. Without this,
+        # a holdings_log.xlsx whose round-trip happened to land all
+        # prices on whole-dollar values would dtype the column as
+        # int64 and the next BUY_MORE would raise TypeError.
+        for col in ("EntryScore", "PeakPrice", "LastScore",
+                    "BuyPrice", "CurrentPrice", "MarketValue", "PnL_Pct"):
+            if col in out.columns:
+                out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0.0).astype(float)
         out["EntryRank"] = pd.to_numeric(out["EntryRank"], errors="coerce").fillna(-1).astype(int)
         # EntryRegime may come back as NaN if the column was empty when
         # written; coerce NaN → "" so downstream ``str(...)`` calls
@@ -558,7 +567,28 @@ class HoldingsManager:
                     reco_rank = -1
                 if mask.any():
                     idx = current.index[mask][0]
-                    current.at[idx, "Shares"] = int(current.at[idx, "Shares"]) + shares
+                    # R10F-1 — BUY_MORE must recompute BuyPrice as a
+                    # share-weighted average of the existing cost basis
+                    # and the new fill. Until R10F-1 this branch only
+                    # added shares and left BuyPrice pinned to the
+                    # original entry, so the 5/19 MRNA backfill had to
+                    # be done by hand and PnL_Pct on the Current sheet
+                    # drifted progressively further from reality.
+                    old_shares = int(current.at[idx, "Shares"])
+                    old_buy = float(current.at[idx, "BuyPrice"] or 0.0)
+                    new_shares = old_shares + shares
+                    if new_shares > 0 and old_buy > 0:
+                        weighted_buy = (
+                            (old_shares * old_buy) + (shares * price)
+                        ) / new_shares
+                        current.at[idx, "BuyPrice"] = round(weighted_buy, 4)
+                    elif new_shares > 0:
+                        # Defensive: if the prior cost basis is missing
+                        # / zero (legacy rows, migrations), seed with
+                        # the new fill price rather than dividing into
+                        # a zero numerator.
+                        current.at[idx, "BuyPrice"] = round(float(price), 4)
+                    current.at[idx, "Shares"] = new_shares
                     current.at[idx, "CurrentPrice"] = price
                     current.at[idx, "MarketValue"] = round(
                         price * current.at[idx, "Shares"], 2
