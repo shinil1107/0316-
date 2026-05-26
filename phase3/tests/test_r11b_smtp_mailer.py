@@ -150,6 +150,95 @@ class TestSmtpConfigFromEnv(unittest.TestCase):
 # ──────────────────────────────────────────────────────────────────────
 # 2. SmtpConfig.is_complete
 # ──────────────────────────────────────────────────────────────────────
+class TestSmtpConfigDotenvMerge(unittest.TestCase):
+    """SmtpConfig must merge the repo-root .env file when no explicit
+    env dict is given (the production call path), so operators can
+    keep SMTP_* alongside KIS_APP_KEY etc. in a single .env file.
+
+    Tests must NEVER be affected by a real developer .env on the
+    machine running them — we pin an explicit dotenv_path here and
+    pass env={} to skip the auto-default that reads os.environ."""
+
+    def test_dotenv_values_propagate_when_no_explicit_env(self):
+        with tempfile.TemporaryDirectory() as td:
+            dot = Path(td) / ".env"
+            dot.write_text(
+                "SMTP_HOST=smtp.dot.example.com\n"
+                "SMTP_USERNAME=bot@dot.example.com\n"
+                "SMTP_PASSWORD=hunter-from-dotenv\n"
+                "SMTP_TO=ops@dot.example.com\n",
+                encoding="utf-8",
+            )
+            cfg = sm.SmtpConfig.from_env(
+                env={},                  # do not consult os.environ
+                dotenv_path=dot,
+                read_dotenv=True,
+            )
+            self.assertEqual(cfg.host, "smtp.dot.example.com")
+            self.assertEqual(cfg.username, "bot@dot.example.com")
+            self.assertEqual(cfg.password, "hunter-from-dotenv")
+            self.assertEqual(cfg.to_addrs, ("ops@dot.example.com",))
+
+    def test_process_env_wins_over_dotenv(self):
+        """An explicit shell export must beat the on-disk dotenv —
+        same precedence kis_broker_adapter.load_env_config uses."""
+        with tempfile.TemporaryDirectory() as td:
+            dot = Path(td) / ".env"
+            dot.write_text(
+                "SMTP_PASSWORD=from-dotenv\n"
+                "SMTP_TO=ops@example.com\n",
+                encoding="utf-8",
+            )
+            cfg = sm.SmtpConfig.from_env(
+                env={"SMTP_PASSWORD": "from-shell-export"},
+                dotenv_path=dot,
+                read_dotenv=True,
+            )
+            self.assertEqual(cfg.password, "from-shell-export")
+            # SMTP_TO still flows from the dotenv since shell didn't set it
+            self.assertEqual(cfg.to_addrs, ("ops@example.com",))
+
+    def test_explicit_env_skips_dotenv_by_default(self):
+        """When the caller passes an env dict (which is what every
+        existing R11B unit test does), the .env file MUST NOT be
+        read. Otherwise a real developer machine's .env could leak
+        SMTP_* values into test assertions."""
+        with tempfile.TemporaryDirectory() as td:
+            dot = Path(td) / ".env"
+            dot.write_text(
+                "SMTP_HOST=should-not-leak.example.com\n",
+                encoding="utf-8",
+            )
+            cfg = sm.SmtpConfig.from_env(
+                env={"SMTP_TO": "ops@example.com"},
+                dotenv_path=dot,
+                # read_dotenv left at default → resolves to False here
+            )
+            self.assertEqual(cfg.host, "")
+
+    def test_quoted_values_are_unquoted(self):
+        """Operators sometimes wrap passwords in quotes for shell
+        safety; the dotenv parser must strip matched outer quotes."""
+        with tempfile.TemporaryDirectory() as td:
+            dot = Path(td) / ".env"
+            dot.write_text(
+                'SMTP_PASSWORD="quoted secret"\n'
+                "SMTP_TO=ops@example.com\n",
+                encoding="utf-8",
+            )
+            cfg = sm.SmtpConfig.from_env(
+                env={}, dotenv_path=dot, read_dotenv=True)
+            self.assertEqual(cfg.password, "quoted secret")
+
+    def test_missing_dotenv_is_tolerated(self):
+        cfg = sm.SmtpConfig.from_env(
+            env={"SMTP_TO": "ops@example.com"},
+            dotenv_path=Path("/no/such/.env"),
+            read_dotenv=True,
+        )
+        self.assertEqual(cfg.to_addrs, ("ops@example.com",))
+
+
 class TestSmtpConfigIsComplete(unittest.TestCase):
 
     def test_disabled_short_circuits(self):

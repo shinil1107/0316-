@@ -41,7 +41,9 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import (
+    Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple,
+)
 
 _HERE = Path(__file__).resolve().parent
 _PHASE3 = _HERE.parent
@@ -646,6 +648,33 @@ class DangerActionDenied(RuntimeError):
         super().__init__(f"{action} denied: {reason}")
         self.action = action
         self.reason = reason
+
+
+def _allow_negative_pad_enabled(
+    env: Optional[Mapping[str, str]] = None,
+) -> bool:
+    """R10F-T integration-test escape hatch. When
+    ``AUTOTRADE_ALLOW_NEGATIVE_PAD`` is truthy in the process env (or
+    repo-root ``.env`` via the existing kis_broker_adapter dotenv
+    loader), allow generate-intents to use negative batch / quote pads
+    so the limit price falls below the live ask and the reprice
+    quote-chase path engages on the first poll.
+
+    Truthy values: ``true / 1 / yes / y / on`` (case-insensitive).
+    Everything else (including unset) is False — the safety guard
+    stays armed.
+
+    This helper deliberately does NOT read the .env file by itself —
+    by the time the panel imports kis_broker_adapter for the quote
+    adapter, ``load_env_config()`` has already exported relevant
+    values onto ``os.environ``-like behaviour via the SMTP merge
+    path. Operators who only set this flag in .env should re-launch
+    the panel from a shell that has ``set -a; source .env; set +a``
+    or export it directly in zshrc — same pattern as the existing
+    KIS_PAPER_SUBMIT_OK gate."""
+    e = env if env is not None else os.environ
+    raw = (e.get("AUTOTRADE_ALLOW_NEGATIVE_PAD") or "").strip().lower()
+    return raw in {"true", "1", "yes", "y", "on"}
 
 
 def build_full_paper_run_plan(
@@ -1768,12 +1797,21 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 "Invalid limit pad",
                 "Batch limit pad must be a number (e.g. 0, 0.5, 1.0).")
             return
-        if pad < 0:
+        # R10F-T test mode: allow negative pads only when the operator
+        # explicitly sets AUTOTRADE_ALLOW_NEGATIVE_PAD=true in the
+        # environment (or in .env). This is a hidden integration-test
+        # path used to force a reprice quote-chase in live paper so
+        # B2/B3 can be verified end-to-end. Outside this flag, BUY
+        # orders MUST NOT have negative pad (it would otherwise
+        # silently lower limits below market).
+        allow_neg_pad = _allow_negative_pad_enabled()
+        if pad < 0 and not allow_neg_pad:
             messagebox.showerror(
                 "Negative batch pad refused",
                 "Negative batch pad is not allowed for BUY orders "
                 "(it would lower limits below reco_close). "
-                "Set pad >= 0.")
+                "Set pad >= 0, or set AUTOTRADE_ALLOW_NEGATIVE_PAD=true "
+                "for the integration-test reprice path.")
             return
         use_quote = bool(intent_state["use_quote_var"].get())
         quote_only = bool(intent_state["quote_only_var"].get()) and use_quote
@@ -1784,11 +1822,28 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 "Invalid quote pad",
                 "Quote pad must be a number (e.g. 0, 0.1, 0.5).")
             return
-        if use_quote and qpad < 0:
+        if use_quote and qpad < 0 and not allow_neg_pad:
             messagebox.showerror(
                 "Negative quote pad refused",
-                "Negative quote pad is not allowed for BUY orders.")
+                "Negative quote pad is not allowed for BUY orders. "
+                "Set AUTOTRADE_ALLOW_NEGATIVE_PAD=true to force the "
+                "integration-test reprice path.")
             return
+        if allow_neg_pad and (pad < 0 or (use_quote and qpad < 0)):
+            # Loud banner in the panel log AND a tk warning so the
+            # operator cannot do this by accident — the test mode is
+            # noisy by design.
+            _append_log(
+                "[TEST MODE] AUTOTRADE_ALLOW_NEGATIVE_PAD=true — "
+                f"using pad={pad:+.4f}%, quote_pad={qpad:+.4f}% "
+                "(LIMITS WILL BE BELOW MARKET; reprice quote-chase "
+                "is the expected behaviour).")
+            messagebox.showwarning(
+                "TEST MODE — negative pad allowed",
+                "AUTOTRADE_ALLOW_NEGATIVE_PAD is enabled. The next "
+                "generate-intents run will deliberately produce "
+                "limits below the live ask so the reprice path "
+                "exercises end-to-end. Unset the env var when done.")
 
         run_dir = Path(output_dir) / "daily_runs" / rid
         already = intents_io.validate_submitted_intents(run_dir)
@@ -2200,9 +2255,12 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             root.after(0, lambda: _append_log(
                 "[generate_intents] invalid batch limit pad\n"))
             return 2
-        if pad < 0:
+        # R10F-T test mode parity with the synchronous batch click.
+        allow_neg_pad = _allow_negative_pad_enabled()
+        if pad < 0 and not allow_neg_pad:
             root.after(0, lambda: _append_log(
-                "[generate_intents] negative batch pad refused\n"))
+                "[generate_intents] negative batch pad refused "
+                "(set AUTOTRADE_ALLOW_NEGATIVE_PAD=true to allow)\n"))
             return 2
 
         use_quote = bool(intent_state["use_quote_var"].get())
@@ -2213,6 +2271,18 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             root.after(0, lambda: _append_log(
                 "[generate_intents] invalid quote pad\n"))
             return 2
+        if use_quote and qpad < 0 and not allow_neg_pad:
+            root.after(0, lambda: _append_log(
+                "[generate_intents] negative quote pad refused "
+                "(set AUTOTRADE_ALLOW_NEGATIVE_PAD=true to allow)\n"))
+            return 2
+        if allow_neg_pad and (pad < 0 or (use_quote and qpad < 0)):
+            root.after(0, lambda p=pad, q=qpad: _append_log(
+                "[generate_intents] [TEST MODE] "
+                "AUTOTRADE_ALLOW_NEGATIVE_PAD=true — "
+                f"pad={p:+.4f}%, quote_pad={q:+.4f}% "
+                "(limits will be BELOW market; reprice "
+                "quote-chase is the expected behaviour)\n"))
 
         run_dir = Path(output_dir) / "daily_runs" / rid
 
@@ -2399,6 +2469,11 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                     }
                     for o in result.stages
                 ]
+                # Resolve config explicitly so we can surface the
+                # source ("t7_config" vs "env") in the panel log —
+                # operators triaging "did the mail actually go?" want
+                # to see which credential path was used.
+                mail_cfg = smtp_mailer.resolve_smtp_config()
                 mail_result = smtp_mailer.send_run_summary_mail(
                     run_dir=run_dir, run_id=rid,
                     profile="paper",
@@ -2407,19 +2482,22 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                     duration_sec=result.duration_sec,
                     stage_outcomes=stage_outcomes_for_mail,
                 )
+                src = mail_cfg.source
                 if mail_result.ok:
                     if mail_result.dry_run:
                         _ui_log(
-                            "[one-click] R11B mail dry-run "
+                            f"[one-click] R11B mail dry-run via {src} "
                             f"({mail_result.bytes_sent} bytes "
                             "composed, not sent)\n")
                     else:
+                        to_str = ", ".join(mail_cfg.to_addrs)
                         _ui_log(
-                            "[one-click] R11B mail sent "
+                            f"[one-click] R11B mail sent via {src} "
+                            f"to {to_str} "
                             f"({mail_result.bytes_sent} bytes)\n")
                 else:
                     _ui_log(
-                        f"[one-click] R11B mail SKIPPED — "
+                        f"[one-click] R11B mail SKIPPED ({src}) — "
                         f"{mail_result.reason}\n")
             except Exception as e:  # noqa: BLE001
                 _ui_log(
