@@ -60,3 +60,16 @@ phase3/autotrade/logs/
 # track archive for reference
 !archive/
 !archive/*.py
+
+# track operator launchers (double-click panels). No secrets baked in;
+# they only load identity keys from .env at runtime.
+!scripts/
+!scripts/*.command
+!scripts/*.sh
+
+# track Phase 3 launchd agents (plist TEMPLATES + installer).
+# Installed plists with real paths live in ~/Library/LaunchAgents (untracked).
+!phase3/launchd/
+!phase3/launchd/*.template
+!phase3/launchd/*.sh
+!phase3/launchd/*.md

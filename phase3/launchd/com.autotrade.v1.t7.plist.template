@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V1-F T7 prefetch fire (09:00 KST). Generates recommendations + own email; trade fire reuses this run_id. See ./README.md. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.autotrade.v1.t7</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PYTHON__</string>
+        <string>-m</string>
+        <string>phase3.autotrade.v1_runner</string>
+        <string>t7-prefetch</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>__REPO_ROOT__</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+        <key>KIS_ENV</key>
+        <string>paper</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <!-- 07:20 LOCAL (assumed KST). US market closed since 04:00 KST,
+             so FMP prior-day closes have been stable for 3+ hours.
+             Early enough to leave room for the macOS first-fire
+             permission popup BEFORE the operator's commute. Trade
+             fire at 22:35 reuses this run_id. -->
+        <key>Hour</key><integer>7</integer>
+        <key>Minute</key><integer>20</integer>
+    </dict>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/phase3/autotrade/runtime/v1_t7_launchd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/phase3/autotrade/runtime/v1_t7_launchd.err.log</string>
+
+    <key>Nice</key>
+    <integer>0</integer>
+</dict>
+</plist>

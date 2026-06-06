@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V1-F trade fire (22:35 KST). T7 prefetch happens at 09:00 via com.autotrade.v1.t7. See ./README.md. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.autotrade.v1.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PYTHON__</string>
+        <string>-m</string>
+        <string>phase3.autotrade.v1_runner</string>
+        <string>trade</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>__REPO_ROOT__</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+        <key>KIS_ENV</key>
+        <string>paper</string>
+        <key>KIS_PAPER_SUBMIT_OK</key>
+        <string>true</string>
+        <key>KIS_PAPER_CANCEL_OK</key>
+        <string>true</string>
+        <key>AUTOTRADE_T10_APPLY_OK</key>
+        <string>true</string>
+        <key>KIS_ALLOW_SELL</key>
+        <string>true</string>
+        <key>AUTOTRADE_V1_SUPPRESS_T7_MAIL</key>
+        <string>true</string>
+        <!-- V1-I live-quote BUY pricing + gap filter. Mirrors
+             v1_runner.LAUNCHD_ENV (parity locked by test_v1e_plist).
+             use_quote/quote_only price the BUY off the live ask;
+             buy_quote_pad -0.2 starts 0.2% below ask then chases;
+             gap_filter 15 drops BUYs that gapped up >15% vs reco. -->
+        <key>AUTOTRADE_USE_QUOTE</key>
+        <string>true</string>
+        <key>AUTOTRADE_QUOTE_ONLY</key>
+        <string>true</string>
+        <key>AUTOTRADE_BUY_QUOTE_PAD_PCT</key>
+        <string>-0.2</string>
+        <key>AUTOTRADE_GAP_FILTER_MAX_PCT</key>
+        <string>15</string>
+        <!-- V1-H reprice chase + per-ticker resilience. Mirrors
+             v1_runner.LAUNCHD_ENV (parity locked by test_v1e_plist).
+             V1-I re-tune: with use_quote on we start at the live ask,
+             so the slippage ceiling shrank 1200->300 bps and attempts
+             12->6 (the wide V1-H ceiling existed only to climb from the
+             stale close; the gap is now handled by the filter upstream). -->
+        <key>AUTOTRADE_MAX_REPRICE_ATTEMPTS</key>
+        <string>6</string>
+        <key>AUTOTRADE_MAX_SLIPPAGE_BPS</key>
+        <string>300</string>
+        <key>AUTOTRADE_CONTINUE_ON_UNFILLED</key>
+        <string>true</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <!-- 22:35 LOCAL (assumed KST; install_v1.sh validates).
+             5 min after US market open at 22:30 KST. -->
+        <key>Hour</key><integer>22</integer>
+        <key>Minute</key><integer>35</integer>
+    </dict>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/phase3/autotrade/runtime/v1_launchd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/phase3/autotrade/runtime/v1_launchd.err.log</string>
+
+    <key>Nice</key>
+    <integer>0</integer>
+</dict>
+</plist>
