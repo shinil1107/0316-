@@ -69,11 +69,39 @@ from typing import Any, Dict, List, Optional, Tuple
 
 SCHEMA_VERSION = "intents/v1"
 
-# R10B §3.3 — BUY-only candidate filter. We intentionally keep this
-# tuple local (not imported from `exits.RecosAction`) so a future
-# rename of action codes can't silently expand the filter into SELL
-# territory. R11 may centralize this.
-_BUY_ACTIONS_DEFAULT: Tuple[str, ...] = ("BUY", "BUY_NEW", "BUY_MORE")
+# V1-G.2 — Strategy parity.  The autotrade MUST submit the exact
+# same actions the backtest simulator (``SimPortfolio.apply_actions``)
+# executes, or backtested performance and live performance diverge
+# by construction.  ``exits.RecosAction.FULL_CLOSE`` and
+# ``PARTIAL_CLOSE`` are the canonical dispatch sets used by both
+# the simulator (simulator.py:157, 172) and t10_applicator
+# (t10_applicator.py:328); importing them here keeps the three call
+# sites in lock-step.  Any new D2 / D4 / D-future SELL_* or TRIM_*
+# variant added to ``RecosAction`` is automatically picked up by
+# both backtest and live, without having to remember to update
+# this file.
+#
+# Buy side: T7 emits ONLY ``BUY_NEW`` and ``BUY_MORE`` (see
+# daily_runner.py:1082).  Bare ``"BUY"`` is never produced — it was
+# a phantom action in the pre-V1-G filter that no recommendations.csv
+# row could ever match.  Dropping it makes the filter byte-equal to
+# the simulator's ``action in ("BUY_NEW", "BUY_MORE")`` check at
+# simulator.py:190.
+#
+# Warning-only (``SELL_GRACE``) is intentionally excluded — the
+# grace family escalates through TRIM_GRACE (step-1 partial) and
+# then SELL (full close) when the grace window expires; SELL_GRACE
+# itself is just the "we noticed but won't act yet" record.
+from exits import RecosAction  # noqa: E402
+
+# Frozenset → tuple at import time so the filter is hashable + cheap
+# to iterate.  ``sorted`` keeps the on-disk filter stable for
+# diffs / audit-trail purposes.
+_BUY_ACTIONS_DEFAULT: Tuple[str, ...] = ("BUY_NEW", "BUY_MORE")
+_SELL_ACTIONS_DEFAULT: Tuple[str, ...] = tuple(sorted(
+    RecosAction.FULL_CLOSE | RecosAction.PARTIAL_CLOSE
+))
+_VALID_SIDES: Tuple[str, ...] = ("BUY", "SELL")
 
 
 @dataclass(frozen=True)
@@ -131,8 +159,21 @@ def _validate_row(row: Any) -> Tuple[bool, str]:
     for f in _REQUIRED_FIELDS:
         if row.get(f) in (None, ""):
             return False, f"missing required field: {f}"
-    if str(row.get("side", "")).upper() != "BUY":
-        return False, f"R10 supports BUY only (got side={row.get('side')!r})"
+    # V1-G — SELL is allowed at this layer. The autotrade pipeline
+    # generates SELL rows for STOP_LOSS / SELL / TRIM actions out of
+    # the T7 recommendations.csv (SELL_GRACE intentionally excluded —
+    # see _SELL_ACTIONS_DEFAULT). The downstream broker adapter and
+    # the t10_applicator have always understood both sides; the only
+    # historical blocker was this validator. Anything outside the
+    # {BUY, SELL} pair is still rejected so a stray TRIM action that
+    # leaked the action code into ``side`` raises here instead of
+    # going on the wire.
+    side_upper = str(row.get("side", "")).upper()
+    if side_upper not in _VALID_SIDES:
+        return False, (
+            f"side must be one of {_VALID_SIDES} "
+            f"(got side={row.get('side')!r})"
+        )
     if str(row.get("ord_type", "LIMIT")).upper() != "LIMIT":
         return False, f"only LIMIT orders allowed (got ord_type={row.get('ord_type')!r})"
     try:
@@ -226,6 +267,45 @@ def validate_submitted_intents(run_dir: Path) -> IntentFileStatus:
 # ──────────────────────────────────────────────────────────────────────
 # Write helpers — for the weekend pre-market workflow
 # ──────────────────────────────────────────────────────────────────────
+def _make_intent_row(
+    *,
+    side: str,
+    client_order_id: str,
+    symbol: str,
+    qty: int,
+    limit_price: float,
+    market: str = "NASD",
+    rec_row_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Internal generic builder shared by ``make_buy_intent_row`` and
+    ``make_sell_intent_row``. Both wrappers exist so call sites read
+    intent-fully (BUY vs SELL) and so a future direction-specific
+    field (e.g. SELL's stop_price for STOP_LIMIT orders) has a
+    natural home — but the canonical row shape and validation are
+    one place."""
+    side_u = str(side).upper()
+    if side_u not in _VALID_SIDES:
+        raise ValueError(
+            f"side must be one of {_VALID_SIDES}, got {side!r}")
+    if rec_row_id is None:
+        rec_row_id = rec_row_id_from_client_order_id(client_order_id)
+    row: Dict[str, Any] = {
+        "client_order_id": str(client_order_id),
+        "symbol": str(symbol).upper(),
+        "market": str(market),
+        "side": side_u,
+        "qty": int(qty),
+        "ord_type": "LIMIT",
+        "limit_price": float(limit_price),
+    }
+    if rec_row_id is not None:
+        row["rec_row_id"] = int(rec_row_id)
+    ok, why = _validate_row(row)
+    if not ok:
+        raise ValueError(f"intent row rejected: {why}")
+    return row
+
+
 def make_buy_intent_row(
     *,
     client_order_id: str,
@@ -247,23 +327,35 @@ def make_buy_intent_row(
     ``build_intent_client_order_id``; if that fails the field is
     left absent and the loader will fall back to 0 (the old shape).
     """
-    if rec_row_id is None:
-        rec_row_id = rec_row_id_from_client_order_id(client_order_id)
-    row: Dict[str, Any] = {
-        "client_order_id": str(client_order_id),
-        "symbol": str(symbol).upper(),
-        "market": str(market),
-        "side": "BUY",
-        "qty": int(qty),
-        "ord_type": "LIMIT",
-        "limit_price": float(limit_price),
-    }
-    if rec_row_id is not None:
-        row["rec_row_id"] = int(rec_row_id)
-    ok, why = _validate_row(row)
-    if not ok:
-        raise ValueError(f"intent row rejected: {why}")
-    return row
+    return _make_intent_row(
+        side="BUY",
+        client_order_id=client_order_id, symbol=symbol,
+        qty=qty, limit_price=limit_price, market=market,
+        rec_row_id=rec_row_id,
+    )
+
+
+def make_sell_intent_row(
+    *,
+    client_order_id: str,
+    symbol: str,
+    qty: int,
+    limit_price: float,
+    market: str = "NASD",
+    rec_row_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """V1-G counterpart of ``make_buy_intent_row``. Same canonical
+    row shape with ``side="SELL"``. Validation and rec_row_id recovery
+    behave identically — the client_order_id pattern
+    ``co-<run_id>-<rec_row_id>-S-<qty>-<ticker>`` is the SELL twin
+    of the BUY ``-B-`` form and ``rec_row_id_from_client_order_id``
+    already accepts both side markers."""
+    return _make_intent_row(
+        side="SELL",
+        client_order_id=client_order_id, symbol=symbol,
+        qty=qty, limit_price=limit_price, market=market,
+        rec_row_id=rec_row_id,
+    )
 
 
 def rec_row_id_from_client_order_id(cid: str) -> Optional[int]:
@@ -429,15 +521,127 @@ def load_buy_candidates(
     return out
 
 
+@dataclass(frozen=True)
+class SellCandidate:
+    """One SELL-eligible row from ``recommendations.csv``. V1-G twin
+    of ``BuyCandidate``; kept as a separate type (rather than adding
+    a ``side`` field to BuyCandidate) so call sites that loop over
+    "buys" never accidentally pick up a SELL row and vice versa.
+
+    ``reco_shares`` here is the size of the SELL (T7 emits the full
+    held-shares count for STOP_LOSS / SELL and a partial count for
+    TRIM). ``reco_price`` is the close-price reference; the actual
+    SELL limit is derived from the live bid at submit-time, with
+    ``reco_price`` only used as a fallback when the live quote
+    pipeline fails.
+    """
+    run_id: str
+    rec_row_id: int
+    ticker: str
+    action: str            # SELL | SELL_NEW | STOP_LOSS | TRIM
+    reco_shares: int       # share count to SELL (T7's Shares column)
+    reco_price: float      # close-ref for fallback limit
+    rank: Optional[int] = None
+    regime: str = ""
+    market: str = "NASD"
+    actionable: bool = True
+    raw_row: Dict[str, str] = field(default_factory=dict)
+
+
+def load_sell_candidates(
+    run_dir: Path,
+    *,
+    sell_actions: Tuple[str, ...] = _SELL_ACTIONS_DEFAULT,
+    market: str = "NASD",
+) -> List[SellCandidate]:
+    """V1-G counterpart of ``load_buy_candidates``. Read
+    ``<run_dir>/recommendations.csv`` and return the rows the
+    autotrade should submit as SELL.
+
+    Filters:
+      - Action in ``sell_actions`` (default {SELL, SELL_NEW,
+        STOP_LOSS, TRIM}). **SELL_GRACE is intentionally NOT in the
+        default tuple** — see _SELL_ACTIONS_DEFAULT.
+      - Actionable == True if column exists (else True)
+      - Shares > 0   (T7 emits 0 for placeholder rows; never sell 0)
+      - Price > 0
+
+    BUY_NEW / BUY_MORE / HOLD / DEFERRED / SELL_GRACE rows are
+    dropped here so a single ``load_buy_candidates`` +
+    ``load_sell_candidates`` pair partitions actionable
+    recommendations cleanly without overlap.
+    """
+    p = recommendations_csv_path(run_dir)
+    if not p.exists():
+        return []
+    try:
+        text = p.read_text(encoding="utf-8-sig")
+    except OSError:
+        return []
+    out: List[SellCandidate] = []
+    reader = csv.DictReader(text.splitlines())
+    fieldnames = reader.fieldnames or []
+    has_actionable_col = "Actionable" in fieldnames
+    for row in reader:
+        action = (row.get("Action") or "").strip().upper()
+        if action not in sell_actions:
+            continue
+        if has_actionable_col and not _coerce_bool(row.get("Actionable")):
+            continue
+        shares = _coerce_int(row.get("Shares"))
+        price  = _coerce_float(row.get("Price"))
+        if shares <= 0 or price <= 0:
+            continue
+        ticker = (row.get("Ticker") or "").strip().upper()
+        if not ticker:
+            continue
+        out.append(SellCandidate(
+            run_id=str(row.get("RunId") or "").strip(),
+            rec_row_id=_coerce_int(row.get("RecRowId")),
+            ticker=ticker,
+            action=action,
+            reco_shares=shares,
+            reco_price=price,
+            rank=(_coerce_int(row.get("Rank"), default=-1)
+                  if row.get("Rank") not in (None, "") else None),
+            regime=str(row.get("Regime") or "").strip(),
+            market=market,
+            actionable=(_coerce_bool(row.get("Actionable"))
+                        if has_actionable_col else True),
+            raw_row=dict(row),
+        ))
+    # Ordering: STOP_LOSS first (most urgent — PnL cut takes
+    # precedence over everything), then other FULL_CLOSE variants
+    # (SELL / SELL_PEAK_DD / SELL_PROFIT / ...), then PARTIAL_CLOSE
+    # variants (TRIM / TRIM_GRACE / TRIM_PROFIT / ...).  Within each
+    # tier we stable-sort by rec_row_id then ticker so the on-disk
+    # intent file order is deterministic.  The paper broker submits
+    # sequentially, so this order is also the execution order.
+    def _action_tier(action: str) -> int:
+        if action == RecosAction.STOP_LOSS:
+            return 0
+        if RecosAction.is_full_close(action):
+            return 1
+        if RecosAction.is_partial_close(action):
+            return 2
+        return 99
+    out.sort(key=lambda c: (
+        _action_tier(c.action),
+        c.rec_row_id, c.ticker,
+    ))
+    return out
+
+
 _CID_SANITIZE_RE = re.compile(r"[^A-Za-z0-9_\-]")
 
 
 def build_intent_client_order_id(
     *, run_id: str, rec_row_id: int, ticker: str, qty: int,
+    side: str = "BUY",
 ) -> str:
     """Deterministic, human-readable client_order_id.
 
-    R10B §3.5 shape:  ``co-<run_id>-<rec_row_id>-B-<qty>-<ticker>``
+    R10B §3.5 shape:  ``co-<run_id>-<rec_row_id>-<B|S>-<qty>-<ticker>``
 
     All segments are sanitized to ``[A-Za-z0-9_-]`` and the final
     string is capped at 80 chars (KIS doesn't constrain ``ord_seq``
@@ -446,7 +650,19 @@ def build_intent_client_order_id(
     which uses a sha256 prefix; the two coexist because the human-readable
     form is for the manual paper-acceptance trail, and the hashed form
     is for the duplicate guard.
+
+    V1-G: ``side`` controls the third-from-tail segment.
+    ``side="BUY"`` -> ``-B-`` (backwards-compatible default);
+    ``side="SELL"`` -> ``-S-``. ``rec_row_id_from_client_order_id``
+    already walks back from either marker, so on-disk parity with
+    older files is preserved on BUY and SELL recovery just works.
     """
+    side_u = str(side).upper()
+    if side_u not in _VALID_SIDES:
+        raise ValueError(
+            f"side must be one of {_VALID_SIDES}, got {side!r}")
+    side_marker = "B" if side_u == "BUY" else "S"
+
     def _clean(seg: str) -> str:
         seg = str(seg).strip().replace(" ", "-")
         seg = _CID_SANITIZE_RE.sub("", seg)
@@ -454,7 +670,7 @@ def build_intent_client_order_id(
 
     cid = (
         f"co-{_clean(run_id)}-{_clean(str(int(rec_row_id)))}"
-        f"-B-{_clean(str(int(qty)))}-{_clean(ticker)}"
+        f"-{side_marker}-{_clean(str(int(qty)))}-{_clean(ticker)}"
     )
     if len(cid) > 80:
         cid = cid[:80]
@@ -576,6 +792,27 @@ def _resolve_quote_ref(quote: Any) -> Optional[float]:
     return None
 
 
+def _resolve_quote_ref_for_sell(quote: Any) -> Optional[float]:
+    """V1-G — sell-side counterpart of ``_resolve_quote_ref``. A
+    marketable SELL hits the bid, so we prefer ``bid`` first, then
+    ``last``, then None. The limit price is then *padded down* by
+    ``quote_pad_pct`` so the order is comfortably marketable even
+    if the bid ticks down by a few cents between quote and submit.
+    """
+    if quote is None:
+        return None
+    bid = getattr(quote, "bid", None)
+    if bid is not None and float(bid) > 0:
+        return float(bid)
+    last = getattr(quote, "last", None)
+    if last is not None and float(last) > 0:
+        return float(last)
+    return None
+
+
+_GAP_FILTER_WARN_PREFIX = "gap_filter"
+
+
 def candidates_to_intent_rows(
     candidates: List[BuyCandidate],
     *,
@@ -584,6 +821,7 @@ def candidates_to_intent_rows(
     quote_fn: Optional[Any] = None,
     quote_pad_pct: float = 0.1,
     quote_only: bool = False,
+    gap_filter_max_pct: Optional[float] = None,
     warnings_out: Optional[List[IntentBuildWarning]] = None,
 ) -> List[Dict[str, Any]]:
     """Build a full intent batch from every supplied ``BuyCandidate``.
@@ -621,6 +859,23 @@ def candidates_to_intent_rows(
     is the only direction that makes sense for BUY (paying a bit more
     to get filled). Negative pads are accepted but caller-beware
     (the UI rejects them for the full-auto path).
+
+    ``quote_pad_pct`` may be **negative** on BUY (V1-I): a small
+    negative pad starts the limit *slightly below the live ask* so the
+    order rests passively and the manage-loop reprice ladder chases up
+    toward / past the ask. This starts the order at the live market
+    instead of yesterday's stale close (see V1-I design doc §1.4).
+
+    ``gap_filter_max_pct`` (V1-I): when set AND a healthy live quote is
+    available, a candidate whose live ref price has gapped UP more than
+    this percentage versus its reco close is **dropped** (no row
+    emitted) — buying a +N% gap is not a behaviour the backtest ever
+    validated, so we refuse rather than chase it. Gap-DOWN is never
+    filtered (cheaper than reco is fine for a BUY). When the quote
+    pipeline fails the candidate is kept (priced at the reco close
+    fallback) because we cannot compute a gap without a quote. Each
+    drop appends an ``IntentBuildWarning`` whose reason starts with
+    ``"gap_filter"`` so the caller can count / report them.
     """
     rows: List[Dict[str, Any]] = []
     reco_pad = 1.0 + float(limit_pad_pct) / 100.0
@@ -664,6 +919,26 @@ def candidates_to_intent_rows(
                     quote_source = "fallback_quote_zero"
                     quote_ref_price = None
                 else:
+                    # V1-I gap filter — refuse to BUY a name that has
+                    # gapped UP more than the cap versus its reco close.
+                    # Only fires with a HEALTHY quote (we cannot compute
+                    # a gap on the fallback path). Gap-down is allowed.
+                    if gap_filter_max_pct is not None:
+                        reco_px = float(c.reco_price)
+                        if reco_px > 0:
+                            gap_pct = (quote_ref_price - reco_px) / reco_px * 100.0
+                            if gap_pct > float(gap_filter_max_pct):
+                                if warnings_out is not None:
+                                    warnings_out.append(IntentBuildWarning(
+                                        ticker=c.ticker,
+                                        reason=(
+                                            f"{_GAP_FILTER_WARN_PREFIX}: "
+                                            f"+{gap_pct:.1f}% vs reco "
+                                            f"({reco_px:.4f}->{quote_ref_price:.4f}) "
+                                            f"> {float(gap_filter_max_pct):.0f}% cap "
+                                            f"— dropped (not bought)"),
+                                    ))
+                                continue
                     quote_limit = round(quote_ref_price * qpad, 4)
                     if quote_only:
                         # R10F-Q1: trust the live quote. Reco close
@@ -742,6 +1017,127 @@ def write_intent_file_from_candidates(
         run_id=(run_id if run_id is not None else candidates[0].run_id),
         overwrite=overwrite,
     )
+
+
+def sell_candidates_to_intent_rows(
+    candidates: List[SellCandidate],
+    *,
+    limit_pad_pct: float = 0.0,
+    quote_fn: Optional[Any] = None,
+    quote_pad_pct: float = 0.1,
+    quote_only: bool = True,
+    warnings_out: Optional[List[IntentBuildWarning]] = None,
+) -> List[Dict[str, Any]]:
+    """V1-G — build SELL intent rows from a list of ``SellCandidate``.
+
+    Pricing model (mirrors BUY but flips direction):
+
+    * ``quote_fn is None`` — pure reco-close mode:
+      ``limit = reco_price * (1 - limit_pad_pct/100)``.
+      A positive ``limit_pad_pct`` *lowers* the SELL limit (= more
+      aggressive marketable price). Negative is accepted but
+      caller-beware (would raise the limit above the close).
+
+    * ``quote_fn`` provided (recommended):
+      ``limit = bid * (1 - quote_pad_pct/100)`` when the bid is
+      healthy. On quote failure the reco close is used as a fallback
+      and the row's ``_quote_source`` is set accordingly so the
+      audit / mail can flag it.
+
+    ``quote_only=True`` is the default here (opposite of BUY's
+    historical default). For STOP_LOSS we want the live bid to drive
+    the limit — using the close as a floor would mean *refusing to
+    sell* if the price gapped down overnight, which is exactly the
+    bug a stop-loss exists to prevent. The reco close still gets used
+    as a fallback when the quote pipeline fails entirely.
+
+    Note: ``qty`` here always comes from ``candidate.reco_shares``;
+    we never pass a ``qty_override`` because the autotrade SELL
+    workflow is "sell exactly what T7 told you to sell" (no partials
+    invented at this layer — TRIM partials are already encoded in
+    ``reco_shares`` by ``daily_runner``).
+    """
+    rows: List[Dict[str, Any]] = []
+    reco_pad = 1.0 - float(limit_pad_pct) / 100.0
+    qpad = 1.0 - float(quote_pad_pct) / 100.0
+    for c in candidates:
+        reco_limit = round(float(c.reco_price) * reco_pad, 4)
+        quote_source = "reco_close"
+        quote_ref_price: Optional[float] = None
+        quote_asof: Optional[str] = None
+        chosen_limit = reco_limit
+
+        if quote_fn is not None:
+            q = None
+            failed = False
+            try:
+                q = quote_fn(c.ticker, c.market)
+            except Exception as e:  # noqa: BLE001
+                failed = True
+                if warnings_out is not None:
+                    warnings_out.append(IntentBuildWarning(
+                        ticker=c.ticker,
+                        reason=f"quote lookup failed: {type(e).__name__}: {e}",
+                    ))
+                quote_source = "fallback_quote_fail"
+            if not failed and q is None:
+                if warnings_out is not None:
+                    warnings_out.append(IntentBuildWarning(
+                        ticker=c.ticker,
+                        reason="quote lookup failed: returned None",
+                    ))
+                quote_source = "fallback_quote_fail"
+            elif q is not None:
+                quote_ref_price = _resolve_quote_ref_for_sell(q)
+                quote_asof = getattr(q, "asof", None)
+                if quote_ref_price is None or quote_ref_price <= 0:
+                    if warnings_out is not None:
+                        warnings_out.append(IntentBuildWarning(
+                            ticker=c.ticker,
+                            reason="quote returned non-positive bid",
+                        ))
+                    quote_source = "fallback_quote_zero"
+                    quote_ref_price = None
+                else:
+                    quote_limit = round(quote_ref_price * qpad, 4)
+                    if quote_only:
+                        chosen_limit = quote_limit
+                        quote_source = "quote_only"
+                    else:
+                        # Floor mode for SELL = min(reco, quote) so we
+                        # don't accidentally raise the limit ABOVE
+                        # today's market. This is the safe direction
+                        # for SELL but is uncommon — quote_only=True
+                        # is the V1-G recommended default.
+                        chosen_limit = min(reco_limit, quote_limit)
+                        if chosen_limit < reco_limit:
+                            quote_source = "quote_refreshed"
+                        else:
+                            quote_source = "quote_refreshed_above_reco"
+
+        cid = build_intent_client_order_id(
+            run_id=c.run_id, rec_row_id=c.rec_row_id,
+            ticker=c.ticker, qty=int(c.reco_shares), side="SELL",
+        )
+        row = make_sell_intent_row(
+            client_order_id=cid,
+            symbol=c.ticker,
+            market=c.market,
+            qty=int(c.reco_shares),
+            limit_price=chosen_limit,
+            rec_row_id=int(c.rec_row_id),
+        )
+        # Capture the originating T7 Action (STOP_LOSS / SELL / TRIM)
+        # so the post-trade audit and the R11B email can group rows
+        # by action without having to re-read recommendations.csv.
+        row["_t7_action"] = c.action
+        row[_QUOTE_SOURCE_KEY] = quote_source
+        if quote_ref_price is not None:
+            row[_QUOTE_REF_PRICE_KEY] = quote_ref_price
+        if quote_asof:
+            row[_QUOTE_ASOF_KEY] = str(quote_asof)
+        rows.append(row)
+    return rows
 
 
 def write_submitted_intents(

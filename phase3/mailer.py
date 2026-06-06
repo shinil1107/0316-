@@ -1,6 +1,8 @@
 """Gmail notification sender for Phase 3 daily runner."""
 
+import html as _html
 import os
+import re
 import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -9,6 +11,55 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import pandas as pd
+
+
+# Stock-convention colours: up = red, down = blue, neutral = unchanged.
+_UP_COLOR = "#d11507"
+_DOWN_COLOR = "#1144dd"
+
+# Movement labels that signal a notable rank move worth the operator's eye.
+# Up-direction → red; down-direction → blue. SIDEWAYS / CORE_STABLE / CHOPPY /
+# REGIME_SWITCHED are deliberately left uncoloured (neutral / black).
+_UP_LABELS = ("FAST_RISER", "NEW_ENTRY", "RISING")
+_DOWN_LABELS = ("FALLING",)
+
+
+def _colorize_html(escaped: str) -> str:
+    """Wrap movement markers/labels in coloured spans (input already escaped)."""
+    escaped = escaped.replace(
+        "\u25b2", f'<span style="color:{_UP_COLOR};font-weight:bold">\u25b2</span>')
+    escaped = escaped.replace(
+        "\u25bc", f'<span style="color:{_DOWN_COLOR};font-weight:bold">\u25bc</span>')
+    for word in _UP_LABELS:
+        escaped = re.sub(
+            rf"\b{word}\b",
+            f'<span style="color:{_UP_COLOR};font-weight:bold">{word}</span>',
+            escaped,
+        )
+    for word in _DOWN_LABELS:
+        escaped = re.sub(
+            rf"\b{word}\b",
+            f'<span style="color:{_DOWN_COLOR};font-weight:bold">{word}</span>',
+            escaped,
+        )
+    return escaped
+
+
+def _html_from_plain(body: str) -> str:
+    """Render the plain-text body as a monospace HTML part with colour accents.
+
+    Using ``<pre>`` preserves the column alignment of the ASCII tables while
+    letting us colour the rank-movement markers/labels. The plain-text part is
+    still sent as the fallback alternative.
+    """
+    escaped = _colorize_html(_html.escape(body))
+    return (
+        "<html><body>"
+        '<pre style="font-family:Menlo,Consolas,\'Courier New\',monospace;'
+        'font-size:13px;line-height:1.35;margin:0;white-space:pre-wrap">'
+        f"{escaped}"
+        "</pre></body></html>"
+    )
 
 
 def _resolve_password(raw: str) -> str:
@@ -27,6 +78,42 @@ def _resolve_password(raw: str) -> str:
     return ""
 
 
+def _movement_badge(row) -> str:
+    """Compact inline Top-N movement badge for a recommendation row.
+
+    Report-only. Returns ``""`` when the row carries no movement metadata
+    (labels not attached) or when the movement is unremarkable, so existing
+    rows are unchanged unless there is something worth flagging.
+    """
+    label = str(row.get("MovementLabel", "") or "")
+    tags = str(row.get("MovementTags", "") or "")
+    if not label:
+        return ""
+
+    def fmt(x):
+        try:
+            if pd.isna(x):
+                return "n/a"
+            return f"{float(x):+.0f}"
+        except Exception:
+            return "n/a"
+
+    hot = label == "RISING" or "NEW_ENTRY" in tags or "FAST_RISER" in tags
+    watch = label == "FALLING"
+    if not hot and not watch and "CORE_STABLE" not in tags:
+        return ""
+
+    bits = [label]
+    if tags:
+        bits.append(tags)
+    bits.append(
+        f"d1={fmt(row.get('RankDelta1d'))} "
+        f"d3={fmt(row.get('RankDelta3d'))} "
+        f"d5={fmt(row.get('RankDelta5d'))}"
+    )
+    return "  [" + " | ".join(bits) + "]"
+
+
 def _build_trigger_body(
     triggers: List[str],
     recos: pd.DataFrame,
@@ -37,6 +124,8 @@ def _build_trigger_body(
     daily_buy_limit: float = 0.0,
     universe_delta_text: str = "",
     shadow_text: str = "",
+    movement_text: str = "",
+    preview_note: str = "",
 ) -> str:
     """Build actionable TODO-list email body."""
     lines = []
@@ -46,6 +135,10 @@ def _build_trigger_body(
     lines.append(f"Quant Engine — {now}")
     lines.append(f"Regime: {regime} | VIX: {vix:.1f} | Trigger: {trigger_str}")
     lines.append("=" * 55)
+    if preview_note:
+        lines.append("")
+        lines.append(preview_note)
+        lines.append("=" * 55)
 
     if universe_delta_text:
         lines.append("")
@@ -54,6 +147,9 @@ def _build_trigger_body(
 
     if recos.empty:
         lines.append("\nNo recommendations generated (scoring failed or empty universe).")
+        if movement_text:
+            lines.append("")
+            lines.append(movement_text)
         lines.append(_build_portfolio_section(holdings_mgr, regime, vix))
         lines.append(_build_cash_section(holdings_mgr, daily_buy_limit))
         lines.append(_build_health_section(health))
@@ -89,7 +185,7 @@ def _build_trigger_body(
             val = r["Price"] * r["Shares"]
             lines.append(
                 f"  [!] STOP_LOSS  {r['Ticker']:6s}  {int(r['Shares']):3d} shares "
-                f"@ ${r['Price']:<8.2f}  -> recover ~${val:,.0f}"
+                f"@ ${r['Price']:<8.2f}  -> recover ~${val:,.0f}" + _movement_badge(r)
             )
         lines.append("")
 
@@ -100,7 +196,7 @@ def _build_trigger_body(
             gap_info = f"  weight {r['ActualPct']:.1f}% -> 0%" if has_gap else ""
             lines.append(
                 f"  [ ] SELL  {r['Ticker']:6s}  {int(r['Shares']):3d} shares "
-                f"@ ${r['Price']:<8.2f}  -> deposit ~${val:,.0f}{gap_info}"
+                f"@ ${r['Price']:<8.2f}  -> deposit ~${val:,.0f}{gap_info}" + _movement_badge(r)
             )
         lines.append("")
 
@@ -111,6 +207,7 @@ def _build_trigger_body(
             lines.append(
                 f"  [~] GRACE  {r['Ticker']:6s}  day {gc} — "
                 f"dropped from top_n, holding for now  weight={r.get('ActualPct', 0):.1f}%"
+                + _movement_badge(r)
             )
         lines.append("")
 
@@ -122,6 +219,7 @@ def _build_trigger_body(
                 f"  [ ] TRIM  {r['Ticker']:6s}  {int(r['Shares']):3d} shares "
                 f"@ ${r['Price']:<8.2f}  -> deposit ~${val:,.0f}"
                 f"  (target {r.get('TargetPct', 0):.1f}% / actual {r.get('ActualPct', 0):.1f}%)"
+                + _movement_badge(r)
             )
         lines.append("")
 
@@ -136,7 +234,7 @@ def _build_trigger_body(
             lines.append(
                 f"  [ ] {action_tag:9s} {r['Ticker']:6s}  {int(r['Shares']):3d} shares "
                 f"@ ${r['Price']:<8.2f}  = ${r['Capital']:>8,.2f}  "
-                f"(Score {r['Score']:.1f}){gap_info}"
+                f"(Score {r['Score']:.1f}){gap_info}" + _movement_badge(r)
             )
         if daily_buy_limit > 0:
             remaining = daily_buy_limit - buy_total
@@ -161,6 +259,7 @@ def _build_trigger_body(
                 gap_info = f"  [{r.get('ActualPct', 0):.1f}%/{r.get('TargetPct', 0):.1f}%]"
             lines.append(
                 f"       HOLD  {r['Ticker']:6s}  Score {r['Score']:.1f}{gap_info}"
+                + _movement_badge(r)
             )
         lines.append("")
 
@@ -175,6 +274,10 @@ def _build_trigger_body(
     summary_parts.append(f"{len(holds)} HOLD")
     if len(deferred): summary_parts.append(f"{len(deferred)} DEFERRED")
     lines.append(f"  Summary: {', '.join(summary_parts)}")
+
+    if movement_text:
+        lines.append("")
+        lines.append(movement_text)
 
     lines.append(_build_portfolio_section(holdings_mgr, regime, vix))
     lines.append(_build_cash_section(holdings_mgr, daily_buy_limit))
@@ -242,6 +345,8 @@ def send_daily_email(
     computed_daily_limit: float = 0.0,
     universe_delta_text: str = "",
     shadow_text: str = "",
+    movement_text: str = "",
+    preview_note: str = "",
 ):
     """Send daily email via Gmail SMTP."""
     email_conf = conf.get("email", {})
@@ -303,13 +408,24 @@ def send_daily_email(
         daily_buy_limit=daily_limit,
         universe_delta_text=universe_delta_text,
         shadow_text=shadow_text,
+        movement_text=movement_text,
+        preview_note=preview_note,
     )
+    if preview_note:
+        subject = f"{tag_prefix}[PREVIEW] {subject[len(tag_prefix):]}" if tag_prefix else f"[PREVIEW] {subject}"
 
-    msg = MIMEMultipart()
+    msg = MIMEMultipart("alternative")
     msg["From"] = gmail_addr
     msg["To"] = recipient
     msg["Subject"] = subject
+    # Plain first, HTML second — clients prefer the last alternative they can
+    # render, so the coloured HTML wins where supported and the plain table is
+    # the universal fallback.
     msg.attach(MIMEText(body, "plain", "utf-8"))
+    try:
+        msg.attach(MIMEText(_html_from_plain(body), "html", "utf-8"))
+    except Exception as e:  # noqa: BLE001 — HTML is a nicety, never block send
+        print(f"  [WARN] HTML email part failed, sending plain only: {e}")
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(gmail_addr, gmail_pass)

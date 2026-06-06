@@ -103,14 +103,36 @@ class TestIntentFileValidator(unittest.TestCase):
             self.assertEqual(s.intent_count, 2)
             self.assertEqual(s.buy_count, 2)
 
-    def test_sell_row_rejected_as_malformed(self) -> None:
+    def test_sell_row_accepted_v1g(self) -> None:
+        """V1-G — the BUY-only invariant was deliberately lifted so the
+        autotrade pipeline can submit STOP_LOSS / SELL / TRIM via the
+        same submitted_intents.json contract that gates BUY.
+
+        ``intents_io._validate_row`` still rejects sides other than
+        {BUY, SELL} — see ``test_invalid_side_rejected`` below for
+        the replacement invariant."""
         with tempfile.TemporaryDirectory() as tmp:
             rd = Path(tmp)
-            bad = _good_row(); bad["side"] = "SELL"
-            (rd / "submitted_intents.json").write_text(json.dumps({"intents": [bad]}))
+            sell = _good_row(); sell["side"] = "SELL"
+            (rd / "submitted_intents.json").write_text(
+                json.dumps({"intents": [sell]}))
+            s = intents_io.validate_submitted_intents(rd)
+            self.assertEqual(s.state, "ok")
+            self.assertEqual(s.buy_count, 1)  # legacy alias = #valid rows
+
+    def test_invalid_side_rejected(self) -> None:
+        """V1-G — sides outside {BUY, SELL} are the new failure mode.
+        This test pins the contract so a future typo doesn't silently
+        accept e.g. side='STOP_LOSS' (which is an Action, not a
+        side)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            rd = Path(tmp)
+            bad = _good_row(); bad["side"] = "STOP_LOSS"
+            (rd / "submitted_intents.json").write_text(
+                json.dumps({"intents": [bad]}))
             s = intents_io.validate_submitted_intents(rd)
             self.assertEqual(s.state, "malformed")
-            self.assertIn("BUY only", s.reason)
+            self.assertIn("side", s.reason)
 
     def test_market_order_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

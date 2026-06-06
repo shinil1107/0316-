@@ -83,7 +83,19 @@ REPORT_MD = "autotrade_t10_apply_report.md"
 REPORT_JSON = "autotrade_t10_apply_report.json"
 
 # Mirror launcher.py's _BUY_ACTIONS so apply policy stays in lockstep.
-BUY_ACTIONS = ("BUY", "BUY_NEW", "BUY_MORE")
+# V1-G.3: ``BUY_ACTIONS`` stays as the BUY tuple so the cash-event
+# branch below can still partition by direction (BUY = -cost, SELL =
+# +proceeds), but the apply *allowlist* is the broader
+# ``APPLY_ACTIONS`` — the canonical FULL_CLOSE + PARTIAL_CLOSE +
+# BUY set, sourced from ``exits.RecosAction`` so this stays
+# byte-equal to intents_io / simulator / holdings_manager dispatch.
+# Lifting only the allowlist (not BUY_ACTIONS) keeps existing R7-A
+# call sites that key on BUY_ACTIONS untouched.
+BUY_ACTIONS = ("BUY_NEW", "BUY_MORE")
+from exits import RecosAction as _RA  # noqa: E402
+APPLY_ACTIONS = tuple(sorted(
+    set(BUY_ACTIONS) | set(_RA.FULL_CLOSE) | set(_RA.PARTIAL_CLOSE)
+))
 
 
 def _now_iso() -> str:
@@ -494,6 +506,12 @@ def _resolve_against_ccnl(
 class PolicyDecision:
     applicable: List[Resolution] = field(default_factory=list)
     blocked: List[Resolution] = field(default_factory=list)
+    # V1-H — benign zero-fill misses (order placed, cancelled/unfilled,
+    # broker truth known: filled_qty==0). Distinct from ``blocked``:
+    # a skip is NOT dangerous and must NOT abort the whole batch, so
+    # the sibling tickers that DID fill still apply. Pairs with the
+    # manage-loop ``AUTOTRADE_CONTINUE_ON_UNFILLED`` change.
+    skipped: List[Resolution] = field(default_factory=list)
     duplicate_rec_ids: List[int] = field(default_factory=list)
     abort: bool = False
     abort_reason: Optional[str] = None
@@ -526,13 +544,32 @@ def _apply_policy(
     existing_id_set = set(existing_ids)
 
     for res in resolutions:
+        # V1-H — benign zero-fill miss: the order was placed and the
+        # broker confirmed zero fill (matched ccnl row, filled_qty==0,
+        # e.g. a reprice-ceiling cancel). There is nothing to apply for
+        # this row, but it is NOT dangerous, so route it to ``skipped``
+        # — it must not drag the whole batch into abort the way a real
+        # policy ``blocked`` row does. A genuinely ambiguous miss
+        # (ccnl_missing, i.e. not matched) keeps its abort_reason and
+        # still blocks below, because we do not know the broker truth.
+        if res.is_zero:
+            res.note = (res.note or "zero-fill miss; nothing to apply")
+            pd_out.skipped.append(res)
+            continue
         if res.abort_reason:
             pd_out.blocked.append(res)
             continue
-        if res.action not in BUY_ACTIONS:
+        if res.action not in APPLY_ACTIONS:
+            # V1-G.3: the allowlist now spans BUY + FULL_CLOSE +
+            # PARTIAL_CLOSE (SELL_GRACE intentionally excluded — it
+            # is a warning state with no fill). The two failure
+            # paths the old BUY-only allowlist guarded against —
+            # operator hand-edits with an unknown Action, and
+            # SELL_GRACE rows that should NEVER reach apply — both
+            # still trip here.
             res.abort_reason = (
-                f"action {res.action!r} is not in BUY-only "
-                f"R7-A allowlist {BUY_ACTIONS}"
+                f"action {res.action!r} is not in apply allowlist "
+                f"{APPLY_ACTIONS}"
             )
             pd_out.blocked.append(res)
             continue
@@ -653,6 +690,15 @@ def _render_report_md(
             f"{'; '.join(notes) if notes else ''} |"
         )
     lines.append("")
+    if policy.skipped:
+        # V1-H — clean zero-fill misses; informational, never blocking.
+        lines.append(
+            f"## Skipped (unfilled, no-op): {len(policy.skipped)}")
+        for r in policy.skipped:
+            lines.append(
+                f"- {r.ticker} ({r.action}) ODNO=`{r.broker_order_id}` "
+                f"— {r.note or 'zero fill'}")
+        lines.append("")
     if policy.abort:
         lines.append(f"## ABORT: {policy.abort_reason}")
         lines.append("")
@@ -729,6 +775,10 @@ def _render_report_json(
             "abort_reason": policy.abort_reason,
             "applicable_rec_ids": [r.rec_row_id for r in policy.applicable],
             "blocked_rec_ids": [r.rec_row_id for r in policy.blocked],
+            # V1-H — benign zero-fill misses, surfaced separately so a
+            # downstream reader can tell a clean "didn't fill" apart
+            # from a dangerous policy block.
+            "skipped_rec_ids": [r.rec_row_id for r in policy.skipped],
             "duplicate_rec_ids": policy.duplicate_rec_ids,
         },
         "applied": (
@@ -788,8 +838,13 @@ def _apply_to_holdings(
         note = f"{ticker} {shares}sh ODNO={odno} run={autotrade_run_id}"
         if action in BUY_ACTIONS:
             hm.record_cash_event(action, -cost, note)
-        # SELL/TRIM not handled in R7-A; explicit allowlist above prevents
-        # those rows from reaching here.
+        elif _RA.is_full_close(action) or _RA.is_partial_close(action):
+            # V1-G.3: SELL / STOP_LOSS / TRIM* book +proceeds.
+            # ``apply_partial_execution`` above has already adjusted
+            # holdings (full close removes the row; partial close
+            # decrements shares); the cash leg lives here so the
+            # cash ledger stays in lockstep with the broker.
+            hm.record_cash_event(action, +cost, note)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -977,8 +1032,22 @@ def cmd_apply(
         print(f"[t10_applicator] ABORT: {policy.abort_reason}")
         exit_code = 1
     elif executed_df.empty:
-        print("[t10_applicator] nothing to apply after policy filters")
-        exit_code = 1
+        if policy.skipped and not policy.blocked:
+            # V1-H — every submitted order ended as a clean zero-fill
+            # miss (cancelled/unfilled, broker truth known) and nothing
+            # dangerous was blocked. That's a normal "nothing filled
+            # today" market outcome, not an operator-action error, so
+            # exit rc=0 and let the unattended launchd fire end cleanly
+            # instead of raising a false "Operator action required".
+            print(
+                f"[t10_applicator] no fills to apply — "
+                f"{len(policy.skipped)} order(s) ended unfilled "
+                f"(clean no-op, rc=0)"
+            )
+            exit_code = 0
+        else:
+            print("[t10_applicator] nothing to apply after policy filters")
+            exit_code = 1
     elif not is_apply:
         print("[would apply]")
         for _, row in executed_df.iterrows():

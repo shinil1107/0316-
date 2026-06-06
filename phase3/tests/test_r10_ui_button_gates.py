@@ -97,7 +97,10 @@ def _write_recommendations_csv(rd: Path) -> None:
     rd.mkdir(parents=True, exist_ok=True)
     (rd / "recommendations.csv").write_text(
         "Action,Ticker,Shares,Price,RecRowId\n"
-        "BUY,APA,1,18.85,1\n",
+        # V1-G.2: T7 emits BUY_NEW / BUY_MORE; the legacy bare "BUY"
+        # action is no longer in ``intents_io._BUY_ACTIONS_DEFAULT``,
+        # so the fixture must match what production T7 writes.
+        "BUY_NEW,APA,1,18.85,1\n",
         encoding="utf-8",
     )
 

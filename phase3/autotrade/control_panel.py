@@ -58,6 +58,10 @@ from phase3.autotrade import oneclick_coordinator as oneclick  # noqa: E402
 from phase3.autotrade import recovery     # noqa: E402
 from phase3.autotrade import smtp_mailer  # noqa: E402
 from phase3.autotrade import t10_apply_journal as tj  # noqa: E402
+from phase3.autotrade import t7_runner    # noqa: E402  V1-B
+from phase3.autotrade import v1_arm        # noqa: E402  V1-E UI
+from phase3.autotrade import v1_runner     # noqa: E402  V1-E UI
+from phase3.autotrade import v1_status     # noqa: E402  V1-F UI
 from phase3.autotrade.order_store import OrderStore  # noqa: E402
 
 
@@ -359,6 +363,7 @@ def compute_button_gates(
     confirm_apply_checked:  bool = False,
     overwrite_intents_checked: bool = False,
     oneclick_authorized_checked: bool = False,
+    t7_will_generate: bool = False,
 ) -> Dict[str, ButtonGate]:
     """Translate a PanelState + session flags into per-button gates.
 
@@ -497,18 +502,32 @@ def compute_button_gates(
         reason="; ".join(t10apply_reasons),
     )
 
-    # 5. Full Paper Run — R11A. Lit only when BOTH paper-submit and
-    # T10 apply would also be lit on their own AND the operator has
-    # ticked the one-click authorise box. We reuse the per-stage gates
-    # rather than re-deriving the conditions so the matrix can never
-    # disagree with itself.
+    # 5. Full Paper Run — R11A (and V1: T7 → R11A). Lit only when
+    # BOTH paper-submit and T10 apply would also be lit on their own
+    # AND the operator has ticked the one-click authorise box. We
+    # reuse the per-stage gates rather than re-deriving the conditions
+    # so the matrix can never disagree with itself.
+    #
+    # V1-B: when ``t7_will_generate=True`` the operator has UN-ticked
+    # the "Skip T7" checkbox, so the coordinator will run T7 first
+    # and PRODUCE a fresh run_id + recommendations.csv. We must
+    # therefore SKIP the run_id / artifact_status / recommendations
+    # checks at gate time — they cannot be true yet. The env-level
+    # gates (KIS_ENV, submit/cancel/apply, halt, t10_journal,
+    # authorize checkbox) still apply because they cannot change
+    # mid-flight.
     full_reasons: List[str] = []
-    if not has_run_id:
-        full_reasons.append("no run_id selected")
-    if state.artifact_status != "awaiting_execution":
-        full_reasons.append(
-            f"artifact status is {state.artifact_status!r}, "
-            f"need 'awaiting_execution'")
+    if not t7_will_generate:
+        if not has_run_id:
+            full_reasons.append("no run_id selected")
+        if state.artifact_status != "awaiting_execution":
+            full_reasons.append(
+                f"artifact status is {state.artifact_status!r}, "
+                f"need 'awaiting_execution'")
+        if not state.recommendations_csv_exists:
+            full_reasons.append("recommendations.csv missing for this run")
+        elif state.recommendations_buy_count <= 0:
+            full_reasons.append("no BUY candidates in recommendations.csv")
     if state.kis_env != "paper":
         full_reasons.append(f"KIS_ENV={state.kis_env!r} (need 'paper')")
     if not state.submit_gate_on:
@@ -522,10 +541,6 @@ def compute_button_gates(
     if not state.t10_journal.is_clean:
         full_reasons.append(
             "T10 journal has unresolved started/recovery marker")
-    if not state.recommendations_csv_exists:
-        full_reasons.append("recommendations.csv missing for this run")
-    elif state.recommendations_buy_count <= 0:
-        full_reasons.append("no BUY candidates in recommendations.csv")
     if not oneclick_authorized_checked:
         full_reasons.append(
             "tick the 'authorize one-click full paper run' checkbox")
@@ -747,6 +762,385 @@ def build_full_paper_run_plan(
     return stages
 
 
+# ──────────────────────────────────────────────────────────────────────
+# V1-E UI helpers — daily arm-token + launchd status (pure, testable)
+# ──────────────────────────────────────────────────────────────────────
+LAUNCHD_LABEL = "com.autotrade.v1.daily"
+"""Must stay in sync with launchd/com.autotrade.v1.daily.plist.template."""
+
+LAUNCHD_LOG_OUT = _PHASE3 / "autotrade" / "runtime" / "v1_launchd.out.log"
+LAUNCHD_LOG_ERR = _PHASE3 / "autotrade" / "runtime" / "v1_launchd.err.log"
+
+
+# Secrets the launchd 22:35 fire MUST find via .env-hydration (or
+# os.environ, but the gui session is empty by design). Anything in
+# this list missing from BOTH places blocks ``Readiness=READY``.
+# Order matters for the panel error text.
+#
+# ``GMAIL_APP_PASSWORD`` is deliberately NOT here — it has a third
+# fallback to ``config.local.yaml`` (read by ``smtp_mailer``), so a
+# missing env value is not actually a launchd halt.
+LAUNCHD_REQUIRED_SECRETS: Tuple[str, ...] = (
+    "FMP_API_KEY",
+    "KIS_APP_KEY",
+    "KIS_APP_SECRET",
+    "KIS_ACCOUNT_NO",
+    "KIS_ACCOUNT_PRODUCT_CODE",
+)
+
+DOTENV_PATH = _PHASE3.parent / ".env"
+
+
+def _read_dotenv_keys(path: Path) -> set:
+    """Parse ``.env`` and return the set of KEYs present (values
+    ignored). Tolerates the same syntax as ``v1_runner._hydrate_…``
+    and ``kis_broker_adapter._read_dotenv``."""
+    if not path.exists():
+        return set()
+    keys = set()
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key = line.partition("=")[0].strip()
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _check_launchd_secrets(
+    *,
+    dotenv_path: Path = DOTENV_PATH,
+    environ: Optional[Mapping[str, str]] = None,
+) -> List[str]:
+    """Return the list of launchd-critical secrets MISSING from both
+    ``.env`` and ``os.environ``. Empty list = ready.
+
+    A secret in either place is enough for the 22:35 fire to find it:
+    launchd's gui session is empty, but ``v1_runner._hydrate_env_from_dotenv``
+    runs at startup and copies ``.env`` keys into the subprocess env
+    before T7 / the broker subprocess fire.
+    """
+    env = environ if environ is not None else os.environ
+    dotenv_keys = _read_dotenv_keys(dotenv_path)
+    return [k for k in LAUNCHD_REQUIRED_SECRETS
+            if not env.get(k) and k not in dotenv_keys]
+
+
+def _next_v1e_fire_kst(now: Optional[datetime] = None) -> Tuple[
+        str, str]:
+    """Compute the next 22:35 LOCAL (assumed KST) fire and a human
+    ``in 2h 13m`` countdown. Returns ``(timestamp, countdown)``.
+
+    Local time, not KST tz-aware: the plist's StartCalendarInterval
+    fires on the Mac's *local* clock — if the operator's Mac is set
+    to KST (which install_v1.sh warns about), local == KST.
+    """
+    n = now or datetime.now()
+    today_fire = n.replace(hour=22, minute=35, second=0, microsecond=0)
+    if n >= today_fire:
+        from datetime import timedelta as _td
+        fire = today_fire + _td(days=1)
+        label_prefix = "Tomorrow"
+    else:
+        fire = today_fire
+        label_prefix = "Today"
+    delta = fire - n
+    h, rem = divmod(int(delta.total_seconds()), 3600)
+    m, _ = divmod(rem, 60)
+    return (f"{label_prefix} {fire.strftime('%H:%M')}",
+            f"in {h}h {m:02d}m")
+
+
+@dataclass(frozen=True)
+class V1EStatus:
+    """At-a-glance V1-E daily-auto-launch status for the panel row.
+
+    Pure data; every field is rendered into a string by the Tk widget
+    using ``status_lines``. The class methods are pure so tests can
+    inject the arm/launchctl boundaries and assert the exact text the
+    operator sees."""
+    today_kst: str
+    armed: bool
+    armed_reason: str           # full diagnostic; the gate's ``reason``
+    armed_by: str               # "" when not armed
+    armed_at_utc: str           # "" when not armed
+    armed_note: str             # operator's note, "" when not armed
+    launchd_loaded: bool
+    launchd_state: str          # "loaded" / "not loaded" / "unknown: <why>"
+    launchd_last_exit_code: Optional[int]  # None if unknown
+    log_out_path: Path
+    log_err_path: Path
+    log_out_size: int           # bytes; -1 if missing
+    log_err_size: int           # bytes; -1 if missing
+    # V1-E.5 — readiness summary, sourced from the four gates that
+    # actually decide whether the 22:35 fire will run end-to-end:
+    #   1. armed today
+    #   2. launchd loaded
+    #   3. last_exit_code is None (never fired) or 0 (clean prev)
+    #   4. .env / os.environ has the launchd-critical secrets
+    missing_secrets: List[str]  # empty list = all secrets present
+    next_fire_label: str        # e.g. "Today 22:35"
+    next_fire_countdown: str    # e.g. "in 8h 49m"
+    # V1-E.6 — KST date of the last completed v1 fire (per
+    # v1_status.json's ``finished_at_utc``). Used to distinguish a
+    # fresh (today's) failure from yesterday's stale rc, which
+    # otherwise would leave the panel red until the operator
+    # manually reloads launchd.
+    last_fire_finished_kst_date: str = ""
+
+    @property
+    def stale_last_exit(self) -> bool:
+        """True iff launchd's last_exit_code is non-zero AND the last
+        v1 fire that produced it was from a previous KST day. We
+        treat that as an INFO note, not a hard blocker, because the
+        next scheduled fire is what the operator actually cares
+        about (the bad rc is already in their inbox via R11B mail).
+        """
+        if self.launchd_last_exit_code in (None, 0):
+            return False
+        if not self.last_fire_finished_kst_date:
+            # Conservative default: when we don't know when the
+            # last fire ran, keep treating non-zero rc as a hard
+            # blocker so we never silently green-light a fresh
+            # failure.
+            return False
+        return self.last_fire_finished_kst_date < self.today_kst
+
+    @property
+    def ready(self) -> bool:
+        """True iff all four V1-E gates are green. Tk paints the
+        readiness line green when this is True, red otherwise.
+        V1-E.6: a stale (previous-day) non-zero launchd exit code
+        is downgraded to an info line and no longer blocks READY,
+        so a fresh arm on the morning after a t10_apply failure
+        doesn't leave the panel red forever."""
+        last_exit_ok = (
+            self.launchd_last_exit_code in (None, 0)
+            or self.stale_last_exit
+        )
+        return (self.armed
+                and self.launchd_loaded
+                and last_exit_ok
+                and not self.missing_secrets)
+
+    def readiness_blockers(self) -> List[str]:
+        """Operator-facing reasons the next fire would FAIL or skip.
+        Empty list ↔ ``ready`` True. V1-E.6: stale (prior-KST-day)
+        non-zero rc goes through ``info_notes`` instead."""
+        blockers: List[str] = []
+        if not self.armed:
+            blockers.append(
+                f"not armed for {self.today_kst} (run 'Arm Today')")
+        if not self.launchd_loaded:
+            blockers.append(
+                f"launchd agent not loaded ({self.launchd_state})")
+        elif (self.launchd_last_exit_code is not None
+              and self.launchd_last_exit_code != 0
+              and not self.stale_last_exit):
+            blockers.append(
+                f"last launchd exit rc={self.launchd_last_exit_code} "
+                f"(check err.log)")
+        if self.missing_secrets:
+            blockers.append(
+                "missing secrets in .env: "
+                + ", ".join(self.missing_secrets))
+        return blockers
+
+    def info_notes(self) -> List[str]:
+        """Non-blocking operator-facing notes. Right now this only
+        surfaces a stale prior-day failure so the operator can still
+        see *why* the launchd rc was non-zero without it preventing
+        the next fire from showing as READY."""
+        notes: List[str] = []
+        if self.stale_last_exit:
+            notes.append(
+                f"prior fire ({self.last_fire_finished_kst_date}) "
+                f"exited rc={self.launchd_last_exit_code} — "
+                f"acknowledged; today is armed")
+        return notes
+
+    def status_lines(self) -> List[str]:
+        arm_line = (f"ARMED  {self.armed_by}  {self.armed_at_utc}"
+                    + (f"  — {self.armed_note}"
+                       if self.armed_note else "")
+                    ) if self.armed else (
+                        f"NOT ARMED  ({self.armed_reason})")
+        lc_line = self.launchd_state
+        if self.launchd_loaded and self.launchd_last_exit_code is not None:
+            lc_line += f"  last_exit={self.launchd_last_exit_code}"
+        if self.ready:
+            ready_line = (f"READY → next fire: "
+                          f"{self.next_fire_label} "
+                          f"({self.next_fire_countdown})")
+            # V1-E.6: surface stale prior-day failures as a
+            # non-blocking suffix so the operator still sees them.
+            notes = self.info_notes()
+            if notes:
+                ready_line += "  [note: " + " | ".join(notes) + "]"
+        else:
+            blockers = self.readiness_blockers()
+            ready_line = "NOT READY — " + " | ".join(blockers)
+        return [
+            f"Readiness  : {ready_line}",
+            f"Today (KST): {self.today_kst}",
+            f"Arm token  : {arm_line}",
+            f"launchd    : {lc_line}",
+            f"Logs       : out={self._fmt_size(self.log_out_size)}  "
+            f"err={self._fmt_size(self.log_err_size)}",
+        ]
+
+    @staticmethod
+    def _fmt_size(n: int) -> str:
+        if n < 0:
+            return "(missing)"
+        if n < 1024:
+            return f"{n}B"
+        return f"{n // 1024}KB"
+
+
+LaunchctlQueryFn = Callable[[str], Tuple[int, str]]
+"""``(label) -> (rc, stdout)`` — wraps ``launchctl print gui/<uid>/<label>``."""
+
+
+def _default_launchctl_query(label: str) -> Tuple[int, str]:
+    """Shell-out to ``launchctl print``. Returns rc=2 / "" on platforms
+    that don't have launchctl (Linux CI, etc.) so the UI degrades
+    gracefully rather than crashing."""
+    if sys.platform != "darwin":
+        return 2, ""
+    try:
+        uid = os.getuid()
+    except AttributeError:
+        return 2, ""
+    try:
+        cp = subprocess.run(
+            ["launchctl", "print", f"gui/{uid}/{label}"],
+            capture_output=True, text=True,
+            timeout=5, check=False,
+        )
+        return int(cp.returncode), (cp.stdout or "")
+    except (FileNotFoundError, subprocess.TimeoutExpired,
+            OSError) as e:
+        return 2, f"(launchctl error: {type(e).__name__}: {e})"
+
+
+def _parse_launchctl_print(rc: int, stdout: str) -> Tuple[
+        bool, str, Optional[int]]:
+    """Read the relevant slices of ``launchctl print``.
+
+    Returns ``(loaded, state_label, last_exit_code)``.
+    * ``loaded`` is True when ``launchctl print`` returned rc=0 — the
+      command itself fails if the label isn't loaded.
+    * ``state_label`` is one of:
+        - ``"loaded"``                  rc=0
+        - ``"not loaded"``               rc!=0 with empty stdout
+        - ``"unknown: <stderr-style>"``  rc!=0 with a diagnostic blurb
+    * ``last_exit_code`` is parsed out of the ``last exit code = N``
+      line; ``None`` when missing or unparseable.
+    """
+    if rc != 0:
+        # Empty stdout typically means "Could not find …" on a non-
+        # loaded label; non-empty means launchctl errored.
+        if not stdout.strip():
+            return False, "not loaded", None
+        return False, f"unknown: {stdout.strip().splitlines()[0]}", None
+    last_exit: Optional[int] = None
+    for line in stdout.splitlines():
+        s = line.strip()
+        # Two known forms across macOS versions:
+        #   ``last exit code = 0``
+        #   ``last exit reason = ...`` (we ignore the reason form for
+        #   numeric parsing; the rc is what the operator cares about)
+        if s.startswith("last exit code"):
+            try:
+                last_exit = int(s.split("=", 1)[1].strip())
+            except (ValueError, IndexError):
+                last_exit = None
+            break
+    return True, "loaded", last_exit
+
+
+def compute_v1e_status(
+    *,
+    runtime_dir: Optional[Path] = None,
+    now: Optional[datetime] = None,
+    launchctl_query: Optional[LaunchctlQueryFn] = None,
+    log_out_path: Path = LAUNCHD_LOG_OUT,
+    log_err_path: Path = LAUNCHD_LOG_ERR,
+    dotenv_path: Path = DOTENV_PATH,
+    environ: Optional[Mapping[str, str]] = None,
+) -> V1EStatus:
+    """Snapshot today's V1-E state into a renderable struct."""
+    ac = v1_arm.require_armed_for_today(
+        runtime_dir=runtime_dir, now=now)
+    tok = ac.token
+    q = launchctl_query or _default_launchctl_query
+    lc_rc, lc_out = q(LAUNCHD_LABEL)
+    loaded, state_label, last_exit = _parse_launchctl_print(
+        lc_rc, lc_out)
+    missing = _check_launchd_secrets(
+        dotenv_path=dotenv_path, environ=environ)
+    fire_label, fire_cd = _next_v1e_fire_kst(now=now)
+    # V1-E.6 — read v1_status.json so we can tell "today's fire
+    # failed" from "yesterday's stale rc still being reported by
+    # launchd". The status file is always under the same runtime
+    # directory v1_arm uses.
+    last_fire_kst = _last_fire_kst_date(runtime_dir=runtime_dir)
+    return V1EStatus(
+        today_kst=ac.date_kst,
+        armed=ac.ok,
+        armed_reason=ac.reason if not ac.ok else "",
+        armed_by=tok.armed_by if tok else "",
+        armed_at_utc=tok.armed_at if tok else "",
+        armed_note=tok.note if tok else "",
+        launchd_loaded=loaded,
+        launchd_state=state_label,
+        launchd_last_exit_code=last_exit,
+        log_out_path=log_out_path,
+        log_err_path=log_err_path,
+        log_out_size=(log_out_path.stat().st_size
+                       if log_out_path.exists() else -1),
+        log_err_size=(log_err_path.stat().st_size
+                       if log_err_path.exists() else -1),
+        missing_secrets=missing,
+        next_fire_label=fire_label,
+        next_fire_countdown=fire_cd,
+        last_fire_finished_kst_date=last_fire_kst,
+    )
+
+
+def _last_fire_kst_date(
+    *, runtime_dir: Optional[Path] = None
+) -> str:
+    """Return the KST date of the last finished v1 fire, or "" if no
+    finished fire is on disk. Used by V1-E.6 to distinguish today's
+    failure from yesterday's stale rc."""
+    try:
+        rd = runtime_dir if runtime_dir is not None else (
+            _PHASE3 / "autotrade" / "runtime")
+        snap_path = Path(rd) / "v1_status.json"
+        if not snap_path.exists():
+            return ""
+        snap = v1_status.read_status(path=snap_path)
+        if snap is None or not snap.finished_at_utc:
+            return ""
+        # finished_at_utc is ISO-8601 UTC; convert to KST (UTC+9)
+        # without dragging zoneinfo in for this single conversion.
+        from datetime import datetime as _dt, timedelta as _td
+        s = snap.finished_at_utc
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = _dt.fromisoformat(s)
+        except ValueError:
+            return ""
+        kst = dt + _td(hours=9)
+        return kst.strftime("%Y-%m-%d")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def revalidate_danger_action(
     *,
     action: str,
@@ -759,6 +1153,7 @@ def revalidate_danger_action(
     dry_run_rc_clean: bool = False,
     submit_outcome_clean: bool = False,
     oneclick_authorized_checked: bool = False,
+    t7_will_generate: bool = False,
 ) -> "PanelState":
     """Recompute panel state + button gates and refuse if the action
     is currently disabled. Returns the freshly computed PanelState so
@@ -768,6 +1163,13 @@ def revalidate_danger_action(
     (R11). Other actions are not danger-gated and use the gate matrix
     only for UX hints, not safety enforcement, so this helper refuses
     to be called with them — pass through directly.
+
+    V1-B: ``t7_will_generate=True`` (= operator un-ticked "Skip T7")
+    relaxes the run_id / artifact / recommendations checks because
+    the coordinator will produce them in the T7 prefix stage. Pass
+    a placeholder run_id (e.g. ``"<v1-pending>"``) in that mode so
+    the early ``run_id`` guard below still rejects an outright
+    None / empty.
     """
     DANGER_ACTIONS = {"paper_submit", "t10_apply", "full_paper_run"}
     if action not in DANGER_ACTIONS:
@@ -777,10 +1179,16 @@ def revalidate_danger_action(
         )
     if output_dir is None:
         raise DangerActionDenied(action, "phase3 paper config not loadable")
-    if not run_id or not run_id.strip():
+    if not t7_will_generate and (not run_id or not run_id.strip()):
+        # Skip-T7 mode must have a real run_id picked. V1 (T7-first)
+        # mode is allowed to come in with a placeholder.
         raise DangerActionDenied(action, "no run_id selected")
+    # Always compute panel state — even in T7-first mode where the
+    # picked run_id may be a placeholder, because the env gates
+    # (KIS_ENV, submit/cancel/apply, halt) are read off PanelState.
+    ps_run_id = run_id if (run_id and run_id.strip()) else "<v1-pending>"
     ps = compute_panel_state(
-        output_dir=Path(output_dir), run_id=run_id, env=env,
+        output_dir=Path(output_dir), run_id=ps_run_id, env=env,
     )
     gates = compute_button_gates(
         ps,
@@ -790,6 +1198,7 @@ def revalidate_danger_action(
         confirm_apply_checked=confirm_apply_checked,
         overwrite_intents_checked=overwrite_intents_checked,
         oneclick_authorized_checked=oneclick_authorized_checked,
+        t7_will_generate=t7_will_generate,
     )
     if action not in gates:
         raise DangerActionDenied(
@@ -1281,6 +1690,11 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
     # without this box affecting them. The Full Paper Run button uses
     # *only* this box.
     oneclick_authorize_var = tk.BooleanVar(value=False)
+    # V1-B — when ticked, the Full Paper Run button assumes
+    # ``recommendations.csv`` already exists for the picked run_id
+    # and skips the T7 prefix stage (= R11A v0 behaviour). Default
+    # un-ticked so the V1 path (T7 → R11A) is the new default.
+    skip_t7_var = tk.BooleanVar(value=False)
     # R10-ARM — Activation toggles. Initial state mirrors whatever is
     # *already* in os.environ so a pre-launch shell export still shows
     # the checkbox ticked. Untick = clear from os.environ this session.
@@ -1312,6 +1726,547 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 command=lambda: _stop()).pack(side="right", padx=4)
     ttk.Button(frm_top, text="Clear halt flag",
                 command=lambda: _clear_stop()).pack(side="right", padx=4)
+
+    # ── V1-E — daily auto-launch (arm token + launchd) ────────────
+    frm_v1e = ttk.LabelFrame(
+        _body, text="V1-E — Daily Auto-Launch", padding=8)
+    frm_v1e.pack(fill="x", padx=8, pady=4)
+
+    v1e_lbls: Dict[str, tk.StringVar] = {
+        k: tk.StringVar(value="—")
+        for k in ("ready", "today", "arm", "launchd",
+                  "last_fire", "in_progress", "logs")
+    }
+    # The Readiness label needs a foreground that can flip green/red,
+    # so we keep a Tk-widget handle (not just the StringVar) for it.
+    v1e_ready_widget: Dict[str, Any] = {}
+    # ``in_progress`` row is only shown when there's actually a fire
+    # in flight — otherwise the widget is gridded but the StringVar
+    # is "" so it occupies negligible space. We still track the
+    # widget handle so a future row hide/show is cheap.
+    v1e_inprogress_widget: Dict[str, Any] = {}
+    for idx, (key, label_text) in enumerate((
+        ("ready",       "Readiness:"),
+        ("today",       "Today (KST):"),
+        ("arm",         "Arm token:"),
+        ("launchd",     "launchd:"),
+        ("last_fire",   "Last fire:"),
+        ("in_progress", "In progress:"),
+        ("logs",        "Logs:"),
+    )):
+        ttk.Label(frm_v1e, text=label_text, width=12).grid(
+            row=idx, column=0, sticky="w", padx=4)
+        if key == "ready":
+            # tk.Label (not ttk.Label) because ttk on macOS ignores
+            # ``foreground=`` when the theme is ``aqua``; the readiness
+            # GO/NO-GO indicator MUST be visually distinct so we drop
+            # to the classic widget here.
+            w = tk.Label(frm_v1e, textvariable=v1e_lbls[key],
+                          font=("Menlo", 10, "bold"),
+                          anchor="w")
+            v1e_ready_widget["w"] = w
+        elif key == "in_progress":
+            w = tk.Label(frm_v1e, textvariable=v1e_lbls[key],
+                          font=("Menlo", 10),
+                          anchor="w")
+            v1e_inprogress_widget["w"] = w
+        else:
+            w = ttk.Label(frm_v1e, textvariable=v1e_lbls[key],
+                          font=("Menlo", 10))
+        w.grid(row=idx, column=1, sticky="w", padx=4)
+
+    # — V1-F.2: live launchd-fire tail. The 07:20 T7 prefetch and the
+    # 22:35 trade fire are launched OUT-OF-PROCESS by launchd, so their
+    # stdout cannot be piped into the panel the way the manual T7
+    # button (launcher.py) does it. Instead we tail the plist's
+    # ``StandardOutPath`` whose path is recorded in status.json by
+    # v1_runner. While ``current_stage`` is non-empty we re-read new
+    # bytes from the log every poll tick and append them to this
+    # ScrolledText. The widget stays around even after the fire ends
+    # so the operator can still see what happened on the morning's
+    # T7 run when they open the panel later in the day.
+    ttk.Label(frm_v1e, text="Fire log:", width=12).grid(
+        row=7, column=0, sticky="nw", padx=4, pady=(8, 0))
+    from tkinter import scrolledtext as _scrolledtext
+    v1f_log_widget = _scrolledtext.ScrolledText(
+        frm_v1e, height=10, width=88, wrap="word",
+        font=("Menlo", 9), state="disabled",
+        background="#1d1f21", foreground="#c5c8c6",
+        insertbackground="#c5c8c6",
+    )
+    v1f_log_widget.grid(row=7, column=1, sticky="we",
+                        padx=4, pady=(8, 4))
+
+    frm_v1e_btns = ttk.Frame(frm_v1e)
+    frm_v1e_btns.grid(row=8, column=0, columnspan=2,
+                       sticky="we", pady=(6, 0))
+
+    # In-progress polling token. When a fire is in flight, the panel
+    # re-reads status.json every ``_V1F_INPROGRESS_POLL_MS`` so the
+    # "In progress: <stage> (Xs)" line ticks. Once the file's
+    # ``final_rc`` is non-null we stop polling. Tracked here so a
+    # second arm/fire/test doesn't spawn duplicate after()-loops.
+    v1f_poll_state: Dict[str, Any] = {"after_id": None}
+    _V1F_INPROGRESS_POLL_MS = 800
+    # V1-F.3 — Slow idle poll. Before V1-F.3 the panel only started
+    # polling status.json after a button click detected an in-flight
+    # fire; if launchd kicked off a fire while the panel sat idle the
+    # log widget stayed blank for the entire run. Now the watcher
+    # ALWAYS reschedules itself: fast (800ms) while a fire is live,
+    # slow (5s) otherwise so the next fire is picked up automatically.
+    _V1F_IDLE_POLL_MS = 5000
+    # V1-F.2 — Tail cursor for the launchd log file. Keyed by
+    # (log_path, log_start_offset) so a NEW fire (later start_offset
+    # for the same log file) resets the cursor instead of continuing
+    # to append from yesterday's tail. ``shown_end`` is the byte
+    # position of the log file we've already painted into the widget.
+    v1f_log_tail: Dict[str, Any] = {
+        "log_path": "", "log_start_offset": -1, "shown_end": 0,
+    }
+
+    def _append_v1f_log_text(text: str) -> None:
+        """Append ``text`` to the V1-F log widget, capping at the
+        most-recent ~4000 lines so a runaway log can't blow up RAM."""
+        if not text:
+            return
+        try:
+            v1f_log_widget.configure(state="normal")
+            v1f_log_widget.insert("end", text)
+            try:
+                line_count = int(
+                    v1f_log_widget.index("end-1c").split(".")[0])
+            except (ValueError, IndexError):
+                line_count = 0
+            max_lines = 4000
+            if line_count > max_lines:
+                v1f_log_widget.delete(
+                    "1.0", f"{line_count - max_lines}.0")
+            v1f_log_widget.see("end")
+        finally:
+            try:
+                v1f_log_widget.configure(state="disabled")
+            except tk.TclError:
+                pass
+
+    def _reset_v1f_log_widget() -> None:
+        """Wipe the log widget; called when we detect a NEW fire (a
+        different ``log_start_offset`` for the same path, or a
+        different path entirely)."""
+        try:
+            v1f_log_widget.configure(state="normal")
+            v1f_log_widget.delete("1.0", "end")
+        finally:
+            try:
+                v1f_log_widget.configure(state="disabled")
+            except tk.TclError:
+                pass
+
+    def _tail_v1f_log(snap: Optional[v1_status.StatusSnapshot]) -> None:
+        """Read new bytes from the launchd StandardOutPath recorded in
+        ``snap`` and append them to the V1-F log widget.
+
+        Handles three cases the operator actually hits:
+
+        * Snap has no log_path (test-fire / no fire yet) — leave the
+          widget alone so the operator can still see whatever was
+          painted from a previous fire.
+        * Snap points to a NEW fire (different log_path or different
+          log_start_offset than the cursor we last drew) — wipe the
+          widget and resume from the new offset.
+        * Snap points to the SAME fire — read from shown_end to
+          current EOF and append.
+        """
+        if snap is None or not snap.log_path:
+            return
+        log_path = snap.log_path
+        start_off = int(snap.log_start_offset or 0)
+        # Detect a brand-new fire: any change to (path, start_offset)
+        # means the operator should see a fresh tail rather than
+        # continuing yesterday's stream.
+        cursor = v1f_log_tail
+        if (cursor["log_path"] != log_path
+                or int(cursor["log_start_offset"]) != start_off):
+            _reset_v1f_log_widget()
+            cursor["log_path"] = log_path
+            cursor["log_start_offset"] = start_off
+            cursor["shown_end"] = start_off
+        try:
+            cur_size = os.path.getsize(log_path)
+        except OSError:
+            return
+        # Log might have been truncated (operator wiped it) — reset
+        # the cursor so we re-show whatever is still on disk.
+        if cur_size < int(cursor["shown_end"]):
+            _reset_v1f_log_widget()
+            cursor["shown_end"] = start_off
+            if cur_size < start_off:
+                cursor["shown_end"] = 0
+        if cur_size <= int(cursor["shown_end"]):
+            return  # nothing new
+        # Read only the new tail bytes; cap at 256KB per tick so a
+        # very chatty stage doesn't freeze the Tk event loop.
+        max_chunk = 256 * 1024
+        try:
+            with open(log_path, "rb") as f:
+                f.seek(int(cursor["shown_end"]))
+                chunk = f.read(max_chunk)
+        except OSError:
+            return
+        if not chunk:
+            return
+        try:
+            text = chunk.decode("utf-8", errors="replace")
+        except Exception:  # noqa: BLE001
+            text = chunk.decode("latin-1", errors="replace")
+        _append_v1f_log_text(text)
+        cursor["shown_end"] = int(cursor["shown_end"]) + len(chunk)
+
+    def _render_v1f_status() -> bool:
+        """Read ``v1_status.json`` and update last_fire / in_progress
+        labels. Returns True if a fire is currently in progress (so
+        the caller knows to keep polling).
+
+        NEVER raises — the panel must keep rendering the rest of the
+        V1-E rows even if status.json is malformed."""
+        try:
+            snap = v1_status.read_status()
+        except Exception as e:  # noqa: BLE001
+            v1e_lbls["last_fire"].set(
+                f"(status read error: {type(e).__name__}: {e})")
+            v1e_lbls["in_progress"].set("")
+            return False
+        lines = v1_status.render_panel_lines(snap)
+        # Always set the first line (last_fire); second line is only
+        # populated when in_progress.
+        first = lines[0] if lines else "Last fire: (none)"
+        # ``render_panel_lines`` returns lines INCLUDING the "Last
+        # fire:" prefix so they read sensibly on their own — strip
+        # the prefix here since the row label widget already shows it.
+        _, _, head_rhs = first.partition(":")
+        v1e_lbls["last_fire"].set(head_rhs.strip() or "—")
+        in_flight = False
+        if len(lines) >= 2:
+            _, _, prog_rhs = lines[1].partition(":")
+            v1e_lbls["in_progress"].set(prog_rhs.strip())
+            in_flight = True
+        else:
+            v1e_lbls["in_progress"].set("")
+        # V1-F.2 — tail the launchd log file recorded in the snapshot.
+        # We do this on every refresh tick (in_progress OR finished)
+        # because the operator might open the panel for the first time
+        # only AFTER the fire has completed — they should still see
+        # what happened. Once shown_end catches up to the file's
+        # current size, additional polls are cheap no-ops.
+        try:
+            _tail_v1f_log(snap)
+        except Exception:  # noqa: BLE001
+            pass  # tailing must never break the rest of the refresh
+        return in_flight
+
+    def _poll_v1f_progress() -> None:
+        """``root.after`` callback. V1-F.3: ALWAYS reschedules itself
+        — fast (800ms) when a fire is in flight, slow (5s) otherwise
+        — so a launchd fire that starts while the panel sits idle is
+        picked up automatically. Pre-V1-F.3 we stopped polling on
+        terminal state, which meant the panel had to be manually
+        refreshed to notice the *next* fire."""
+        v1f_poll_state["after_id"] = None
+        try:
+            in_flight = _render_v1f_status()
+        except Exception:  # noqa: BLE001
+            in_flight = False
+        delay = _V1F_INPROGRESS_POLL_MS if in_flight else _V1F_IDLE_POLL_MS
+        try:
+            v1f_poll_state["after_id"] = root.after(
+                delay, _poll_v1f_progress)
+        except tk.TclError:
+            pass  # root destroyed; nothing to schedule
+
+    def _refresh_v1e_only() -> None:
+        """Light refresh — only the V1-E row. Used by the V1-E
+        buttons to avoid the heavier full-panel ``_refresh`` cycle
+        when nothing outside V1-E changed."""
+        try:
+            st = compute_v1e_status()
+        except Exception as e:  # noqa: BLE001
+            for k in v1e_lbls:
+                v1e_lbls[k].set(f"(error: {type(e).__name__}: {e})")
+            return
+        lines = st.status_lines()
+        for k, line in zip(
+            ("ready", "today", "arm", "launchd", "logs"), lines,
+        ):
+            # Strip the "Label : " prefix the function generates so
+            # the row label widget (left column) is the single source
+            # of truth for the prefix.
+            _, _, rhs = line.partition(":")
+            v1e_lbls[k].set(rhs.strip() or "—")
+        # Paint the readiness verdict: green for GO, red for NO-GO.
+        # ``v1e_ready_widget`` is populated when the widget is built
+        # below; guard the lookup so test fixtures that don't render
+        # the panel keep working.
+        w = v1e_ready_widget.get("w")
+        if w is not None:
+            try:
+                w.configure(fg=("#0a7d0a" if st.ready else "#b00020"))
+            except tk.TclError:
+                pass  # widget destroyed mid-refresh; safe to ignore
+
+        # V1-F: render the last-fire + in-progress rows.
+        # V1-F.3: always (re)start the watcher so an idle panel still
+        # picks up a fire that begins later. ``_poll_v1f_progress``
+        # picks the right cadence based on in_flight.
+        in_flight = _render_v1f_status()
+        if v1f_poll_state["after_id"] is None:
+            delay = (_V1F_INPROGRESS_POLL_MS
+                     if in_flight else _V1F_IDLE_POLL_MS)
+            try:
+                v1f_poll_state["after_id"] = root.after(
+                    delay, _poll_v1f_progress)
+            except tk.TclError:
+                pass
+
+    def _on_v1e_arm_today() -> None:
+        try:
+            note = _prompt_note()
+            tok = v1_arm.write_arm_token(note=note)
+        except Exception as e:  # noqa: BLE001
+            messagebox.showerror("Arm today failed",
+                                 f"{type(e).__name__}: {e}")
+            return
+        _append_log(
+            f"[v1-e] armed {tok.date_kst} by {tok.armed_by}@"
+            f"{tok.hostname}"
+            + (f" — {tok.note}" if tok.note else "") + "\n")
+        _refresh_v1e_only()
+
+    def _on_v1e_disarm_today() -> None:
+        st = compute_v1e_status()
+        if not st.armed:
+            messagebox.showinfo(
+                "Disarm",
+                f"Already not armed for {st.today_kst}.")
+            return
+        if not messagebox.askyesno(
+            "Confirm disarm",
+            f"Remove arm token for {st.today_kst}?\n\n"
+            f"The 22:25 KST launchd fire will skip cleanly "
+            f"(rc=0) without trading."):
+            return
+        p = v1_arm.token_path(date_kst=st.today_kst)
+        try:
+            p.unlink()
+        except OSError as e:
+            messagebox.showerror("Disarm failed", str(e))
+            return
+        _append_log(f"[v1-e] disarmed {st.today_kst} (removed {p})\n")
+        _refresh_v1e_only()
+
+    def _on_v1e_open_log(which: str) -> None:
+        st = compute_v1e_status()
+        p = (st.log_out_path if which == "out"
+             else st.log_err_path)
+        if not p.exists():
+            messagebox.showinfo(
+                "Log not found",
+                f"{p}\n\nlaunchd has not produced this log yet. "
+                f"It will appear after the first 22:25 fire (or a "
+                f"test-fire from this panel).")
+            return
+        # macOS: ``open`` launches the default app; on other OSes
+        # we fall back to printing the path so the operator can
+        # tail it manually.
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(p)])
+        else:
+            _append_log(f"[v1-e] tail this file in a terminal: {p}\n")
+
+    def _on_v1e_test_fire() -> None:
+        """One-off manual fire with --no-arm + --no-mail + --no-apply.
+        Same subprocess argv AND the same env injection as the
+        launchd plist so this button verifies the unattended path,
+        not the operator's shell env. Three flags differ:
+
+          ``--no-arm``    skip the arm token (don't consume today's)
+          ``--no-mail``   skip the R11B digest (don't dupe inbox)
+          ``--no-apply``  skip T10 apply (orders submitted before
+                          US market open sit OPEN, daily_runner's
+                          manage_loop bails on time budget, and
+                          t10_applicator policy-aborts on unfilled
+                          orders → rc=2. Test-fire is plumbing-only;
+                          the real launchd fire at 22:35 KST does
+                          the full submit+apply 5min after US open.)
+
+        Failure modes covered by this design:
+
+          * The shell that launched the panel may NOT have
+            ``KIS_ENV=paper`` exported (e.g. the operator runs
+            the panel from a fresh terminal). Without env
+            injection here the test-fire would halt at the env
+            gate with rc=2, which would be a panel-only artefact
+            with no bearing on the launchd path.
+          * Env vars the operator typed by hand AFTER launching
+            the panel cannot retroactively appear in os.environ
+            on Tk's process — injecting LAUNCHD_ENV makes the
+            test-fire deterministic regardless.
+
+        Anything the launchd plist needs ON TOP of the operator's
+        secrets (FMP_API_KEY / GMAIL_APP_PASSWORD / KIS_PAPER_*)
+        is in v1_runner.LAUNCHD_ENV — the SINGLE source of truth.
+        """
+        if not messagebox.askyesno(
+            "Confirm test-fire",
+            "Test-fire the V1 pipeline NOW.\n\n"
+            "This will:\n"
+            "  • run T7 (recommendation generation)\n"
+            "  • build intents\n"
+            "  • paper-submit (orders placed on paper broker)\n"
+            "  • SKIP T10 apply (test-fire is plumbing-only;\n"
+            "    pre-market orders sit OPEN and would policy-abort)\n"
+            "  • NOT consume today's arm token\n"
+            "  • NOT send the R11B digest\n\n"
+            "The panel injects the same env the launchd plist sets "
+            "(KIS_ENV=paper, gates, suppress flag) so this button "
+            "reproduces the 22:35 fire's plumbing.\n\n"
+            "Note: full T10 apply happens automatically at the\n"
+            "22:35 KST launchd fire (5min after US open).\n\n"
+            "Proceed?"):
+            return
+        argv = [
+            sys.executable, "-m", "phase3.autotrade.v1_runner",
+            "run", "--no-arm", "--no-mail", "--no-apply",
+        ]
+        _append_log(
+            f"[v1-e] test-fire: {' '.join(argv)}\n"
+            f"[v1-e] (output streams below)\n")
+        # Reuse the existing streaming helper so the log scroll
+        # behaves identically to manual buttons. We launch in a
+        # background thread to keep the UI responsive.
+        def _bg():
+            rc = _stream_argv_blocking(
+                argv, env_extra=dict(v1_runner.LAUNCHD_ENV))
+            root.after(0, lambda: _append_log(
+                f"[v1-e] test-fire FINISHED rc={rc}\n"))
+            # Full _refresh() (not just V1-E-only) so the Run-section
+            # Run ID box auto-fills with whatever T7 produced. The
+            # daily_runs/ dir gets a fresh ``*_daily`` entry on
+            # success; the panel's panel_state scanner picks the
+            # newest one as ``run_id``. (Operators reported the
+            # V1-E-only refresh leaves the main section showing the
+            # PRIOR run_id — confusing right after a test-fire.)
+            root.after(0, _refresh_v1e_only)
+            root.after(50, _refresh)
+        threading.Thread(target=_bg, daemon=True).start()
+
+    def _on_v1e_install() -> None:
+        if not messagebox.askokcancel(
+            "Install launchd agents (V1-F)",
+            "Run install_v1.sh to register BOTH launchd agents:\n\n"
+            "  • 07:20 KST — T7 prefetch + own recommendation email\n"
+            "  • 22:35 KST — trade fire (reuses morning T7 run)\n\n"
+            "Requires:\n"
+            "  • macOS\n"
+            "  • secrets either exported in this shell OR present\n"
+            "    in ./.env (v1_runner hydrates os.environ from\n"
+            "    .env at startup before any subprocess fires):\n"
+            "      FMP_API_KEY, KIS_APP_KEY, KIS_APP_SECRET,\n"
+            "      KIS_ACCOUNT_NO, KIS_ACCOUNT_PRODUCT_CODE\n"
+            "    (GMAIL_APP_PASSWORD falls back to\n"
+            "     config.local.yaml's email block.)\n\n"
+            "ONE-TIME macOS PROMPT: on the FIRST fire of each\n"
+            "agent, macOS may pop a 'python wants to make changes'\n"
+            "permission dialog. Click Allow — the choice is saved\n"
+            "under System Settings > Privacy & Security and the\n"
+            "popup will NOT reappear on subsequent fires.\n\n"
+            "Proceed?"):
+            return
+        script = (_PHASE3 / "launchd" / "install_v1.sh")
+        if not script.exists():
+            messagebox.showerror(
+                "Install failed",
+                f"install_v1.sh not found at {script}")
+            return
+        argv = [str(script), "install"]
+        _append_log(f"[v1-e] {' '.join(argv)}\n")
+        def _bg():
+            rc = _stream_argv_blocking(argv)
+            root.after(0, lambda: _append_log(
+                f"[v1-e] install rc={rc}\n"))
+            root.after(0, _refresh_v1e_only)
+        threading.Thread(target=_bg, daemon=True).start()
+
+    def _on_v1e_uninstall() -> None:
+        if not messagebox.askyesno(
+            "Uninstall launchd agent",
+            "Remove the 22:25 KST agent?\n\n"
+            "The Mac will stop auto-firing the V1 pipeline. "
+            "Manual panel runs are unaffected."):
+            return
+        script = _PHASE3 / "launchd" / "install_v1.sh"
+        argv = [str(script), "uninstall"]
+        _append_log(f"[v1-e] {' '.join(argv)}\n")
+        def _bg():
+            rc = _stream_argv_blocking(argv)
+            root.after(0, lambda: _append_log(
+                f"[v1-e] uninstall rc={rc}\n"))
+            root.after(0, _refresh_v1e_only)
+        threading.Thread(target=_bg, daemon=True).start()
+
+    def _prompt_note() -> str:
+        """Mini single-line modal for the arm-today audit note."""
+        dlg = tk.Toplevel(root)
+        dlg.title("Arm today — operator note")
+        dlg.transient(root)
+        dlg.grab_set()
+        ttk.Label(
+            dlg, padding=8,
+            text=("Optional note recorded in the token "
+                  "(visible later in 'status'):")
+        ).pack(fill="x")
+        var = tk.StringVar(value="")
+        ttk.Entry(dlg, textvariable=var, width=48).pack(
+            fill="x", padx=8, pady=4)
+        out_box = {"value": ""}
+        def _ok():
+            out_box["value"] = var.get().strip()
+            dlg.destroy()
+        def _cancel():
+            dlg.destroy()
+        btns = ttk.Frame(dlg, padding=4)
+        btns.pack(fill="x")
+        ttk.Button(btns, text="OK (Arm)", command=_ok
+                    ).pack(side="right", padx=4)
+        ttk.Button(btns, text="Cancel", command=_cancel
+                    ).pack(side="right", padx=4)
+        dlg.bind("<Return>", lambda _e: _ok())
+        dlg.bind("<Escape>", lambda _e: _cancel())
+        dlg.wait_window()
+        return out_box["value"]
+
+    # Row 1: arm / disarm / refresh
+    ttk.Button(frm_v1e_btns, text="Arm Today",
+                command=_on_v1e_arm_today).pack(side="left", padx=2)
+    ttk.Button(frm_v1e_btns, text="Disarm Today",
+                command=_on_v1e_disarm_today).pack(side="left", padx=2)
+    ttk.Button(frm_v1e_btns, text="Refresh V1-E",
+                command=_refresh_v1e_only).pack(side="left", padx=2)
+    ttk.Separator(frm_v1e_btns, orient="vertical").pack(
+        side="left", fill="y", padx=6)
+    # Row 1 cont: launchd controls
+    ttk.Button(frm_v1e_btns, text="Test-fire (no arm/mail)",
+                command=_on_v1e_test_fire).pack(side="left", padx=2)
+    ttk.Button(frm_v1e_btns, text="Install launchd",
+                command=_on_v1e_install).pack(side="left", padx=2)
+    ttk.Button(frm_v1e_btns, text="Uninstall launchd",
+                command=_on_v1e_uninstall).pack(side="left", padx=2)
+    ttk.Separator(frm_v1e_btns, orient="vertical").pack(
+        side="left", fill="y", padx=6)
+    ttk.Button(frm_v1e_btns, text="Open out.log",
+                command=lambda: _on_v1e_open_log("out")
+               ).pack(side="left", padx=2)
+    ttk.Button(frm_v1e_btns, text="Open err.log",
+                command=lambda: _on_v1e_open_log("err")
+               ).pack(side="left", padx=2)
 
     # — Run ID row
     frm_rid = ttk.Frame(_body, padding=(8, 0))
@@ -2346,16 +3301,36 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
         return why or "submit outcome dirty"
 
     def _on_full_paper_run():
-        """R11A — one-click coordinator entry point.
+        """R11A (and V1) — one-click coordinator entry point.
+
+        V1 default flow (Skip T7 un-ticked):
+
+          0. T7 generate recommendations  → produces NEW run_id
+          1. generate_intents
+          2. dry_run
+          3. paper_submit
+          4. t10_apply
+
+        Skip-T7 flow (R11A v0): the operator picked a run_id whose
+        ``recommendations.csv`` already exists; T7 is bypassed.
 
         Re-runs the full danger-action revalidation (the same gates
-        ``paper_submit`` and ``t10_apply`` would each enforce), then
-        spawns a background thread that drives ``run_oneclick`` so
-        the Tk main loop stays responsive. Output from each stage's
-        subprocess is streamed into the panel log via the same
-        ``run_subprocess_streaming`` plumbing the manual buttons use.
+        ``paper_submit`` and ``t10_apply`` would each enforce). Then
+        spawns ONE background thread that:
+
+          (i)  if not skip_t7, runs T7 via ``t7_runner.run_t7_generate``
+               and waits for the UI to refresh on the new run_id;
+          (ii) builds the 4-stage R11A plan against that run_id;
+          (iii) drives ``oneclick.run_oneclick``;
+          (iv) sends the R11B EOD digest mail (now including the T7
+               recommendation payload — see V1-D).
+
+        All UI updates from the bg thread go through ``root.after``;
+        the bg thread blocks on a ``threading.Event`` for the
+        post-T7 refresh so the plan reads the new candidates.
         """
         rid = run_id_var.get().strip()
+        skip_t7 = bool(skip_t7_var.get())
         try:
             revalidate_danger_action(
                 action="full_paper_run",
@@ -2368,45 +3343,50 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 dry_run_rc_clean=session["dry_run_rc_clean"],
                 submit_outcome_clean=session["submit_outcome_clean"],
                 oneclick_authorized_checked=oneclick_authorize_var.get(),
+                t7_will_generate=(not skip_t7),
             )
         except DangerActionDenied as e:
             messagebox.showerror("Full Paper Run refused", e.reason)
             _refresh()
             return
 
-        cmd_preview = (
-            "[one-click] generate_intents → dry_run → paper_submit → "
-            "t10_apply (each stage runs the same CLI you would invoke "
-            "by hand)")
+        if skip_t7:
+            cmd_preview = (
+                "[one-click v0] generate_intents → dry_run → "
+                "paper_submit → t10_apply  "
+                "(Skip T7 ticked; recommendations.csv must already exist)")
+            confirm_msg = (
+                "Skip-T7 mode (R11A v0): T7 will NOT run.\n\n"
+                "  1. generate_intents (overwrites submitted_intents.json)\n"
+                "  2. dry_run\n"
+                "  3. paper_submit\n"
+                "  4. t10_apply (real)\n\n"
+                "Proceed?"
+            )
+        else:
+            cmd_preview = (
+                "[one-click v1] T7 → generate_intents → dry_run → "
+                "paper_submit → t10_apply  "
+                "(T7 produces a fresh run_id; R11B EOD digest follows)")
+            confirm_msg = (
+                "V1 Full Auto Run: T7 then R11A in one shot.\n\n"
+                "  0. T7 (recommendation generation, ~1–2 min)\n"
+                "  1. generate_intents\n"
+                "  2. dry_run\n"
+                "  3. paper_submit\n"
+                "  4. t10_apply (real)\n\n"
+                "T7's own recommendation email is suppressed; the "
+                "R11B EOD digest delivers both T7 + execution payloads.\n\n"
+                "All danger gates are armed. Stay at the keyboard.\n\n"
+                "Proceed?"
+            )
         _set_preview(cmd_preview)
-        if not messagebox.askokcancel(
-            "Confirm one-click Full Paper Run",
-            "This will run every stage in sequence and HALT on the "
-            "first non-zero rc or dirty post-check:\n\n"
-            "  1. generate_intents (overwriting submitted_intents.json)\n"
-            "  2. dry_run\n"
-            "  3. paper_submit\n"
-            "  4. t10_apply (real)\n\n"
-            "All danger gates are armed; the operator must stay at "
-            "the keyboard to STOP if anything looks off.\n\nProceed?"):
+        if not messagebox.askokcancel("Confirm Full Paper Run", confirm_msg):
             return
 
-        run_dir = Path(output_dir) / "daily_runs" / rid
-        run_dir.mkdir(parents=True, exist_ok=True)
-        marker_path = run_dir / oneclick.MARKER_FILENAME
-
-        plan = build_full_paper_run_plan(
-            run_id=rid,
-            generate_intents_fn=_run_generate_all_intents_blocking,
-            dry_run_argv=_build_dry_run_argv(rid, profile="paper"),
-            paper_submit_argv=_build_paper_submit_argv(
-                rid, profile="paper"),
-            paper_submit_env_extra=_build_mgmt_env(),
-            t10_apply_argv=_build_t10_argv(
-                rid, apply_mode=True, profile="paper"),
-            stream_argv_blocking=_stream_argv_blocking,
-            submit_outcome_check_fn=_submit_outcome_post_check,
-        )
+        # We hold the run_id in a mutable list so the bg thread can
+        # rewrite it after T7 without losing closure semantics.
+        rid_box: List[str] = [rid]
 
         # Lock the UI for the duration of the coordinator run.
         for b in btns.values():
@@ -2436,9 +3416,124 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 f"{out.halt_reason}\n")
 
         def _run_in_bg() -> None:
+            # V1-B — T7 prefix stage. We run T7 OUTSIDE the
+            # oneclick_coordinator because T7 produces the run_id
+            # that the coordinator's plan needs; running it as a
+            # coordinator-managed stage would require either a
+            # mutable-run_id contract (risky) or a deferred plan
+            # builder (complex). Treating T7 as a "stage 0" prefix
+            # keeps the coordinator contract frozen (11 unit tests
+            # untouched, validated live on 20260526_223714_daily)
+            # and lets V1 layer cleanly on top.
+            t7_payload: Optional[Dict[str, Any]] = None
+            if not skip_t7:
+                _ui_log("\n[one-click] ── Stage 0: T7 "
+                        "(recommendation generation) ──\n")
+                # V1 (and the autotrade pipeline overall) is paper-
+                # only. The panel + v1_runner both subprocess
+                # daily_runner with ``--profile paper`` which maps
+                # to ``phase3/config.yaml`` — so T7 MUST also use
+                # that file or its run_id lands under output_real/
+                # while paper_submit hunts under output/. Live bug
+                # @ 2026-05-27 13:14 — kept both lookups symmetric.
+                t7_cfg_path = _PHASE3 / "config.yaml"
+                if not t7_cfg_path.exists():
+                    t7_cfg_path = _PHASE3 / "config_real.yaml"
+                try:
+                    t7_result = t7_runner.run_t7_generate(
+                        config_path=t7_cfg_path,
+                        suppress_mail=True,
+                        on_progress=lambda m: _ui_log(m + "\n"),
+                    )
+                except Exception as e:  # noqa: BLE001
+                    _ui_log(
+                        f"\n[one-click] T7 crashed: "
+                        f"{type(e).__name__}: {e}\n")
+                    root.after(0, _unlock_buttons)
+                    return
+                t7_payload = {
+                    "ok": bool(t7_result.ok),
+                    "rc": int(t7_result.rc),
+                    "run_id": t7_result.run_id,
+                    "recommendations_count":
+                        int(t7_result.recommendations_count),
+                    "duration_sec": float(t7_result.duration_sec),
+                    "error": t7_result.error,
+                    "stdout_tail": t7_result.stdout_tail,
+                    "stderr_tail": t7_result.stderr_tail,
+                    "suppressed_mail": True,
+                }
+                if not t7_result.ok:
+                    _ui_log(
+                        f"\n[one-click] HALTED at T7: "
+                        f"{t7_result.error}\n")
+                    root.after(0, _unlock_buttons)
+                    return
+                rid_box[0] = t7_result.run_id
+                _ui_log(
+                    f"[one-click] T7 OK — run_id={t7_result.run_id} "
+                    f"recs={t7_result.recommendations_count} "
+                    f"duration={t7_result.duration_sec:.1f}s\n")
+
+                # Sync UI to the new run_id and wait for _refresh()
+                # to populate intent_state on the main thread. The
+                # generate_intents stage below reads candidates from
+                # intent_state, so we MUST block here until the
+                # refresh fully completes — otherwise the plan would
+                # see the old run's candidates (or none).
+                refresh_done = threading.Event()
+                refresh_err: List[str] = []
+
+                def _ui_update_after_t7():
+                    try:
+                        run_id_var.set(rid_box[0])
+                        _refresh()
+                    except Exception as e:  # noqa: BLE001
+                        refresh_err.append(
+                            f"{type(e).__name__}: {e}")
+                    finally:
+                        refresh_done.set()
+                root.after(0, _ui_update_after_t7)
+                if not refresh_done.wait(timeout=30):
+                    _ui_log("\n[one-click] HALTED: UI refresh after "
+                            "T7 timed out (30s).\n")
+                    root.after(0, _unlock_buttons)
+                    return
+                if refresh_err:
+                    _ui_log(f"\n[one-click] HALTED: UI refresh after "
+                            f"T7 failed: {refresh_err[0]}\n")
+                    root.after(0, _unlock_buttons)
+                    return
+
+            # Now build the plan for the resolved run_id (which is
+            # either operator-typed if skip_t7, or T7-generated).
+            rid_local = rid_box[0]
+            if not rid_local:
+                _ui_log("[one-click] HALTED: no run_id resolved "
+                        "after T7 stage\n")
+                root.after(0, _unlock_buttons)
+                return
+            run_dir = Path(output_dir) / "daily_runs" / rid_local
+            run_dir.mkdir(parents=True, exist_ok=True)
+            marker_path = run_dir / oneclick.MARKER_FILENAME
+
+            plan = build_full_paper_run_plan(
+                run_id=rid_local,
+                generate_intents_fn=_run_generate_all_intents_blocking,
+                dry_run_argv=_build_dry_run_argv(
+                    rid_local, profile="paper"),
+                paper_submit_argv=_build_paper_submit_argv(
+                    rid_local, profile="paper"),
+                paper_submit_env_extra=_build_mgmt_env(),
+                t10_apply_argv=_build_t10_argv(
+                    rid_local, apply_mode=True, profile="paper"),
+                stream_argv_blocking=_stream_argv_blocking,
+                submit_outcome_check_fn=_submit_outcome_post_check,
+            )
+
             try:
                 result = oneclick.run_oneclick(
-                    run_id=rid,
+                    run_id=rid_local,
                     stages=plan,
                     marker_path=marker_path,
                     on_stage_start=_on_start,
@@ -2455,10 +3550,12 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                 f"\n[one-click] FINISHED — overall_rc={result.overall_rc} "
                 f"halt_reason={result.halt_reason!r} "
                 f"duration={result.duration_sec:.1f}s\n")
-            # R11B — post-trade SMTP. Independent of overall_rc:
-            # we mail the operator on success AND on halt because
-            # halt is exactly when they need to know. Failure to
-            # send is logged but does not change overall_rc / state.
+            # R11B — post-trade SMTP EOD digest. Independent of
+            # overall_rc: we mail on success AND on halt because halt
+            # is exactly when the operator needs to know. V1-D folds
+            # the T7 payload (recommendation count, suppressed-mail
+            # flag) into the same digest so the operator gets a
+            # single message per daily run.
             try:
                 stage_outcomes_for_mail = [
                     {
@@ -2469,18 +3566,15 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
                     }
                     for o in result.stages
                 ]
-                # Resolve config explicitly so we can surface the
-                # source ("t7_config" vs "env") in the panel log —
-                # operators triaging "did the mail actually go?" want
-                # to see which credential path was used.
                 mail_cfg = smtp_mailer.resolve_smtp_config()
                 mail_result = smtp_mailer.send_run_summary_mail(
-                    run_dir=run_dir, run_id=rid,
+                    run_dir=run_dir, run_id=rid_local,
                     profile="paper",
                     overall_rc=result.overall_rc,
                     halt_reason=result.halt_reason,
                     duration_sec=result.duration_sec,
                     stage_outcomes=stage_outcomes_for_mail,
+                    t7_payload=t7_payload,
                 )
                 src = mail_cfg.source
                 if mail_result.ok:
@@ -2506,9 +3600,9 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
             root.after(0, _unlock_buttons)
             # Refresh session state after the run.
             def _post_refresh():
-                if output_dir is not None and rid:
+                if output_dir is not None and rid_local:
                     clean, _why = submit_outcome_is_clean(
-                        Path(output_dir) / "daily_runs" / rid)
+                        Path(output_dir) / "daily_runs" / rid_local)
                     session["submit_outcome_clean"] = clean
                 # Auto-disarm so a second click cannot replay the
                 # exact same plan without the operator re-affirming.
@@ -2629,6 +3723,15 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
         frm_conf,
         text="I authorize ONE-CLICK Full Paper Run (R11A)",
         variable=oneclick_authorize_var,
+        command=lambda: _refresh(),
+    ).pack(side="left", padx=8)
+    # V1-B — Skip T7 modifier. Default unchecked = run T7 first
+    # (V1 behaviour). Tick to fall back to v0 (operator-typed run_id,
+    # recommendations.csv must already exist on disk).
+    ttk.Checkbutton(
+        frm_conf,
+        text="Skip T7 (use already-generated run_id)",
+        variable=skip_t7_var,
         command=lambda: _refresh(),
     ).pack(side="left", padx=8)
 
@@ -2796,6 +3899,13 @@ def launch_panel() -> None:  # pragma: no cover — Tk loop is interactive
 
     # — Refresh logic
     def _refresh():
+        # V1-E section is independent of the artifact selection — even
+        # when phase3 config is unloadable we still want to show the
+        # arm-token + launchd state.
+        try:
+            _refresh_v1e_only()
+        except Exception:  # noqa: BLE001
+            pass
         rid = run_id_var.get().strip()
         if output_dir is None:
             for v in run_lbls.values():

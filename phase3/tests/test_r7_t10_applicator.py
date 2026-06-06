@@ -457,7 +457,13 @@ class TestMissingCcnlAborts(_BaseFixture):
 # 6. filled_qty=0 aborts
 # ──────────────────────────────────────────────────────────────────────
 class TestZeroFillAborts(_BaseFixture):
-    def test_ccnl_zero_fill_aborts(self) -> None:
+    def test_ccnl_zero_fill_is_benign_skip(self) -> None:
+        """V1-H — a lone zero-fill (order placed, broker-confirmed 0
+        filled, e.g. a reprice-ceiling cancel) is no longer a batch
+        ABORT (rc=1). It is a clean no-op (rc=0): nothing to apply,
+        nothing mutated, but NOT an operator-action error. Pre-V1-H
+        this returned rc=1 which hard-stopped the unattended fire and
+        raised a false 'Operator action required' (5/29 HPE)."""
         run_id = "20260515_TEST_dailyF"
         _write_run_dir(
             self.base, run_id,
@@ -469,13 +475,14 @@ class TestZeroFillAborts(_BaseFixture):
         )
         ta._count_checkable = lambda _r: 1  # type: ignore[assignment]
         args = _make_args(run_id=run_id, dry_run=True)
-        rc, _, _, _, hm, recorder = _capture_run(
+        rc, out, _, _, hm, recorder = _capture_run(
             args,
             ccnl_rows=[_ccnl_row(odno="33333", ticker="Z",
                                  ord_qty=2, filled_qty=0,
                                  filled_price=0.0)],
         )
-        self.assertEqual(rc, 1)
+        self.assertEqual(rc, 0)
+        self.assertIn("clean no-op", out)
         self.assertEqual(hm.apply_calls, [])
         self.assertEqual(recorder.calls, [])
 
@@ -527,6 +534,97 @@ class TestPartialFillAborts(_BaseFixture):
         self.assertEqual(rc, 0, msg=err)
         self.assertIn("partially_filled", out)
         self.assertIn("would apply", out)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# V1-H — per-ticker resilience: a zero-fill sibling must NOT abort the
+# batch; the ticker that DID fill still applies.
+# ──────────────────────────────────────────────────────────────────────
+class TestPartialBatchResilience(_BaseFixture):
+    def test_one_filled_one_zero_fill_applies_only_the_fill(self) -> None:
+        """Reproduces the fixed 5/29 shape: ticker A gaps away and
+        cannot fill (zero), ticker B fills cleanly. Pre-V1-H the
+        zero-fill 'blocked' the whole batch (rc=1, NOTHING applied,
+        state drift). Post-V1-H A is a benign skip and B applies
+        normally (rc=0)."""
+        run_id = "20260515_TEST_dailyMIX"
+        run_dir = _write_run_dir(
+            self.base, run_id,
+            submitted_intents=[
+                {"rec_row_id": 90, "ticker": "MISS",
+                 "qty": 2, "broker_order_id": "0000044440"},
+                {"rec_row_id": 91, "ticker": "FILL",
+                 "qty": 3, "broker_order_id": "0000044441"},
+            ],
+            recos=[
+                {"RunId": run_id, "RecRowId": 90, "Ticker": "MISS",
+                 "Action": "BUY_NEW", "Shares": 2, "Price": 40.0,
+                 "Score": 70, "Regime": "SIDE", "Rank": 1},
+                {"RunId": run_id, "RecRowId": 91, "Ticker": "FILL",
+                 "Action": "BUY_MORE", "Shares": 3, "Price": 25.0,
+                 "Score": 80, "Regime": "RISK_ON", "Rank": 2},
+            ],
+        )
+        ta._count_checkable = lambda _r: 2  # type: ignore[assignment]
+        os.environ[ta.APPLY_ENV_GATE] = "true"
+        try:
+            args = _make_args(run_id=run_id, dry_run=False, apply=True)
+            rc, out, err, _, hm, recorder = _capture_run(
+                args,
+                ccnl_rows=[
+                    _ccnl_row(odno="44440", ticker="MISS",
+                              ord_qty=2, filled_qty=0, filled_price=0.0),
+                    _ccnl_row(odno="44441", ticker="FILL",
+                              ord_qty=3, filled_qty=3, filled_price=24.9),
+                ],
+            )
+            self.assertEqual(rc, 0, msg=err)
+            # Only FILL applied; MISS skipped.
+            self.assertEqual(len(hm.apply_calls), 1)
+            applied = hm.apply_calls[0]
+            self.assertEqual(list(applied["Ticker"]), ["FILL"])
+            self.assertEqual(int(applied["Shares"].iloc[0]), 3)
+            self.assertEqual(len(recorder.calls), 1)
+            self.assertEqual(recorder.calls[0]["executed_rows"], 1)
+        finally:
+            os.environ.pop(ta.APPLY_ENV_GATE, None)
+
+    def test_one_filled_one_partial_still_aborts_whole_batch(self) -> None:
+        """Guardrail: a PARTIAL fill (real shares changed hands) is NOT
+        a benign skip — it still conservatively aborts the whole batch
+        without --allow-partial, so we never silently drop a partial."""
+        run_id = "20260515_TEST_dailyMIX2"
+        _write_run_dir(
+            self.base, run_id,
+            submitted_intents=[
+                {"rec_row_id": 92, "ticker": "PART",
+                 "qty": 5, "broker_order_id": "0000044450"},
+                {"rec_row_id": 93, "ticker": "FILL2",
+                 "qty": 3, "broker_order_id": "0000044451"},
+            ],
+            recos=[
+                {"RunId": run_id, "RecRowId": 92, "Ticker": "PART",
+                 "Action": "BUY_NEW", "Shares": 5, "Price": 40.0,
+                 "Score": 70, "Regime": "SIDE", "Rank": 1},
+                {"RunId": run_id, "RecRowId": 93, "Ticker": "FILL2",
+                 "Action": "BUY_MORE", "Shares": 3, "Price": 25.0,
+                 "Score": 80, "Regime": "RISK_ON", "Rank": 2},
+            ],
+        )
+        ta._count_checkable = lambda _r: 2  # type: ignore[assignment]
+        args = _make_args(run_id=run_id, dry_run=True)
+        rc, out, _, _, hm, recorder = _capture_run(
+            args,
+            ccnl_rows=[
+                _ccnl_row(odno="44450", ticker="PART",
+                          ord_qty=5, filled_qty=2, filled_price=40.1),
+                _ccnl_row(odno="44451", ticker="FILL2",
+                          ord_qty=3, filled_qty=3, filled_price=24.9),
+            ],
+        )
+        self.assertEqual(rc, 1)
+        self.assertEqual(hm.apply_calls, [])
+        self.assertEqual(recorder.calls, [])
 
 
 # ──────────────────────────────────────────────────────────────────────

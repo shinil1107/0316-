@@ -1350,14 +1350,107 @@ def backfill_cache(cfg, tickers: List[str], scan_days: int = 180, max_gap_days: 
 # Universe delta
 # ─────────────────────────────────────────────
 
-def _print_universe_delta(scores_df: pd.DataFrame, hm, cfg, regime: str) -> str:
-    """Print and return top-N universe changes vs previous recommendations."""
+def _regime_top_n(cfg, regime: str) -> int:
+    """Resolve the active top-N for a regime (same rule as the universe delta)."""
     if regime == "BULL":
-        top_n = cfg.regime_bull_top_n
-    elif regime in ("DEFENSIVE", "CRASH"):
-        top_n = cfg.regime_defensive_top_n
-    else:
-        top_n = cfg.regime_side_top_n
+        return cfg.regime_bull_top_n
+    if regime in ("DEFENSIVE", "CRASH"):
+        return cfg.regime_defensive_top_n
+    return cfg.regime_side_top_n
+
+
+def _movement_cell(primary: str, tags: str) -> str:
+    """Compact Movement-column text for the combined universe table.
+
+    Only surfaces labels the operator should act on. SIDEWAYS with no
+    notable tags renders empty so the column stays quiet for boring rows.
+    The raw label words (RISING/FALLING/FAST_RISER/NEW_ENTRY) are kept
+    verbatim so the HTML mailer can colour them.
+    """
+    primary = (primary or "").strip()
+    tagset = [x.strip() for x in (tags or "").split(",") if x.strip()]
+    parts: List[str] = []
+    if primary in ("RISING", "FALLING"):
+        parts.append(primary)
+    for tg in ("FAST_RISER", "NEW_ENTRY"):
+        if tg in tagset and tg not in parts:
+            parts.append(tg)
+    if parts:
+        return " ".join(parts)
+    # No directional move — keep the column quiet, but surface the stable-core
+    # marker (rendered neutral/black by the mailer) so the operator can see it.
+    if "CORE_STABLE" in tagset:
+        return "CORE_STABLE"
+    return ""
+
+
+# Resolved at import time below; the backfill pack is optional history.
+def _compute_movement_labels_df(conf, today_scores_df, run_dir, top_n, target_tickers):
+    """Run the Top-N movement classifier once and return the raw labels frame.
+
+    ``today_scores_df`` may be the in-memory scores frame (preferred, so we
+    do not depend on the run_dir artifact existing yet) or ``None`` to load
+    ``run_dir/scores.csv``. Returns ``None`` on any failure — labels are a
+    reporting lens, never a gate.
+    """
+    try:
+        from topn_movement_classifier import (
+            MovementConfig,
+            classify_topn_movement,
+            discover_recent_score_csvs,
+            load_score_snapshots,
+            load_scores_csv,
+        )
+
+        if today_scores_df is not None and not getattr(today_scores_df, "empty", True):
+            today_scores = today_scores_df
+        else:
+            current_scores_path = Path(run_dir) / "scores.csv" if run_dir else None
+            if not current_scores_path or not current_scores_path.exists():
+                return None
+            today_scores = load_scores_csv(current_scores_path)
+
+        output_daily_runs = Path(conf["paths"]["output_dir"]).expanduser() / "daily_runs"
+        history_paths: List[Path] = []
+        if _MOVEMENT_BACKFILL_DAILY_RUNS.exists():
+            history_paths.extend(sorted(_MOVEMENT_BACKFILL_DAILY_RUNS.glob("*/scores.csv")))
+        history_paths.extend(
+            discover_recent_score_csvs(
+                output_daily_runs, limit=80, suffix="_daily", include_shadow=False,
+            )
+        )
+        cur_resolved = (Path(run_dir) / "scores.csv").resolve() if run_dir else None
+        seen: set = set()
+        deduped: List[Path] = []
+        for p in history_paths:
+            rp = Path(p).resolve()
+            if rp == cur_resolved or rp in seen:
+                continue
+            seen.add(rp)
+            deduped.append(p)
+        history_scores = load_score_snapshots(deduped)
+
+        labels = classify_topn_movement(
+            today_scores=today_scores,
+            history_scores=history_scores,
+            config=MovementConfig(top_n=int(top_n or 20)),
+            target_tickers=list(target_tickers) if target_tickers is not None else None,
+        )
+        return labels
+    except Exception as e:  # noqa: BLE001 — report-only, never fatal
+        print(f"  [WARN] Movement label compute failed: {type(e).__name__}: {e}")
+        return None
+
+
+def _print_universe_delta(scores_df: pd.DataFrame, hm, cfg, regime: str,
+                          labels_df=None, verbose: bool = True) -> str:
+    """Print and return top-N universe changes vs previous recommendations.
+
+    Renders a SINGLE combined table of today's top-N ascending by rank, with
+    a Movement column (rank-movement labels) merged in from ``labels_df``.
+    Tickers that dropped out of the top-N are listed compactly below.
+    """
+    top_n = _regime_top_n(cfg, regime)
 
     today_ranked = scores_df.dropna(subset=["Price"]).reset_index(drop=True)
     today_top = set(today_ranked.head(top_n)["Ticker"].tolist())
@@ -1409,40 +1502,55 @@ def _print_universe_delta(scores_df: pd.DataFrame, hm, cfg, regime: str) -> str:
         )
     lines.append(f"GET_IN={len(get_in)}  REMAIN={len(remain)}  GET_OUT={len(get_out)}")
 
-    if remain:
-        lines.append(f"\n{'Ticker':>8s}  {'Prev':>5s}  {'Now':>5s}  {'Delta':>6s}  {'Score':>6s}")
-        rows = []
-        for t in remain:
-            p_r = prev_rank.get(t, 0)
-            t_r = today_rank.get(t, 0)
-            delta = p_r - t_r if (p_r > 0 and t_r > 0) else 0
-            score = float(today_ranked.loc[today_ranked["Ticker"] == t, "Score"].iloc[0]) \
-                if not today_ranked[today_ranked["Ticker"] == t].empty else 0
-            rows.append((t, p_r, t_r, delta, score))
-        for t, p_r, t_r, delta, score in sorted(rows, key=lambda x: x[2]):
-            d_str = f"+{delta}" if delta > 0 else str(delta)
-            marker = " ▲" if delta > 0 else (" ▼" if delta < 0 else "  ")
-            lines.append(f"{t:>8s}  {p_r:5d}  {t_r:5d}  {d_str:>5s}{marker}  {score:6.1f}")
+    # Movement label lookup (report-only): ticker -> (primary_label, tags).
+    label_map: Dict[str, tuple] = {}
+    if labels_df is not None and not getattr(labels_df, "empty", True):
+        for _, lr in labels_df.iterrows():
+            label_map[str(lr.get("ticker", "")).upper()] = (
+                str(lr.get("primary_label", "") or ""),
+                str(lr.get("tags", "") or ""),
+            )
 
-    if get_in:
-        lines.append(f"\nGET_IN (new):")
-        for t in sorted(get_in, key=lambda x: today_rank.get(x, 999)):
-            r = today_rank.get(t, 0)
-            score = float(today_ranked.loc[today_ranked["Ticker"] == t, "Score"].iloc[0]) \
-                if not today_ranked[today_ranked["Ticker"] == t].empty else 0
-            lines.append(f"  {t:>8s}  rank={r:2d}  score={score:.1f}")
+    # Single combined table — every ticker in today's top-N, ascending by rank.
+    lines.append(
+        f"\n{'Rank':>4s}  {'Ticker':>7s}  {'Prev':>5s}  {'Delta':>7s}  "
+        f"{'Score':>6s}  Movement"
+    )
+    combined = []
+    for t in today_top:
+        t_r = today_rank.get(t, 0)
+        p_r = prev_rank.get(t, 0)
+        sub = today_ranked[today_ranked["Ticker"] == t]
+        score = float(sub["Score"].iloc[0]) if not sub.empty else 0.0
+        combined.append((t, p_r, t_r, score))
+    for t, p_r, t_r, score in sorted(combined, key=lambda x: (x[2] if x[2] > 0 else 9999)):
+        if p_r > 0 and t_r > 0:
+            delta = p_r - t_r
+            d_str = f"+{delta}" if delta > 0 else str(delta)
+            marker = "▲" if delta > 0 else ("▼" if delta < 0 else " ")
+            prev_txt = f"{p_r:5d}"
+            delta_txt = f"{d_str:>4s} {marker}"
+        else:
+            prev_txt = f"{'NEW':>5s}"
+            delta_txt = f"{'new':>4s} ▲"
+        primary, tags = label_map.get(t, ("", ""))
+        cell = _movement_cell(primary, tags)
+        lines.append(
+            f"{t_r:4d}  {t:>7s}  {prev_txt}  {delta_txt:>7s}  {score:6.1f}  {cell}".rstrip()
+        )
 
     if get_out:
-        lines.append(f"\nGET_OUT (dropped):")
+        lines.append(f"\nGET_OUT (dropped from top-{top_n}):")
         for t in sorted(get_out, key=lambda x: prev_rank.get(x, 999)):
             p_r = prev_rank.get(t, 0)
             t_r = today_rank.get(t, 0)
             label = f"now #{t_r}" if t_r > 0 else "unranked"
-            lines.append(f"  {t:>8s}  was #{p_r:2d} → {label}")
+            lines.append(f"  {t:>7s}  was #{p_r:2d} → {label}")
 
     text = "\n".join(lines)
-    for line in lines:
-        print(f"  {line}")
+    if verbose:
+        for line in lines:
+            print(f"  {line}")
     return text
 
 
@@ -1738,6 +1846,80 @@ def _shadow_auto_expire(conf: dict, shadow_conf: dict) -> None:
 
 
 # ─────────────────────────────────────────────
+# Top-N movement labels (report-only; email lens)
+# ─────────────────────────────────────────────
+
+# Initial-period history fallback. The live ``output/daily_runs`` only has a
+# handful of ``*_daily`` snapshots so far, so we seed rank history from the
+# backfilled source-of-truth replay. Once enough live daily scores accumulate
+# this constant can be dropped and the helper will rely on live runs alone
+# (see docs/CURSOR_HANDOFF_TOPN_MOVEMENT_MAIL_LABELS_20260605.md §History).
+_MOVEMENT_BACKFILL_DAILY_RUNS = Path(
+    "/Users/shin-il/PyCharmMiscProject/0316-/phase3/docs/topn_movement_classifier/"
+    "score_history_backfill/score_backfill_pack_replay_20260605_212314/daily_runs"
+)
+
+
+def _attach_movement_labels_for_mail(conf, recos, run_dir, top_n, labels_df=None):
+    """Attach Top-N rank-movement labels to a COPY of ``recos`` for the email.
+
+    Report-only: never mutates the caller's ``recos`` (used for artifact /
+    execution / state). Returns ``(recos_for_mail, movement_text)``. Any failure
+    is swallowed and degrades to the unlabelled table — labels are a reporting
+    lens, never a gate.
+
+    ``labels_df`` may be a precomputed classifier frame (so the universe-delta
+    table and these inline badges stay consistent and we classify only once).
+    When omitted it is computed from ``run_dir/scores.csv``.
+    """
+    if recos is None or getattr(recos, "empty", True):
+        return recos, ""
+
+    recos_for_mail = recos.copy()
+    try:
+        from topn_movement_classifier import format_movement_email_section
+
+        labels = labels_df
+        if labels is None:
+            labels = _compute_movement_labels_df(
+                conf, None, run_dir, top_n, recos_for_mail["Ticker"].tolist(),
+            )
+        if labels is None or getattr(labels, "empty", True):
+            return recos_for_mail, ""
+
+        label_cols = labels[[
+            "ticker",
+            "primary_label",
+            "tags",
+            "delta_rank_1d",
+            "delta_rank_3d",
+            "delta_rank_5d",
+            "delta_rank_10d",
+            "topn_presence_10d",
+            "reason",
+        ]].rename(columns={
+            "ticker": "Ticker",
+            "primary_label": "MovementLabel",
+            "tags": "MovementTags",
+            "delta_rank_1d": "RankDelta1d",
+            "delta_rank_3d": "RankDelta3d",
+            "delta_rank_5d": "RankDelta5d",
+            "delta_rank_10d": "RankDelta10d",
+            "topn_presence_10d": "TopNPresence10d",
+            "reason": "MovementReason",
+        })
+
+        recos_for_mail["Ticker"] = recos_for_mail["Ticker"].astype(str).str.upper()
+        recos_for_mail = recos_for_mail.merge(label_cols, on="Ticker", how="left")
+        movement_text = format_movement_email_section(labels)
+        return recos_for_mail, movement_text
+
+    except Exception as e:  # noqa: BLE001 — report-only, never fatal
+        print(f"  [WARN] Movement label build failed: {type(e).__name__}: {e}")
+        return recos_for_mail, ""
+
+
+# ─────────────────────────────────────────────
 # Main orchestrator
 # ─────────────────────────────────────────────
 
@@ -1891,6 +2073,7 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
     trigger_actionable = bool(triggers)
     daily_limit = 0.0
     universe_delta_text = ""
+    _movement_labels_df = None
 
     pack = None  # set by step 5; needed by shadow pass
 
@@ -2026,8 +2209,29 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
             buy_grace_blocked=_buy_grace_blocked,
         )
 
-        # ── Universe Delta: compare today's top-N vs previous ──
-        universe_delta_text = _print_universe_delta(scores_df, hm, cfg, regime)
+        # ── Top-N movement labels (report-only): classify ONCE here, then
+        # feed both the combined Universe-Delta table and the inline TODO
+        # badges so they stay consistent. scores_df is used in-memory so we
+        # do not depend on the run_dir scores.csv artifact existing yet.
+        _top_n_rd = _regime_top_n(cfg, regime)
+        _today_top_tickers = (
+            scores_df.dropna(subset=["Price"]).head(_top_n_rd)["Ticker"]
+            .astype(str).str.upper().tolist()
+            if scores_df is not None and not scores_df.empty else []
+        )
+        _reco_tickers = (
+            recos["Ticker"].astype(str).str.upper().tolist()
+            if recos is not None and not recos.empty else []
+        )
+        _target_tickers = list(dict.fromkeys(_today_top_tickers + _reco_tickers))
+        _movement_labels_df = _compute_movement_labels_df(
+            conf, scores_df, run_dir, _top_n_rd, _target_tickers,
+        )
+
+        # ── Universe Delta: single combined table (vs previous) w/ labels ──
+        universe_delta_text = _print_universe_delta(
+            scores_df, hm, cfg, regime, labels_df=_movement_labels_df,
+        )
 
         _ne = lambda col: recos[recos["Action"] == col] if not recos.empty and "Action" in recos.columns else pd.DataFrame()
         stop_losses = _ne("STOP_LOSS")
@@ -2207,13 +2411,53 @@ def run_daily(dry_run: bool = False, force: bool = False, config_path: str = Non
             shadow_email_text = (shadow_email_text + "\n" + shadow_ledger_text).strip()
 
     # 8. Send email
-    if not dry_run and conf.get("email", {}).get("enabled", False):
+    # V1: when called from phase3.autotrade.t7_runner, the autotrade
+    # coordinator suppresses this email so the post-trade R11B EOD
+    # digest can fold T7 + execution payloads into a single message.
+    # The env-var contract is owned by ``phase3.autotrade.t7_runner.
+    # SUPPRESS_T7_MAIL_ENV`` — change there too if you rename.
+    _v1_suppress_t7_mail = str(os.environ.get(
+        "AUTOTRADE_V1_SUPPRESS_T7_MAIL", "")).strip().lower() in (
+            "1", "true", "yes", "y", "on")
+    if _v1_suppress_t7_mail:
+        print("  [V1] T7 email suppressed (AUTOTRADE_V1_SUPPRESS_T7_MAIL); "
+              "R11B EOD digest will deliver the payload.")
+    # V2 — non-trading-day preview: the T7 prefetch on weekends/holidays runs
+    # in dry-run mode so it MUTATES NO state (no save_recommendations / grace /
+    # daily_log), yet the operator still wants the recommendation email. When
+    # ``AUTOTRADE_DRYRUN_SEND_MAIL`` is set the dry-run is allowed to mail.
+    # Default dry-runs (panel checks, tests) stay silent.
+    _dryrun_send_mail = str(os.environ.get(
+        "AUTOTRADE_DRYRUN_SEND_MAIL", "")).strip().lower() in (
+            "1", "true", "yes", "y", "on")
+    _mail_allowed_for_mode = (not dry_run) or _dryrun_send_mail
+    if not _v1_suppress_t7_mail and _mail_allowed_for_mode and conf.get("email", {}).get("enabled", False):
         try:
             from mailer import send_daily_email
-            send_daily_email(conf, triggers, recos, vix_close, regime, hm, health,
+            # Report-only Top-N movement labels on a COPY of recos. The original
+            # ``recos`` already drove artifact/recommendation/state above; these
+            # labels are an email lens only and never feed signals or trades.
+            recos_for_mail, movement_text = _attach_movement_labels_for_mail(
+                conf=conf,
+                recos=recos,
+                run_dir=run_dir,
+                top_n=_regime_top_n(cfg, regime),
+                labels_df=_movement_labels_df,
+            )
+            preview_note = ""
+            if dry_run and _dryrun_send_mail:
+                preview_note = (
+                    "*** NON-TRADING-DAY PREVIEW (dry-run) ***\n"
+                    "  Market is closed today — NO trade fire will run and NO\n"
+                    "  state was changed (recommendations/grace/daily-log NOT\n"
+                    "  persisted). This mail is for reference only."
+                )
+            send_daily_email(conf, triggers, recos_for_mail, vix_close, regime, hm, health,
                              computed_daily_limit=daily_limit,
                              universe_delta_text=universe_delta_text,
-                             shadow_text=shadow_email_text)
+                             shadow_text=shadow_email_text,
+                             movement_text=movement_text,
+                             preview_note=preview_note)
             print("  Email sent.")
         except Exception as e:
             print(f"  [WARN] Email failed: {e}")
@@ -2232,5 +2476,35 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true", help="Check only, no state changes")
     parser.add_argument("--force-rebalance", action="store_true", help="Force trigger (used in event-driven mode)")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
+    # V1-F.3 — escape hatch for the "cache was already populated by an
+    # earlier same-day manual T7, so update_cache thought everything
+    # was fresh and skipped the FMP fetch" failure mode. Use this to
+    # force-redownload last N days unconditionally before running T7,
+    # then re-run T7 and compare recommendations against the suspect
+    # run. Mirrors the launcher.py T15 button but lets you do it
+    # headlessly with a smaller window (default 7 days vs T15's 90).
+    parser.add_argument("--force-overwrite-recent", type=int,
+                         metavar="DAYS", default=0,
+                         help=("Force re-download last N days of OHLCV "
+                               "for the full universe (and VIX). 0=off. "
+                               "Runs BEFORE the daily flow; combine with "
+                               "--force-rebalance to also recompute T7."))
     args = parser.parse_args()
+    if args.force_overwrite_recent > 0:
+        # We need a config-loaded universe to feed force_overwrite.
+        # Reuse the same config loader the main flow uses, then bail
+        # out before run_daily unless --force-rebalance was also set.
+        _cfg = load_config(args.config)
+        from engine_loader import engine as _engine
+        _tickers, _ = _engine.load_sp500_tickers_ttl(_cfg, ttl_days=30)
+        print(f"[force-overwrite] universe size: {len(_tickers)}")
+        force_overwrite_recent_cache(_cfg, _tickers,
+                                      days=int(args.force_overwrite_recent))
+        if not args.force_rebalance:
+            # Cache refresh-only mode: exit cleanly. Operator typically
+            # follows up with a normal T7 (--force-rebalance) once
+            # they've confirmed the new cache looks right.
+            print("[force-overwrite] done; --force-rebalance not "
+                  "supplied, skipping T7 run.")
+            raise SystemExit(0)
     run_daily(dry_run=args.dry_run, force=args.force_rebalance, config_path=args.config)

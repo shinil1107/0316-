@@ -866,11 +866,24 @@ def default_intents_loader(ctx: DailyRunContext) -> List[OrderIntent]:
                 rid_int = (
                     intents_io.rec_row_id_from_client_order_id(cid) or 0
                 )
+        # V1-G — preserve the file's side instead of forcing BUY.
+        # intents_io._validate_row already restricts side to {BUY,
+        # SELL} so this is safe; the explicit fallback to BUY only
+        # fires on the older pre-V1-G files that pre-dated the SELL
+        # column. Hard-coding "BUY" here was the last layer of the
+        # buy-only invariant; lifting it is what makes the V1-G SELL
+        # path reach the broker adapter.
+        side = str(r.get("side", "BUY")).upper()
+        if side not in ("BUY", "SELL"):
+            raise RuntimeError(
+                f"submitted_intents.json row has invalid side={side!r} "
+                f"(client_order_id={cid}). intents_io._validate_row "
+                f"should have rejected this — please re-generate.")
         intents.append(OrderIntent(
             client_order_id=cid,
             symbol=str(r["symbol"]),
             market=str(r.get("market", "NASD")),
-            side="BUY",
+            side=side,
             qty=int(r["qty"]),
             order_type=str(r.get("ord_type", "LIMIT")).upper(),
             limit_price=float(r["limit_price"]),
@@ -897,7 +910,21 @@ def default_manage_loop_fn(
             "default_manage_loop_fn refuses to run against a non-paper "
             f"KIS environment (got {env_cfg.env_name!r}). R9 is paper-only."
         )
-    adapter = KisBrokerAdapter(cfg=env_cfg, verbose=False)
+    # V1-G — buy_only_mode is the broker-layer safety pin that v0
+    # baked in at SafetyState defaults. It's an env-gated lift now so
+    # that (a) legacy callers / paper_buy.py keep their conservative
+    # BUY-only behaviour by default, and (b) the unattended V1-G
+    # trade fire opts in explicitly via KIS_ALLOW_SELL=true in the
+    # launchd plist. Matches the audit-trail-via-env convention used
+    # by KIS_PAPER_SUBMIT_OK / AUTOTRADE_T10_APPLY_OK / etc.
+    from phase3.autotrade.kis_broker_adapter import SafetyState as _SS
+    _allow_sell = os.environ.get(
+        "KIS_ALLOW_SELL", "").strip().lower() in ("1", "true", "yes", "on")
+    adapter = KisBrokerAdapter(
+        cfg=env_cfg,
+        safety_state=_SS(buy_only_mode=not _allow_sell),
+        verbose=False,
+    )
     # OrderStore takes the JSONL path, not the directory. Other callers
     # (orchestrator, t10_applicator) follow the same convention so this
     # restores parity.
@@ -931,6 +958,27 @@ def default_manage_loop_fn(
 
     quote_fn = _reprice_quote_fn if quote_chase_enabled else None
 
+    # V1-H — per-ticker resilience. The pre-V1-H loop broke on the
+    # FIRST non-FILLED outcome, so one unfillable ticker (e.g. HPE on
+    # 5/29, whose reco close gapped +10.5% and could not be chased
+    # under the old slippage ceiling) prevented every LATER ticker
+    # from even reaching the broker. With ``AUTOTRADE_CONTINUE_ON_
+    # UNFILLED`` (default on) we now continue past a CLEANLY terminal
+    # miss (CANCELLED / REJECTED — zero fill, broker truth known) and
+    # try the next ticker. We still STOP on states that need operator
+    # eyes or risk state-drift if we stack more orders on top:
+    #   * UNKNOWN          — broker truth ambiguous; never pile on
+    #   * OPEN_OR_PENDING / CANCEL_REQUESTED — still working at broker
+    #   * PARTIALLY_FILLED — real shares changed hands; t10 will
+    #     (conservatively) whole-batch-abort without --allow-partial,
+    #     so there's nothing to gain by submitting more.
+    # The downstream t10_applicator benign-skip change ensures the
+    # tickers that DID fill still apply even though a sibling missed.
+    continue_on_unfilled = os.environ.get(
+        "AUTOTRADE_CONTINUE_ON_UNFILLED", "1").strip().lower() not in (
+            "", "0", "false", "no", "off")
+    _CONTINUE_STATES = {OrderState.CANCELLED, OrderState.REJECTED}
+
     outcomes: List[ManagedOrderOutcome] = []
     for intent in intents:
         # R10E — thread the intent's rec_row_id through manage_order
@@ -948,11 +996,17 @@ def default_manage_loop_fn(
             quote_pad_pct=reprice_quote_pad,
         )
         outcomes.append(outcome)
-        if outcome.final_state != OrderState.FILLED:
-            # R8 §8 hard-stop principle: stop the loop the moment any
-            # order is non-terminal-good. The runner-level evaluator
-            # will turn this into a hard stop.
-            break
+        if outcome.final_state == OrderState.FILLED:
+            continue
+        # Non-FILLED outcome.
+        if continue_on_unfilled and outcome.final_state in _CONTINUE_STATES:
+            # Clean miss (zero fill, broker-confirmed terminal) — move
+            # on to the next ticker instead of aborting the batch.
+            continue
+        # R8 §8 hard-stop principle: stop the loop on any ambiguous /
+        # attention-needing state. The runner-level evaluator turns
+        # the surviving non-terminal-good outcomes into a hard stop.
+        break
     return outcomes
 
 

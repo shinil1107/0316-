@@ -467,6 +467,53 @@ class MailDispatchResult:
 # ──────────────────────────────────────────────────────────────────────
 # Compose
 # ──────────────────────────────────────────────────────────────────────
+def _summarise_recommendations(run_dir: Path,
+                                max_rows: int = 25) -> str:
+    """V1-D — pretty-print the BUY rows from
+    ``recommendations.csv`` for the EOD digest body.
+
+    Returns an empty string if the file is missing / unreadable so the
+    overall mail still composes. Limit ``max_rows`` so the body stays
+    readable even when the recommendation set is large; the full file
+    is always attached too."""
+    rec_path = run_dir / "recommendations.csv"
+    if not rec_path.exists():
+        return ""
+    try:
+        import pandas as pd  # type: ignore
+        df = pd.read_csv(rec_path)
+    except Exception:  # noqa: BLE001
+        return ""
+    if df.empty:
+        return "(recommendations.csv exists but has 0 rows)"
+    cols = list(df.columns)
+    keep = [c for c in (
+        "RecRowId", "Action", "Ticker", "Shares", "Price",
+        "EquityWeight", "Rank",
+    ) if c in cols]
+    if not keep:
+        keep = cols[:6]
+    head = df[keep].head(max_rows)
+
+    lines = ["Recommendations (top "
+             f"{min(len(df), max_rows)} of {len(df)}):"]
+    header = "  " + " | ".join(f"{c}" for c in keep)
+    lines.append(header)
+    lines.append("  " + "-" * (len(header) - 2))
+    for _, r in head.iterrows():
+        cells = []
+        for c in keep:
+            v = r[c]
+            if isinstance(v, float):
+                cells.append(f"{v:.4f}")
+            else:
+                cells.append(str(v))
+        lines.append("  " + " | ".join(cells))
+    if len(df) > max_rows:
+        lines.append(f"  … ({len(df) - max_rows} more — see attached)")
+    return "\n".join(lines)
+
+
 def compose_run_summary_mail(
     *,
     run_dir: Path,
@@ -476,6 +523,8 @@ def compose_run_summary_mail(
     halt_reason: Optional[str],
     duration_sec: float,
     stage_outcomes: List[Dict[str, Any]],
+    t7_payload: Optional[Dict[str, Any]] = None,
+    fire_label: str = "",
 ) -> MailPayload:
     """Build the mail payload from artifacts the R11A coordinator
     already wrote.
@@ -496,10 +545,28 @@ def compose_run_summary_mail(
     All file reads are best-effort: a missing artifact just turns into
     "(no daily report on disk)" in the body so the operator can still
     triage from the headline and the marker JSON.
+
+    ``fire_label`` (V1-F)
+        Tag the email with the fire that produced it ("trade",
+        "run", "t7_prefetch"). The V1-F trade fire reuses an earlier
+        T7 prefetch run on disk (so ``t7_payload is None``) but the
+        operator still wants the inbox to say "this is the 22:35
+        trade digest, not a duplicate of the 09:00 T7 email". The
+        subject and a one-line pipeline note in the body carry that
+        signal.
     """
     rd = Path(run_dir)
     status = "ok" if (overall_rc == 0 and not halt_reason) else "halted"
-    subject = f"[Autotrade {profile}] {run_id} — {status}"
+    # Subject — three cases:
+    #   * trade fire (V1-F)              [Autotrade paper V1-trade] ...
+    #   * V1-D inline T7+trade run        [Autotrade paper V1] ...
+    #   * Legacy R11A-only (no T7 stage)  [Autotrade paper] ...
+    if fire_label == "trade":
+        subject = f"[Autotrade {profile} V1-trade] {run_id} — {status}"
+    elif t7_payload is not None:
+        subject = f"[Autotrade {profile} V1] {run_id} — {status}"
+    else:
+        subject = f"[Autotrade {profile}] {run_id} — {status}"
 
     lines: List[str] = []
     lines.append(f"Autotrade run {run_id}")
@@ -510,7 +577,38 @@ def compose_run_summary_mail(
     lines.append(f"  duration_sec : {duration_sec:.1f}")
     lines.append(f"  generated_at : "
                   f"{datetime.now(timezone.utc).isoformat(timespec='seconds')}")
+    if fire_label == "trade":
+        lines.append(
+            "  pipeline     : V1-F trade (reuses morning T7 prefetch; "
+            "T7 email was sent separately at the morning fire)")
+    elif t7_payload is not None:
+        lines.append(f"  pipeline     : V1 (T7 → R11A)")
     lines.append("")
+    # V1-D: T7 prefix-stage summary. Even if the V1 run halted at a
+    # later stage, the operator wants to see what T7 produced so
+    # they can triage from the email alone.
+    if t7_payload is not None:
+        lines.append("T7 (recommendation generation):")
+        lines.append(f"  ok           : {t7_payload.get('ok')}")
+        lines.append(f"  rc           : {t7_payload.get('rc')}")
+        lines.append(f"  run_id       : {t7_payload.get('run_id', '')}")
+        lines.append(
+            f"  recs_written : "
+            f"{t7_payload.get('recommendations_count', 0)}")
+        lines.append(
+            f"  duration_sec : "
+            f"{float(t7_payload.get('duration_sec', 0.0)):.1f}")
+        if t7_payload.get('error'):
+            lines.append(f"  error        : {t7_payload['error']}")
+        if t7_payload.get('suppressed_mail'):
+            lines.append(
+                "  mail         : T7 own-email SUPPRESSED "
+                "(this digest delivers the recommendation payload)")
+        lines.append("")
+        recs_block = _summarise_recommendations(rd)
+        if recs_block:
+            lines.append(recs_block)
+            lines.append("")
     lines.append("Stages:")
     for so in stage_outcomes:
         rc = so.get("rc", "?")
@@ -540,11 +638,19 @@ def compose_run_summary_mail(
     body_text = "\n".join(lines) + "\n"
 
     attachments: List[MailAttachment] = []
-    for fname, subtype in (
+    attachment_files: List[Tuple[str, str]] = [
         ("autotrade_daily_report.md",       "plain"),
         ("autotrade_t10_apply_report.md",   "plain"),
         ("autotrade_oneclick_marker.json",  "json"),
-    ):
+    ]
+    # V1-D / V1-F: include recommendations.csv in V1 runs so the
+    # operator has the full T7 output beside the EOD digest. The
+    # trade fire reuses an earlier T7 prefetch run (t7_payload is
+    # None) but the recommendations.csv is still in that run_dir,
+    # so the attachment is just as relevant there.
+    if t7_payload is not None or fire_label == "trade":
+        attachment_files.append(("recommendations.csv", "plain"))
+    for fname, subtype in attachment_files:
         p = rd / fname
         if not p.exists():
             continue
@@ -712,6 +818,8 @@ def send_run_summary_mail(
     t7_config_path: Optional[Path] = None,
     config_local_path: Optional[Path] = None,
     prefer: str = "t7",
+    t7_payload: Optional[Dict[str, Any]] = None,
+    fire_label: str = "",
 ) -> MailDispatchResult:
     """Convenience wrapper used by the R11A coordinator (and
     the panel's manual "send report" button if we add one): build the
@@ -742,5 +850,7 @@ def send_run_summary_mail(
         halt_reason=halt_reason,
         duration_sec=duration_sec,
         stage_outcomes=stage_outcomes,
+        t7_payload=t7_payload,
+        fire_label=fire_label,
     )
     return send_mail(payload, cfg, smtp_factory=smtp_factory)
